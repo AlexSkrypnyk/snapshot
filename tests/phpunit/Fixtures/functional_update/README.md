@@ -1,6 +1,6 @@
 # functional_update Test Fixtures
 
-Fixtures for testing the `bin/snapshot-update` CLI script.
+Fixtures for testing the `bin/update-snapshots` CLI script.
 
 Each scenario contains a **complete** project that is copied to `$sut/test_project/`.
 
@@ -105,7 +105,7 @@ functional_update/
 
 **Flow**:
 1. Copy `no_change/` to `$sut/test_project/`
-2. Run `snapshot-update testSnapshot tests/snapshots` (all datasets)
+2. Run `update-snapshots testSnapshot tests/snapshots` (all datasets)
 3. All tests pass → no updates needed
 4. Assert: only 1 commit (initial commit)
 
@@ -117,7 +117,7 @@ functional_update/
 
 **Flow**:
 1. Copy `baseline_change/` to `$sut/test_project/`
-2. Run `snapshot-update testSnapshot tests/snapshots` (all datasets)
+2. Run `update-snapshots testSnapshot tests/snapshots` (all datasets)
 3. Baseline test fails → baseline is updated
 4. Git commit created with "Updated baseline" message
 5. Assert: 2 commits (initial + update)
@@ -131,7 +131,7 @@ functional_update/
 
 **Flow**:
 1. Copy `scenario_change/` to `$sut/test_project/`
-2. Run `snapshot-update testSnapshot tests/snapshots scenario1` (single dataset)
+2. Run `update-snapshots testSnapshot tests/snapshots scenario1` (single dataset)
 3. Scenario test fails → diff file created
 4. Assert: only 1 commit (single dataset mode doesn't commit)
 5. Compare `scenario1/` with `expected/scenario1/`
@@ -146,7 +146,7 @@ functional_update/
 
 **Flow**:
 1. Copy `both_change/` to `$sut/test_project/`
-2. Run `snapshot-update testSnapshot tests/snapshots` (all datasets)
+2. Run `update-snapshots testSnapshot tests/snapshots` (all datasets)
 3. Baseline test fails → baseline updated (includes scenario_file.txt)
 4. Scenario test fails → scenario diff recalculated (now empty)
 5. Git commit created/amended
