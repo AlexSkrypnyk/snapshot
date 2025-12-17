@@ -239,10 +239,51 @@ UPDATE_SNAPSHOTS=1 ./vendor/bin/phpunit
 ```
 
 
+## Performance Benchmarks
+
+PHPBench benchmarks measure performance of core Snapshot operations.
+
+### Commands
+
+```bash
+# Run benchmarks with baseline comparison (used by CI)
+composer benchmark
+
+# Create or update baseline for performance comparison
+composer benchmark-baseline
+
+# Run specific benchmark class
+./vendor/bin/phpbench run benchmarks/SnapshotBench.php --ref=baseline
+
+# Quick testing: verify benchmark works without full suite
+./vendor/bin/phpbench run benchmarks/SnapshotBench.php --iterations=1 --revs=1
+```
+
+### Benchmark Coverage
+
+The `SnapshotBench` class measures:
+- **benchCompareIdentical**: Comparing identical directories (baseline)
+- **benchCompareContentDiffs**: Comparing with 20% modified content
+- **benchCompareStructuralDiffs**: Comparing with missing/extra files
+- **benchDiff**: Creating diff files from differences
+- **benchPatch**: Applying patches to baseline
+- **benchSync**: Syncing directories
+- **benchCompareLargeDirectory**: Large directory (500 files) comparison
+
+### Baseline Management
+
+- Baseline benchmarks stored in `.phpbench/storage/` directory
+- CI compares new benchmarks against baseline with ±5% threshold
+- Performance regressions exceeding ±5% will fail CI checks
+- Update baseline manually: `composer benchmark-baseline`
+
+
 ## CI/CD
 
 GitHub Actions workflows test across:
 - PHP versions: 8.2, 8.3
 - Separate jobs: lint, test, coverage upload (Codecov)
 
-Key workflow: `.github/workflows/test-php.yml`
+Key workflows:
+- `.github/workflows/test-php.yml` - PHP testing
+- `.github/workflows/benchmark-php.yml` - Performance benchmarks

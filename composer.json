@@ -27,6 +27,7 @@
         "drevops/phpcs-standard": "^0.6",
         "drupal/coder": "^9.0@alpha",
         "ergebnis/composer-normalize": "^2.48",
+        "phpbench/phpbench": "^1.4",
         "phpstan/phpstan": "^2",
         "phpunit/phpunit": "^11.5",
         "rector/rector": "^2"
@@ -40,6 +41,7 @@
     },
     "autoload-dev": {
         "psr-4": {
+            "AlexSkrypnyk\\Snapshot\\Benchmarks\\": "benchmarks",
             "AlexSkrypnyk\\Snapshot\\Tests\\": "tests/phpunit"
         },
         "classmap": [
@@ -59,6 +61,8 @@
         "sort-packages": true
     },
     "scripts": {
+        "benchmark": "mkdir -p .logs >/dev/null && phpbench run --ref=baseline --report=aggregate --dump-file .logs/performance-report.json --output html --output csv --output console",
+        "benchmark-baseline": "mkdir -p .logs .phpbench >/dev/null && phpbench run --store --tag=baseline --report=aggregate --dump-file .logs/performance-report.json --output html --output csv --output console",
         "lint": [
             "phpcs",
             "phpstan",
