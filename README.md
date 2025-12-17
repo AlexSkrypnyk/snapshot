@@ -169,6 +169,36 @@ Run tests with the environment variable:
 UPDATE_SNAPSHOTS=1 ./vendor/bin/phpunit
 ```
 
+### Batch Snapshot Updates
+
+For tests with many datasets, use the `snapshot-update` CLI tool to update
+snapshots one dataset at a time with timeout handling and automatic retries:
+
+```bash
+# Update all datasets for a test
+vendor/bin/snapshot-update testMySnapshot tests/snapshots
+
+# Update a specific dataset
+vendor/bin/snapshot-update testMySnapshot tests/snapshots baseline
+
+# Specify project root (useful when running from subdirectory)
+vendor/bin/snapshot-update --root=/path/to/project testMySnapshot tests/snapshots
+```
+
+The tool:
+- Discovers all datasets from PHPUnit test list
+- Runs baseline dataset first, then remaining datasets
+- Handles timeouts with configurable retries
+- Auto-commits baseline and snapshot changes
+- Shows progress with visual feedback
+
+Options:
+- `--root=<path>` - Project root directory (default: current directory)
+- `--test-dir=<path>` - Directory containing tests (default: `tests`)
+- `--timeout=<seconds>` - Timeout per test run (default: 30)
+- `--retries=<count>` - Max retries for timed out tests (default: 3)
+- `--debug` - Show PHPUnit output for failed tests
+
 ### Ignore Rules
 
 Create a `.ignorecontent` file in your baseline directory to control which files

@@ -48,6 +48,9 @@
             "tests/phpunit"
         ]
     },
+    "bin": [
+        "bin/snapshot-update"
+    ],
     "config": {
         "allow-plugins": {
             "dealerdirect/phpcodesniffer-composer-installer": true,
