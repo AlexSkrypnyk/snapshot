@@ -236,5 +236,18 @@ Snapshot::sync($source, $destination);
     composer lint
     composer test
 
+### Performance Benchmarks
+
+Run benchmarks to measure performance of core operations:
+
+    # Run benchmarks with baseline comparison
+    composer benchmark
+
+    # Create or update baseline
+    composer benchmark-baseline
+
+    # Quick test (verify benchmarks work)
+    ./vendor/bin/phpbench run benchmarks/SnapshotBench.php --iterations=1 --revs=1
+
 ---
 _This repository was created using the [Scaffold](https://getscaffold.dev/) project template_
