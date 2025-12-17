@@ -4,8 +4,11 @@
 /.gitattributes  export-ignore
 /.github         export-ignore
 /.gitignore      export-ignore
+/.phpbench       export-ignore
 /CLAUDE.md       export-ignore
+/benchmarks      export-ignore
 /logo.png        export-ignore
+/phpbench.json   export-ignore
 /phpcs.xml       export-ignore
 /phpstan.neon    export-ignore
 /phpunit.xml     export-ignore
