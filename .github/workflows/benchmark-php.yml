@@ -18,6 +18,7 @@ on:
 
 jobs:
   benchmark-php:
+    name: Benchmarks, PHP 8.3
     runs-on: ubuntu-latest
     if: github.event_name != 'workflow_dispatch' || github.event.inputs.refresh_baseline != 'true'
 
@@ -133,6 +134,7 @@ jobs:
           edit-mode: replace
 
   benchmark-php-refresh:
+    name: Refresh benchmark baseline
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.refresh_baseline == 'true' && github.ref != 'refs/heads/main'
 
