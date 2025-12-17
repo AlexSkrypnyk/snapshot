@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AlexSkrypnyk\Snapshot\Index;
 
 use AlexSkrypnyk\File\File;
+use AlexSkrypnyk\Snapshot\Rules\Rules;
 use AlexSkrypnyk\Snapshot\Snapshot;
 
 /**

@@ -7,7 +7,7 @@ namespace AlexSkrypnyk\Snapshot\Tests\Unit;
 use AlexSkrypnyk\File\File;
 use AlexSkrypnyk\Snapshot\Index\Index;
 use AlexSkrypnyk\Snapshot\Index\IndexedFile;
-use AlexSkrypnyk\Snapshot\Index\Rules;
+use AlexSkrypnyk\Snapshot\Rules\Rules;
 use AlexSkrypnyk\Snapshot\Snapshot;
 use AlexSkrypnyk\Snapshot\Tests\UnitTestCase;
 use PHPUnit\Framework\Attributes\CoversClass;
