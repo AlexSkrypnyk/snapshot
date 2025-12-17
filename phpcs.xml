@@ -1,0 +1,57 @@
+<?xml version="1.0"?>
+<ruleset name="custom">
+    <description>Custom PHPCS standard.</description>
+
+    <!-- Using Drupal coding standard as a base. -->
+    <rule ref="Drupal"/>
+    <rule ref="DrevOps"/>
+    <!-- Checks that the strict_types has been declared. -->
+    <rule ref="Generic.PHP.RequireStrictTypes"/>
+
+    <!-- Show sniff codes in all reports -->
+    <arg value="s"/>
+    <!-- Show progress of the run. -->
+    <arg value="p"/>
+    <arg name="colors"/>
+
+    <file>src</file>
+    <file>tests/phpunit</file>
+
+    <!-- Allow incorrectly sorted namespaces in tests. -->
+    <rule ref="SlevomatCodingStandard.Namespaces.AlphabeticallySortedUses.IncorrectlyOrderedUses">
+        <exclude-pattern>*.Test.php</exclude-pattern>
+        <exclude-pattern>*.TestCase.php</exclude-pattern>
+        <exclude-pattern>*.test</exclude-pattern>
+    </rule>
+
+    <!-- Allow long array lines in tests. -->
+    <rule ref="Drupal.Arrays.Array.LongLineDeclaration">
+        <exclude-pattern>*.Test.php</exclude-pattern>
+        <exclude-pattern>*.TestCase.php</exclude-pattern>
+        <exclude-pattern>*.test</exclude-pattern>
+    </rule>
+
+    <!-- Allow avoiding short doc comments in tests. -->
+    <rule ref="Drupal.Commenting.DocComment.MissingShort">
+        <exclude-pattern>*.Test.php</exclude-pattern>
+        <exclude-pattern>*.TestCase.php</exclude-pattern>
+        <exclude-pattern>*.test</exclude-pattern>
+    </rule>
+
+    <!-- Exclude comment rules only in test files. -->
+    <rule ref="Drupal.Commenting.ClassComment">
+        <exclude-pattern>*.Test.php</exclude-pattern>
+        <exclude-pattern>*.TestCase.php</exclude-pattern>
+        <exclude-pattern>*.test</exclude-pattern>
+    </rule>
+    <rule ref="Drupal.Commenting.FunctionComment.Missing">
+        <exclude-pattern>*.Test.php</exclude-pattern>
+        <exclude-pattern>*.TestCase.php</exclude-pattern>
+        <exclude-pattern>*.test</exclude-pattern>
+    </rule>
+    <rule ref="Drupal.Commenting.VariableComment.Missing">
+        <exclude-pattern>*.Test.php</exclude-pattern>
+        <exclude-pattern>*.TestCase.php</exclude-pattern>
+        <exclude-pattern>*.test</exclude-pattern>
+    </rule>
+</ruleset>
