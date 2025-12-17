@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace AlexSkrypnyk\Snapshot\Index;
 
+use AlexSkrypnyk\Snapshot\Rules\RulesInterface;
+
 /**
  * Interface for directory index.
  */
@@ -31,7 +33,7 @@ interface IndexInterface {
   /**
    * Gets the rules used by this index.
    *
-   * @return \AlexSkrypnyk\Snapshot\Index\RulesInterface
+   * @return \AlexSkrypnyk\Snapshot\Rules\RulesInterface
    *   The rules instance.
    */
   public function getRules(): RulesInterface;

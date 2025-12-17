@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace AlexSkrypnyk\Snapshot\Index;
+namespace AlexSkrypnyk\Snapshot\Rules;
 
 /**
  * Interface for file matching rules.
@@ -84,6 +84,39 @@ interface RulesInterface {
    *   Return self for chaining.
    */
   public function addInclude(string $pattern): static;
+
+  /**
+   * Fluent method to skip multiple patterns.
+   *
+   * @param string ...$patterns
+   *   Patterns to skip.
+   *
+   * @return $this
+   *   Return self for chaining.
+   */
+  public function skip(string ...$patterns): static;
+
+  /**
+   * Fluent method to ignore content of multiple patterns.
+   *
+   * @param string ...$patterns
+   *   Patterns to ignore content.
+   *
+   * @return $this
+   *   Return self for chaining.
+   */
+  public function ignoreContent(string ...$patterns): static;
+
+  /**
+   * Fluent method to include multiple patterns.
+   *
+   * @param string ...$patterns
+   *   Patterns to include.
+   *
+   * @return $this
+   *   Return self for chaining.
+   */
+  public function include(string ...$patterns): static;
 
   /**
    * Parse the rules content.

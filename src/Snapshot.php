@@ -8,15 +8,30 @@ use AlexSkrypnyk\File\File;
 use AlexSkrypnyk\Snapshot\Compare\Comparer;
 use AlexSkrypnyk\Snapshot\Compare\Diff;
 use AlexSkrypnyk\Snapshot\Index\Index;
-use AlexSkrypnyk\Snapshot\Index\Rules;
 use AlexSkrypnyk\Snapshot\Patch\Patcher;
+use AlexSkrypnyk\Snapshot\Rules\Rules;
 use AlexSkrypnyk\Snapshot\Sync\Syncer;
 
 /**
- * Directory snapshot operations.
+ * Static facade for directory snapshot operations.
  *
- * Provides functionality for creating, comparing, and applying
- * directory snapshots using a baseline + diff architecture.
+ * Provides quick access to snapshot functionality for one-off operations.
+ * For configured operations with rules and content processors, use
+ * SnapshotBuilder instead.
+ *
+ * @code
+ * // Quick one-off operations
+ * Snapshot::compare($baseline, $actual);
+ * Snapshot::scan($directory);
+ * Snapshot::sync($src, $dest);
+ *
+ * // For configured operations, use SnapshotBuilder
+ * SnapshotBuilder::create()
+ *     ->withRules(Rules::phpProject())
+ *     ->compare($dir1, $dir2);
+ * @endcode
+ *
+ * @see \AlexSkrypnyk\Snapshot\SnapshotBuilder
  */
 class Snapshot {
 
@@ -31,19 +46,19 @@ class Snapshot {
   public const IGNORECONTENT = '.ignorecontent';
 
   /**
-   * Create a new snapshot index of a directory.
+   * Scan a directory and create an index.
    *
    * @param string $directory
-   *   Directory to snapshot.
-   * @param \AlexSkrypnyk\Snapshot\Index\Rules|null $rules
+   *   Directory to scan.
+   * @param \AlexSkrypnyk\Snapshot\Rules\Rules|null $rules
    *   Optional comparison rules.
    * @param callable|null $content_processor
-   *   Optional callback to process file content before indexing.
+   *   Optional callback to process file content.
    *
    * @return \AlexSkrypnyk\Snapshot\Index\Index
    *   The directory index.
    */
-  public static function of(string $directory, ?Rules $rules = NULL, ?callable $content_processor = NULL): Index {
+  public static function scan(string $directory, ?Rules $rules = NULL, ?callable $content_processor = NULL): Index {
     return new Index($directory, $rules, $content_processor);
   }
 
@@ -54,10 +69,10 @@ class Snapshot {
    *   Baseline directory path (expected).
    * @param string $actual
    *   Actual directory path.
-   * @param \AlexSkrypnyk\Snapshot\Index\Rules|null $rules
+   * @param \AlexSkrypnyk\Snapshot\Rules\Rules|null $rules
    *   Optional comparison rules.
    * @param callable|null $content_processor
-   *   Optional callback to process content before comparison.
+   *   Optional callback to process file content.
    *
    * @return \AlexSkrypnyk\Snapshot\Compare\Comparer
    *   Comparison result object.
@@ -80,13 +95,15 @@ class Snapshot {
    *   Actual directory path.
    * @param string $output
    *   Directory to write diff files to.
+   * @param \AlexSkrypnyk\Snapshot\Rules\Rules|null $rules
+   *   Optional comparison rules.
    * @param callable|null $content_processor
-   *   Optional callback to process content before diffing.
+   *   Optional callback to process file content.
    */
-  public static function diff(string $baseline, string $actual, string $output, ?callable $content_processor = NULL): void {
+  public static function diff(string $baseline, string $actual, string $output, ?Rules $rules = NULL, ?callable $content_processor = NULL): void {
     File::mkdir($output);
 
-    $comparer = self::compare($baseline, $actual, NULL, $content_processor);
+    $comparer = self::compare($baseline, $actual, $rules, $content_processor);
 
     $absent_left = $comparer->getAbsentLeftDiffs();
     $absent_right = $comparer->getAbsentRightDiffs();
@@ -132,7 +149,7 @@ class Snapshot {
    * @param string $destination
    *   Destination directory for patched output.
    * @param callable|null $content_processor
-   *   Optional callback to process content before patching.
+   *   Optional callback to process content after patching.
    */
   public static function patch(string $baseline, string $patches, string $destination, ?callable $content_processor = NULL): void {
     File::mkdir($destination);
@@ -141,7 +158,7 @@ class Snapshot {
 
     $patcher = new Patcher($baseline, $destination);
 
-    $patch_index = self::of($patches);
+    $patch_index = self::scan($patches);
     foreach ($patch_index->getFiles() as $file) {
       $basename = $file->getBasename();
       $relative_path = $file->getPathnameFromBasepath();
@@ -162,6 +179,22 @@ class Snapshot {
     }
 
     $patcher->patch();
+
+    // Apply content processor to all files in destination if provided.
+    if ($content_processor !== NULL) {
+      $files = File::scandirRecursive($destination);
+      foreach ($files as $file_path) {
+        if (is_file($file_path)) {
+          $content = file_get_contents($file_path);
+          if ($content !== FALSE) {
+            $processed = $content_processor($content);
+            if ($processed !== $content) {
+              file_put_contents($file_path, $processed);
+            }
+          }
+        }
+      }
+    }
   }
 
   /**
@@ -177,7 +210,7 @@ class Snapshot {
    *   Whether to copy empty directories.
    */
   public static function sync(string $source, string $destination, int $permissions = 0755, bool $copy_empty_dirs = FALSE): void {
-    $index = self::of($source);
+    $index = self::scan($source);
     (new Syncer($index))->sync($destination, $permissions, $copy_empty_dirs);
   }
 

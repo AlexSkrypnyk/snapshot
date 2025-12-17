@@ -216,6 +216,9 @@ Use the `Snapshot` class directly for custom workflows:
 ```php
 use AlexSkrypnyk\Snapshot\Snapshot;
 
+// Scan a directory
+$index = Snapshot::scan($directory);
+
 // Compare directories
 $comparer = Snapshot::compare($baseline, $actual);
 echo $comparer->render();
@@ -228,6 +231,51 @@ Snapshot::patch($baseline, $patches, $destination);
 
 // Sync directories
 Snapshot::sync($source, $destination);
+```
+
+### Fluent Builder API
+
+For configured operations with rules and content processors, use `SnapshotBuilder`:
+
+```php
+use AlexSkrypnyk\Snapshot\SnapshotBuilder;
+use AlexSkrypnyk\Snapshot\Rules\Rules;
+
+// Create a reusable builder with configuration
+$builder = SnapshotBuilder::create()
+    ->withRules(Rules::phpProject())
+    ->addSkip('custom/')
+    ->addIgnoreContent('custom.lock')
+    ->withContentProcessor(fn($content) => trim($content));
+
+// Use the builder for multiple operations
+$index = $builder->scan($directory);
+$comparer = $builder->compare($dir1, $dir2);
+$builder->sync($source, $destination);
+$builder->diff($baseline, $actual, $output);
+$builder->patch($baseline, $patches, $destination);
+```
+
+### Programmatic Rules
+
+Configure comparison rules programmatically using the `Rules` class:
+
+```php
+use AlexSkrypnyk\Snapshot\Rules\Rules;
+use AlexSkrypnyk\Snapshot\Snapshot;
+
+// Use preset rules for common project types
+$rules = Rules::phpProject();  // Skips vendor/, ignores composer.lock
+$rules = Rules::nodeProject(); // Skips node_modules/, ignores lock files
+
+// Or create custom rules with fluent API
+$rules = Rules::create()
+    ->skip('vendor/', 'node_modules/', '.git/')
+    ->ignoreContent('composer.lock', 'package-lock.json')
+    ->include('important.log');
+
+// Use rules with Snapshot operations
+$comparer = Snapshot::compare($baseline, $actual, $rules);
 ```
 
 ## Maintenance

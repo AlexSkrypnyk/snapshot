@@ -9,6 +9,7 @@ use AlexSkrypnyk\File\File;
 use AlexSkrypnyk\Snapshot\Compare\Comparer;
 use AlexSkrypnyk\Snapshot\Compare\Diff;
 use AlexSkrypnyk\Snapshot\Patch\Patcher;
+use AlexSkrypnyk\Snapshot\Rules\Rules;
 use AlexSkrypnyk\Snapshot\Snapshot;
 use AlexSkrypnyk\Snapshot\Sync\Syncer;
 use AlexSkrypnyk\Snapshot\Tests\UnitTestCase;
@@ -263,6 +264,82 @@ ABSENT,
   public static function dataProviderPatch(): \Iterator {
     yield 'files_equal' => [];
     yield 'files_not_equal' => [];
+  }
+
+  public function testScan(): void {
+    $src = File::dir($this->locationsFixtureDir('compare') . DIRECTORY_SEPARATOR . 'files_equal' . DIRECTORY_SEPARATOR . 'directory1');
+
+    $index = Snapshot::scan($src);
+
+    $this->assertGreaterThan(0, count($index->getFiles()));
+  }
+
+  public function testPatchWithContentProcessor(): void {
+    $baseline = File::dir($this->locationsFixtureDir('diff') . DIRECTORY_SEPARATOR . 'baseline');
+    $diff = File::dir($this->locationsFixtureDir('diff') . DIRECTORY_SEPARATOR . 'files_equal' . DIRECTORY_SEPARATOR . 'diff');
+
+    $processor_called = FALSE;
+    $processor = function (string $content) use (&$processor_called): string {
+      $processor_called = TRUE;
+      return $content;
+    };
+
+    Snapshot::patch($baseline, $diff, self::$sut, $processor);
+
+    $this->assertTrue($processor_called, 'Content processor should be called');
+  }
+
+  public function testGetBaselinePath(): void {
+    // Create the baseline directory structure.
+    $parent = self::$sut;
+    $baseline_dir = $parent . DIRECTORY_SEPARATOR . Snapshot::BASELINE_DIR;
+    $snapshot_dir = $parent . DIRECTORY_SEPARATOR . 'snapshot';
+    mkdir($baseline_dir, 0755, TRUE);
+    mkdir($snapshot_dir, 0755, TRUE);
+
+    $result = Snapshot::getBaselinePath($snapshot_dir);
+
+    $this->assertSame($baseline_dir, $result);
+  }
+
+  public function testIsBaseline(): void {
+    $this->assertTrue(Snapshot::isBaseline('/path/to/' . Snapshot::BASELINE_DIR . '/file.txt'));
+    $this->assertTrue(Snapshot::isBaseline('/path/' . Snapshot::BASELINE_DIR));
+    $this->assertFalse(Snapshot::isBaseline('/path/to/regular/directory'));
+    $this->assertFalse(Snapshot::isBaseline('/path/to/snapshot'));
+  }
+
+  public function testCompareWithRules(): void {
+    $dir1 = File::dir($this->locationsFixtureDir('compare') . DIRECTORY_SEPARATOR . 'files_equal' . DIRECTORY_SEPARATOR . 'directory1');
+    $dir2 = File::dir($this->locationsFixtureDir('compare') . DIRECTORY_SEPARATOR . 'files_equal' . DIRECTORY_SEPARATOR . 'directory2');
+
+    $rules = Rules::create();
+    $comparer = Snapshot::compare($dir1, $dir2, $rules);
+
+    $this->assertInstanceOf(Comparer::class, $comparer);
+  }
+
+  public function testDiffWithRules(): void {
+    $baseline = File::dir($this->locationsFixtureDir('diff') . DIRECTORY_SEPARATOR . 'files_equal' . DIRECTORY_SEPARATOR . '/../baseline');
+    $dst = File::dir($this->locationsFixtureDir('diff') . DIRECTORY_SEPARATOR . 'files_equal' . DIRECTORY_SEPARATOR . 'result');
+
+    $rules = Rules::create();
+    Snapshot::diff($baseline, $dst, self::$sut, $rules);
+
+    // No diff should be generated for equal directories.
+    $files = glob(self::$sut . '/*');
+    $this->assertEmpty($files);
+  }
+
+  public function testScanWithRulesAndProcessor(): void {
+    $src = File::dir($this->locationsFixtureDir('compare') . DIRECTORY_SEPARATOR . 'files_equal' . DIRECTORY_SEPARATOR . 'directory1');
+
+    $rules = Rules::create();
+    $processor = fn(string $content): string => $content;
+
+    $index = Snapshot::scan($src, $rules, $processor);
+
+    $this->assertGreaterThan(0, count($index->getFiles()));
   }
 
 }

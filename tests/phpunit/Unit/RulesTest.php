@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace AlexSkrypnyk\Snapshot\Tests\Unit;
 
-use AlexSkrypnyk\Snapshot\Index\Rules;
+use AlexSkrypnyk\Snapshot\Rules\NodeProjectRuleSet;
+use AlexSkrypnyk\Snapshot\Rules\PhpProjectRuleSet;
+use AlexSkrypnyk\Snapshot\Rules\Rules;
 use AlexSkrypnyk\Snapshot\Tests\UnitTestCase;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 
 #[CoversClass(Rules::class)]
+#[CoversClass(PhpProjectRuleSet::class)]
+#[CoversClass(NodeProjectRuleSet::class)]
 final class RulesTest extends UnitTestCase {
 
   #[DataProvider('dataProviderRulesFromFile')]
@@ -210,6 +214,115 @@ EOT;
         unlink($rules_file);
       }
     }
+  }
+
+  public function testCreate(): void {
+    $rules = Rules::create();
+    $this->assertInstanceOf(Rules::class, $rules);
+    $this->assertSame([], $rules->getSkip());
+    $this->assertSame([], $rules->getIgnoreContent());
+    $this->assertSame([], $rules->getInclude());
+    $this->assertSame([], $rules->getGlobal());
+  }
+
+  public function testFluentSkipMethod(): void {
+    $rules = Rules::create()
+      ->skip('vendor/', 'node_modules/', '.cache/');
+
+    $this->assertSame(['vendor/', 'node_modules/', '.cache/'], $rules->getSkip());
+  }
+
+  public function testFluentIgnoreContentMethod(): void {
+    $rules = Rules::create()
+      ->ignoreContent('composer.lock', 'package-lock.json');
+
+    $this->assertSame(['composer.lock', 'package-lock.json'], $rules->getIgnoreContent());
+  }
+
+  public function testFluentIncludeMethod(): void {
+    $rules = Rules::create()
+      ->include('important.log', 'keep-this.txt');
+
+    $this->assertSame(['important.log', 'keep-this.txt'], $rules->getInclude());
+  }
+
+  public function testFluentMethodChaining(): void {
+    $rules = Rules::create()
+      ->skip('vendor/', 'node_modules/')
+      ->ignoreContent('composer.lock')
+      ->include('!important.txt');
+
+    $this->assertSame(['vendor/', 'node_modules/'], $rules->getSkip());
+    $this->assertSame(['composer.lock'], $rules->getIgnoreContent());
+    $this->assertSame(['!important.txt'], $rules->getInclude());
+  }
+
+  public function testPhpProject(): void {
+    $rules = Rules::phpProject();
+
+    $this->assertInstanceOf(Rules::class, $rules);
+    $this->assertContains('vendor/', $rules->getSkip());
+    $this->assertContains('.phpunit.cache/', $rules->getSkip());
+    $this->assertContains('.phpcs-cache', $rules->getSkip());
+    $this->assertContains('composer.lock', $rules->getIgnoreContent());
+  }
+
+  public function testNodeProject(): void {
+    $rules = Rules::nodeProject();
+
+    $this->assertInstanceOf(Rules::class, $rules);
+    $this->assertContains('node_modules/', $rules->getSkip());
+    $this->assertContains('.npm/', $rules->getSkip());
+    $this->assertContains('dist/', $rules->getSkip());
+    $this->assertContains('package-lock.json', $rules->getIgnoreContent());
+    $this->assertContains('yarn.lock', $rules->getIgnoreContent());
+  }
+
+  public function testFromRuleSet(): void {
+    $rule_set = new PhpProjectRuleSet();
+    $rules = Rules::fromRuleSet($rule_set);
+
+    $this->assertInstanceOf(Rules::class, $rules);
+    $this->assertContains('vendor/', $rules->getSkip());
+    $this->assertContains('composer.lock', $rules->getIgnoreContent());
+  }
+
+  public function testPhpProjectRuleSetPatterns(): void {
+    $rule_set = new PhpProjectRuleSet();
+
+    $this->assertContains('vendor/', $rule_set->getSkipPatterns());
+    $this->assertContains('.phpunit.cache/', $rule_set->getSkipPatterns());
+    $this->assertContains('composer.lock', $rule_set->getIgnoreContentPatterns());
+  }
+
+  public function testNodeProjectRuleSetPatterns(): void {
+    $rule_set = new NodeProjectRuleSet();
+
+    $this->assertContains('node_modules/', $rule_set->getSkipPatterns());
+    $this->assertContains('.npm/', $rule_set->getSkipPatterns());
+    $this->assertContains('package-lock.json', $rule_set->getIgnoreContentPatterns());
+    $this->assertContains('yarn.lock', $rule_set->getIgnoreContentPatterns());
+  }
+
+  public function testRuleSetApplyTo(): void {
+    $rule_set = new PhpProjectRuleSet();
+
+    // Apply to existing rules.
+    $existing_rules = Rules::create()->skip('custom/');
+    $result = $rule_set->applyTo($existing_rules);
+
+    $this->assertSame($existing_rules, $result);
+    $this->assertContains('custom/', $result->getSkip());
+    $this->assertContains('vendor/', $result->getSkip());
+  }
+
+  public function testRuleSetToRules(): void {
+    $rule_set = new PhpProjectRuleSet();
+    $rules = $rule_set->toRules();
+
+    $this->assertInstanceOf(Rules::class, $rules);
+    $this->assertContains('vendor/', $rules->getSkip());
+    $this->assertContains('composer.lock', $rules->getIgnoreContent());
   }
 
 }
