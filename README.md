@@ -171,18 +171,18 @@ UPDATE_SNAPSHOTS=1 ./vendor/bin/phpunit
 
 ### Batch Snapshot Updates
 
-For tests with many datasets, use the `snapshot-update` CLI tool to update
+For tests with many datasets, use the `update-snapshots` CLI tool to update
 snapshots one dataset at a time with timeout handling and automatic retries:
 
 ```bash
 # Update all datasets for a test
-vendor/bin/snapshot-update testMySnapshot tests/snapshots
+vendor/bin/update-snapshots testMySnapshot tests/snapshots
 
 # Update a specific dataset
-vendor/bin/snapshot-update testMySnapshot tests/snapshots baseline
+vendor/bin/update-snapshots testMySnapshot tests/snapshots baseline
 
 # Specify project root (useful when running from subdirectory)
-vendor/bin/snapshot-update --root=/path/to/project testMySnapshot tests/snapshots
+vendor/bin/update-snapshots --root=/path/to/project testMySnapshot tests/snapshots
 ```
 
 The tool:

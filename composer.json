@@ -49,7 +49,7 @@
         ]
     },
     "bin": [
-        "bin/snapshot-update"
+        "bin/update-snapshots"
     ],
     "config": {
         "allow-plugins": {

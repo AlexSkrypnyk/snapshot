@@ -9,7 +9,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Test class with data provider for snapshot-update script testing.
+ * Test class with data provider for update-snapshots script testing.
  */
 final class SnapshotTest extends TestCase {
 

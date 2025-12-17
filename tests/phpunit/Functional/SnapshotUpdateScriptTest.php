@@ -8,7 +8,7 @@ use AlexSkrypnyk\File\File;
 use PHPUnit\Framework\Attributes\CoversNothing;
 
 /**
- * Functional tests for the snapshot-update CLI script.
+ * Functional tests for the update-snapshots CLI script.
  *
  * Tests the following scenarios:
  * 1. no_change      - Baseline passes, scenario passes → 0 commits
@@ -20,7 +20,7 @@ use PHPUnit\Framework\Attributes\CoversNothing;
 final class SnapshotUpdateScriptTest extends FunctionalTestCase {
 
   /**
-   * Path to the snapshot-update script.
+   * Path to the update-snapshots script.
    */
   protected string $scriptPath;
 
@@ -39,7 +39,7 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
    */
   protected function setUp(): void {
     parent::setUp();
-    $this->scriptPath = self::$root . '/bin/snapshot-update';
+    $this->scriptPath = self::$root . '/bin/update-snapshots';
     $this->projectDir = self::$sut . DIRECTORY_SEPARATOR . 'test_project';
     $this->fixturesDir = self::$fixtures . DIRECTORY_SEPARATOR . 'functional_update';
   }
@@ -166,7 +166,7 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
   public function testNoChangeNoCommits(): void {
     $this->setupTestProject('no_change');
 
-    // Run snapshot-update for all datasets.
+    // Run update-snapshots for all datasets.
     $this->processRun('php', [
       $this->scriptPath,
       '--root=' . $this->projectDir,
@@ -196,7 +196,7 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
   public function testBaselineChangeCreatesCommit(): void {
     $this->setupTestProject('baseline_change');
 
-    // Run snapshot-update for all datasets.
+    // Run update-snapshots for all datasets.
     $this->processRun('php', [
       $this->scriptPath,
       '--root=' . $this->projectDir,
@@ -239,7 +239,7 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
   public function testScenarioChangeUpdatesFiles(): void {
     $this->setupTestProject('scenario_change');
 
-    // Run snapshot-update for ONLY scenario1 dataset.
+    // Run update-snapshots for ONLY scenario1 dataset.
     // Single dataset mode doesn't create commits.
     $this->processRun('php', [
       $this->scriptPath,
@@ -279,7 +279,7 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
   public function testBothChangeCreatesCommit(): void {
     $this->setupTestProject('both_change');
 
-    // Run snapshot-update for all datasets.
+    // Run update-snapshots for all datasets.
     $this->processRun('php', [
       $this->scriptPath,
       '--root=' . $this->projectDir,
