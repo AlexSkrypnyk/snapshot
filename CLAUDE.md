@@ -32,7 +32,8 @@ generators, scaffolding tools, or any system that produces file output.
 ```
 src/
 ├── Snapshot.php              # Main facade class with static methods
-├── SnapshotTrait.php         # PHPUnit trait for snapshot testing
+├── Testing/
+│   └── SnapshotTrait.php     # PHPUnit trait for snapshot testing
 ├── Compare/
 │   ├── Comparer.php          # Compares two directory indexes
 │   ├── ComparerInterface.php
@@ -206,7 +207,7 @@ Controls which files are compared. Supports patterns:
 The trait provides two main assertions for PHPUnit tests:
 
 ```php
-use AlexSkrypnyk\Snapshot\SnapshotTrait;
+use AlexSkrypnyk\Snapshot\Testing\SnapshotTrait;
 
 class MyTest extends TestCase {
     use SnapshotTrait;

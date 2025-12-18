@@ -3,7 +3,7 @@
   <img width=200px height=200px src="logo.png" alt="Snapshot logo"/>
 </p>
 
-<h1 align="center">Directory snapshot testing for PHPUnit</h1>
+<h1 align="center">Directory snapshot, diff, and patch system useful for test fixtures</h1>
 
 <div align="center">
 
@@ -113,7 +113,7 @@ Snapshot directories can also contain:
 Use `assertDirectoriesIdentical()` to compare two directories:
 
 ```php
-use AlexSkrypnyk\Snapshot\SnapshotTrait;
+use AlexSkrypnyk\Snapshot\Testing\SnapshotTrait;
 use PHPUnit\Framework\TestCase;
 
 class MyTest extends TestCase {
@@ -201,7 +201,7 @@ Options:
 
 Example output:
 
-``` 
+```
 Discovering datasets...
 Found 13 unique datasets
 [1/13] baseline .......... ✓

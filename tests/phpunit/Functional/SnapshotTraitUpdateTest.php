@@ -6,7 +6,7 @@ namespace AlexSkrypnyk\Snapshot\Tests\Functional;
 
 use AlexSkrypnyk\File\File;
 use AlexSkrypnyk\Snapshot\Snapshot;
-use AlexSkrypnyk\Snapshot\SnapshotTrait;
+use AlexSkrypnyk\Snapshot\Testing\SnapshotTrait;
 use PHPUnit\Framework\Attributes\CoversClass;
 
 /**
@@ -262,7 +262,7 @@ final class SnapshotTraitUpdateTest extends FunctionalTestCase {
 
 declare(strict_types=1);
 
-use AlexSkrypnyk\\Snapshot\\SnapshotTrait;
+use AlexSkrypnyk\\Snapshot\\Testing\\SnapshotTrait;
 use PHPUnit\\Framework\\TestCase;
 
 final class BaselineUpdateTest extends TestCase {
@@ -308,7 +308,7 @@ PHP;
 
 declare(strict_types=1);
 
-use AlexSkrypnyk\\Snapshot\\SnapshotTrait;
+use AlexSkrypnyk\\Snapshot\\Testing\\SnapshotTrait;
 use PHPUnit\\Framework\\TestCase;
 
 final class ScenarioUpdateTest extends TestCase {
@@ -352,7 +352,7 @@ PHP;
 
 declare(strict_types=1);
 
-use AlexSkrypnyk\\Snapshot\\SnapshotTrait;
+use AlexSkrypnyk\\Snapshot\\Testing\\SnapshotTrait;
 use PHPUnit\\Framework\\TestCase;
 
 final class NonSnapshotFailTest extends TestCase {

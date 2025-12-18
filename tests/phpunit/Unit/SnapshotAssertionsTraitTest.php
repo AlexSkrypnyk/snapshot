@@ -6,7 +6,7 @@ namespace AlexSkrypnyk\Snapshot\Tests\Unit;
 
 use AlexSkrypnyk\File\File;
 use AlexSkrypnyk\Snapshot\Snapshot;
-use AlexSkrypnyk\Snapshot\SnapshotTrait;
+use AlexSkrypnyk\Snapshot\Testing\SnapshotTrait;
 use PHPUnit\Framework\AssertionFailedError;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
