@@ -199,6 +199,28 @@ Options:
 - `--retries=<count>` - Max retries for timed out tests (default: 3)
 - `--debug` - Show PHPUnit output for failed tests
 
+Example output:
+
+``` 
+Discovering datasets...
+Found 13 unique datasets
+[1/13] baseline .......... ✓
+[2/13] name ........... ✓
+[3/13] no docs ..... ✓
+[4/13] no funding ..... ✓
+[5/13] no languages .......... ✓
+[6/13] no pr autoassign .... ✓
+[7/13] no pr template ..... ✓
+[8/13] no release drafter ..... ✓
+[9/13] no renovate ..... ✓
+[10/13] nodejs ........... ✓
+[11/13] php command ......... ✓
+[12/13] php script ......... ✓
+[13/13] shell ..... ✓
+Total: 13 | Succeeded: 13 | Failed: 0 | Timed out: 0
+Total execution time: 1 minutes 37 seconds
+```
+
 ### Ignore Rules
 
 Create a `.ignorecontent` file in your baseline directory to control which files
