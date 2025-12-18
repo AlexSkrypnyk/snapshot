@@ -6,6 +6,7 @@ namespace AlexSkrypnyk\Snapshot;
 
 use AlexSkrypnyk\File\File;
 use AlexSkrypnyk\Snapshot\Exception\PatchException;
+use AlexSkrypnyk\Snapshot\Replacer\Replacer;
 use PHPUnit\Framework\TestStatus\Error;
 use PHPUnit\Framework\TestStatus\Failure;
 
@@ -109,6 +110,8 @@ trait SnapshotTrait {
    *   Actual output directory (SUT).
    * @param string|null $tmp
    *   Optional temp directory.
+   *
+   * @codeCoverageIgnoreStart
    */
   protected function snapshotUpdateOnFailure(string $snapshots, string $actual, ?string $tmp = NULL): void {
     if (!$this->snapshotShouldUpdate($snapshots)) {
@@ -137,6 +140,8 @@ trait SnapshotTrait {
    *
    * @return bool
    *   TRUE if snapshot update should run.
+   *
+   * @codeCoverageIgnoreStart
    */
   protected function snapshotShouldUpdate(string $snapshots): bool {
     if (!getenv(static::$snapshotUpdateEnvVar)) {
@@ -166,6 +171,8 @@ trait SnapshotTrait {
    *   Path to the actual output directory.
    * @param string $tmp
    *   Path to the temp directory.
+   *
+   * @codeCoverageIgnoreStart
    */
   protected function snapshotUpdateBaseline(string $baseline, string $actual, string $tmp): void {
     fwrite(STDERR, PHP_EOL . '[SNAPSHOT] Updating baseline' . PHP_EOL);
@@ -193,6 +200,8 @@ trait SnapshotTrait {
    *   Path to the actual output directory.
    * @param string $tmp
    *   Path to the temp directory.
+   *
+   * @codeCoverageIgnoreEnd
    */
   protected function snapshotUpdateDiffs(string $baseline, string $snapshots, string $actual, string $tmp): void {
     fwrite(STDERR, PHP_EOL . '[SNAPSHOT] Updating diffs' . PHP_EOL);
@@ -211,13 +220,19 @@ trait SnapshotTrait {
   /**
    * Hook: Called before snapshot update.
    *
-   * Override to preprocess (e.g., normalize versions).
+   * By default, applies version normalization patterns to replace volatile
+   * content (version numbers, hashes, etc.) with placeholders.
+   *
+   * Override to customize preprocessing. Call parent::snapshotUpdateBefore()
+   * to keep default behavior, or replace entirely with custom logic.
    *
    * @param string $actual
    *   Path to the actual output directory.
+   *
+   * @codeCoverageIgnoreStart
    */
   protected function snapshotUpdateBefore(string $actual): void {
-    // Override in child class.
+    Replacer::versions()->replaceInDir($actual);
   }
 
 }

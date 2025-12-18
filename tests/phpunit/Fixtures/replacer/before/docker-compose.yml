@@ -1,0 +1,7 @@
+services:
+  app:
+    image: nginx/nginx:1.21.0
+  db:
+    image: mysql/mysql:8.0.30@sha256:a81bbbf8298c0fa03ea29cdc473d45769f953675a81bbbf8298c0fa03ea29cdc
+  redis:
+    image: redis/redis:canary
