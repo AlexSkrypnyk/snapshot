@@ -148,7 +148,7 @@ class Replacer implements ReplacerInterface {
    * {@inheritdoc}
    */
   public function replaceInDir(string $directory): static {
-    $files = File::scandirRecursive($directory);
+    $files = File::scandir($directory);
 
     foreach ($files as $file) {
       // @codeCoverageIgnoreStart
