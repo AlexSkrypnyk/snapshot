@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Test;
 
-use AlexSkrypnyk\Snapshot\SnapshotTrait;
+use AlexSkrypnyk\Snapshot\Testing\SnapshotTrait;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
