@@ -1,0 +1,7 @@
+{
+  "name": "test/package",
+  "require": {
+    "php": "^8.2",
+    "some/package": "^2.0.5"
+  }
+}

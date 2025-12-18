@@ -1,0 +1,8 @@
+name: CI
+on: [push]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@__VERSION__
+      - uses: actions/setup-node@__VERSION__

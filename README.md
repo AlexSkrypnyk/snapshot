@@ -308,7 +308,79 @@ $rules = Rules::create()
 $comparer = Snapshot::compare($baseline, $actual, $rules);
 ```
 
+### Version Normalization
+
+When updating snapshots, volatile content like version numbers, hashes, and
+timestamps can cause unnecessary churn. The `Replacer` class automatically
+normalizes this content during snapshot updates.
+
+#### Default Behavior
+
+The `snapshotUpdateBefore()` hook automatically applies version normalization
+using `Replacer::versions()`:
+
+```php
+// This happens automatically in snapshotUpdateOnFailure()
+Replacer::versions()->replaceInDir($actual);
+```
+
+The default patterns replace:
+- Semver versions (`1.2.3`, `v1.2.3-beta.1`) → `__VERSION__`
+- Git hashes (`@abc123...`) → `@__HASH__`
+- SRI integrity hashes (`sha512-...`) → `__INTEGRITY__`
+- Docker image tags (`nginx:1.21.0`) → `nginx:__VERSION__`
+- GitHub Actions versions (`actions/checkout@v4`) → `actions/checkout@__VERSION__`
+- Package versions in JSON (`"^1.2.3"`) → `"__VERSION__"`
+
+#### Customizing Version Replacement
+
+Override `snapshotUpdateBefore()` to customize the replacement behavior:
+
+```php
+protected function snapshotUpdateBefore(string $actual): void {
+    // Use default patterns but add custom ones
+    Replacer::versions()
+        ->setMaxReplacements(0)
+        ->addReplacement(Replacement::create('custom', '/BUILD-\d+/', '__BUILD__'))
+        ->replaceInDir($actual);
+}
+```
+
+Or disable version replacement entirely:
+
+```php
+protected function snapshotUpdateBefore(string $actual): void {
+    // Do nothing - keep versions as-is
+}
+```
+
+#### Standalone Usage
+
+Use `Replacer` independently for custom workflows:
+
+```php
+use AlexSkrypnyk\Snapshot\Replacer\Replacer;
+use AlexSkrypnyk\Snapshot\Replacer\Replacement;
+
+// Use preset version patterns
+$replacer = Replacer::versions();
+$replacer->replaceInDir($directory);
+
+// Or create custom replacer
+$replacer = Replacer::create()
+    ->addReplacement(Replacement::create('version', '/v\d+\.\d+\.\d+/', '__VERSION__'))
+    ->addReplacement(Replacement::create('date', '/\d{4}-\d{2}-\d{2}/', '__DATE__'));
+
+// Apply to string content
+$content = 'Version: v1.2.3';
+$replacer->replace($content);  // $content is now 'Version: __VERSION__'
+
+// Apply to directory
+$replacer->replaceInDir($directory);
+```
+
 ## Maintenance
+
 
     composer install
     composer lint

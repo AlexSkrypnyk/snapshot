@@ -1,0 +1,7 @@
+{
+  "name": "test/package",
+  "require": {
+    "php": "__VERSION__",
+    "some/package": "__VERSION__"
+  }
+}
