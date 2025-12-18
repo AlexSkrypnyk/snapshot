@@ -182,7 +182,7 @@ class Snapshot {
 
     // Apply content processor to all files in destination if provided.
     if ($content_processor !== NULL) {
-      $files = File::scandirRecursive($destination);
+      $files = File::scandir($destination);
       foreach ($files as $file_path) {
         if (is_file($file_path)) {
           $content = file_get_contents($file_path);

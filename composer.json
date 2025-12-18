@@ -18,7 +18,7 @@
     },
     "require": {
         "php": ">=8.2",
-        "alexskrypnyk/file": "^0.16.0",
+        "alexskrypnyk/file": "^0.17.0",
         "sebastian/diff": "^6.0"
     },
     "require-dev": {
