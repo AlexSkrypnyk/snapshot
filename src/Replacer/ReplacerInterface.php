@@ -120,4 +120,24 @@ interface ReplacerInterface {
    */
   public function replaceInDir(string $directory): static;
 
+  /**
+   * Add exclusions to replacement rules.
+   *
+   * @param array<string|\Closure> $matchers
+   *   Exclusion patterns or callbacks. Each can be:
+   *   - Regex pattern (string starting with /)
+   *   - Exact string (will be converted to regex)
+   *   - Callback: fn(string $match): bool (return TRUE to exclude)
+   *   Empty array clears exclusions from targeted rules.
+   * @param string|null $name
+   *   Target specific replacement by name, or NULL for all.
+   *
+   * @return static
+   *   The replacer instance for chaining.
+   *
+   * @throws \InvalidArgumentException
+   *   If named replacement does not exist.
+   */
+  public function addExclusions(array $matchers, ?string $name = NULL): static;
+
 }
