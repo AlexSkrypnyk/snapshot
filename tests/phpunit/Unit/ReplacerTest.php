@@ -388,4 +388,128 @@ final class ReplacerTest extends UnitTestCase {
     $this->assertDirectoriesIdentical($after_dir, $temp_dir);
   }
 
+  public function testAddExclusionsAppliesToAllRules(): void {
+    $replacer = Replacer::create()
+      ->addReplacement(Replacement::create('r1', '/\d+\.\d+\.\d+/', '__V1__'))
+      ->addReplacement(Replacement::create('r2', '/v\d+/', '__V2__'))
+      ->addExclusions(['/^0\./']);
+
+    // Both rules should have the exclusion.
+    $this->assertCount(1, $replacer->getReplacement('r1')?->getExclusions() ?? []);
+    $this->assertCount(1, $replacer->getReplacement('r2')?->getExclusions() ?? []);
+
+    $content = '1.2.3 0.0.1 v1';
+    $replacer->replace($content);
+
+    $this->assertSame('__V1__ 0.0.1 __V2__', $content);
+  }
+
+  public function testAddExclusionsAppliesToSpecificRule(): void {
+    $replacer = Replacer::create()
+      ->addReplacement(Replacement::create('r1', '/\d+\.\d+\.\d+/', '__V1__'))
+      ->addReplacement(Replacement::create('r2', '/v\d+/', '__V2__'))
+      ->addExclusions(['/^0\./'], 'r1');
+
+    // Only r1 should have the exclusion.
+    $this->assertCount(1, $replacer->getReplacement('r1')?->getExclusions() ?? []);
+    $this->assertCount(0, $replacer->getReplacement('r2')?->getExclusions() ?? []);
+
+    $content = '1.2.3 0.0.1';
+    $replacer->replace($content);
+
+    $this->assertSame('__V1__ 0.0.1', $content);
+  }
+
+  public function testAddExclusionsClearsAllExclusions(): void {
+    $replacer = Replacer::create()
+      ->addReplacement(Replacement::create('r1', '/a/', 'A'))
+      ->addReplacement(Replacement::create('r2', '/b/', 'B'))
+      ->addExclusions(['/pattern1/', '/pattern2/']);
+
+    $this->assertCount(2, $replacer->getReplacement('r1')?->getExclusions() ?? []);
+    $this->assertCount(2, $replacer->getReplacement('r2')?->getExclusions() ?? []);
+
+    $result = $replacer->addExclusions([]);
+
+    $this->assertSame($replacer, $result);
+    $this->assertCount(0, $replacer->getReplacement('r1')?->getExclusions() ?? []);
+    $this->assertCount(0, $replacer->getReplacement('r2')?->getExclusions() ?? []);
+  }
+
+  public function testAddExclusionsClearsSpecificRuleExclusions(): void {
+    $replacer = Replacer::create()
+      ->addReplacement(Replacement::create('r1', '/a/', 'A'))
+      ->addReplacement(Replacement::create('r2', '/b/', 'B'))
+      ->addExclusions(['/pattern/']);
+
+    $this->assertCount(1, $replacer->getReplacement('r1')?->getExclusions() ?? []);
+    $this->assertCount(1, $replacer->getReplacement('r2')?->getExclusions() ?? []);
+
+    $replacer->addExclusions([], 'r1');
+
+    $this->assertCount(0, $replacer->getReplacement('r1')?->getExclusions() ?? []);
+    $this->assertCount(1, $replacer->getReplacement('r2')?->getExclusions() ?? []);
+  }
+
+  public function testAddExclusionsThrowsOnNonexistentName(): void {
+    $replacer = Replacer::create()
+      ->addReplacement(Replacement::create('existing', '/a/', 'A'));
+
+    $this->expectException(\InvalidArgumentException::class);
+    $this->expectExceptionMessage('Replacement "nonexistent" does not exist.');
+
+    $replacer->addExclusions(['/pattern/'], 'nonexistent');
+  }
+
+  public function testAddExclusionsReturnsSelf(): void {
+    $replacer = Replacer::create()
+      ->addReplacement(Replacement::create('test', '/a/', 'A'));
+
+    $result = $replacer->addExclusions(['/pattern/']);
+
+    $this->assertSame($replacer, $result);
+  }
+
+  public function testAddExclusionsWithMixedTypes(): void {
+    $callback = fn(string $match): bool => $match === '9.9.9';
+
+    $replacer = Replacer::create()
+      ->addReplacement(Replacement::create('test', '/\d+\.\d+\.\d+/', '__VERSION__'))
+      ->addExclusions([
+        // Regex.
+        '/^0\./',
+        // Exact string.
+        '1.0.0',
+        // Callback.
+        $callback,
+      ]);
+
+    $content = '0.0.1 1.0.0 1.2.3 9.9.9 2.0.0';
+    $replacer->replace($content);
+
+    $this->assertSame('0.0.1 1.0.0 __VERSION__ 9.9.9 __VERSION__', $content);
+  }
+
+  public function testAddExclusionsIntegrationWithVersionsPreset(): void {
+    $replacer = Replacer::versions()
+      ->setMaxReplacements(0)
+      ->addExclusions(['/^0\.0\./'], 'semver');
+
+    $content = 'versions: 1.2.3, 0.0.1, 2.0.0';
+    $replacer->replace($content);
+
+    $this->assertSame('versions: __VERSION__, 0.0.1, __VERSION__', $content);
+  }
+
+  public function testAddExclusionsChaining(): void {
+    $replacer = Replacer::create()
+      ->addReplacement(Replacement::create('test', '/\d+\.\d+\.\d+/', '__VERSION__'))
+      ->addExclusions(['/^0\./'])
+      ->addExclusions(['1.0.0'], 'test');
+
+    $exclusions = $replacer->getReplacement('test')?->getExclusions() ?? [];
+
+    $this->assertCount(2, $exclusions);
+  }
+
 }

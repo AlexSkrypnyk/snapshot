@@ -174,4 +174,39 @@ class Replacer implements ReplacerInterface {
     return $this;
   }
 
+  /**
+   * {@inheritdoc}
+   */
+  public function addExclusions(array $matchers, ?string $name = NULL): static {
+    // Validate name if provided.
+    if ($name !== NULL && !$this->hasReplacement($name)) {
+      throw new \InvalidArgumentException(
+        sprintf('Replacement "%s" does not exist.', $name)
+      );
+    }
+
+    // Determine target replacements.
+    $targets = $name !== NULL
+      ? [$this->replacements[$name]]
+      : $this->replacements;
+
+    // Empty matchers = clear exclusions.
+    if ($matchers === []) {
+      foreach ($targets as $replacement) {
+        $replacement->clearExclusions();
+      }
+
+      return $this;
+    }
+
+    // Add exclusions to targets.
+    foreach ($targets as $replacement) {
+      foreach ($matchers as $matcher) {
+        $replacement->addExclusion($matcher);
+      }
+    }
+
+    return $this;
+  }
+
 }

@@ -79,4 +79,27 @@ interface ReplacementInterface {
    */
   public function apply(string &$content): bool;
 
+  /**
+   * Add an exclusion pattern or callback.
+   *
+   * @param string|\Closure $exclusion
+   *   - Regex pattern (starts with /)
+   *   - Exact string (converted to regex)
+   *   - Callback: fn(string $match): bool (return TRUE to exclude)
+   */
+  public function addExclusion(string|\Closure $exclusion): static;
+
+  /**
+   * Get all exclusions.
+   *
+   * @return array<string|\Closure>
+   *   Array of exclusion patterns and callbacks.
+   */
+  public function getExclusions(): array;
+
+  /**
+   * Remove all exclusions.
+   */
+  public function clearExclusions(): static;
+
 }

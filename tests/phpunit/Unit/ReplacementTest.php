@@ -139,4 +139,133 @@ final class ReplacementTest extends UnitTestCase {
     ];
   }
 
+  public function testAddExclusionWithRegexPattern(): void {
+    $replacement = Replacement::create('test', '/\d+\.\d+\.\d+/', '__VERSION__')
+      ->addExclusion('/^0\.0\./');
+
+    $content = '1.2.3 0.0.1 2.0.0';
+    $replacement->apply($content);
+
+    $this->assertSame('__VERSION__ 0.0.1 __VERSION__', $content);
+  }
+
+  public function testAddExclusionWithExactString(): void {
+    $replacement = Replacement::create('test', '/\d+\.\d+\.\d+/', '__VERSION__')
+      ->addExclusion('1.0.0');
+
+    $content = '1.0.0 1.2.3 2.0.0';
+    $replacement->apply($content);
+
+    $this->assertSame('1.0.0 __VERSION__ __VERSION__', $content);
+  }
+
+  public function testAddExclusionWithCallback(): void {
+    $replacement = Replacement::create('test', '/\d+\.\d+\.\d+/', '__VERSION__')
+      ->addExclusion(fn(string $match): bool => str_starts_with($match, '0.'));
+
+    $content = '1.2.3 0.0.1 0.5.0 2.0.0';
+    $replacement->apply($content);
+
+    $this->assertSame('__VERSION__ 0.0.1 0.5.0 __VERSION__', $content);
+  }
+
+  public function testAddExclusionMultiple(): void {
+    $replacement = Replacement::create('test', '/\d+\.\d+\.\d+/', '__VERSION__')
+      ->addExclusion('1.0.0')
+      ->addExclusion('/^0\./')
+      ->addExclusion(fn(string $match): bool => $match === '9.9.9');
+
+    $content = '1.0.0 0.1.0 1.2.3 9.9.9 2.0.0';
+    $replacement->apply($content);
+
+    $this->assertSame('1.0.0 0.1.0 __VERSION__ 9.9.9 __VERSION__', $content);
+  }
+
+  public function testGetExclusions(): void {
+    $callback = fn(string $match): bool => FALSE;
+    $replacement = Replacement::create('test', '/pattern/')
+      ->addExclusion('/^0\./')
+      ->addExclusion('1.0.0')
+      ->addExclusion($callback);
+
+    $exclusions = $replacement->getExclusions();
+
+    $this->assertCount(3, $exclusions);
+    $this->assertSame('/^0\./', $exclusions[0]);
+    $this->assertSame('/^1\.0\.0$/', $exclusions[1]);
+    $this->assertSame($callback, $exclusions[2]);
+  }
+
+  public function testClearExclusions(): void {
+    $replacement = Replacement::create('test', '/\d+\.\d+\.\d+/', '__VERSION__')
+      ->addExclusion('1.0.0')
+      ->addExclusion('/^0\./');
+
+    $this->assertCount(2, $replacement->getExclusions());
+
+    $result = $replacement->clearExclusions();
+
+    $this->assertSame($replacement, $result);
+    $this->assertCount(0, $replacement->getExclusions());
+
+    // After clearing, all matches should be replaced.
+    $content = '1.0.0 0.1.0 1.2.3';
+    $replacement->apply($content);
+
+    $this->assertSame('__VERSION__ __VERSION__ __VERSION__', $content);
+  }
+
+  public function testAddExclusionNoMatchingContent(): void {
+    $replacement = Replacement::create('test', '/\d+\.\d+\.\d+/', '__VERSION__')
+      ->addExclusion('/^0\./');
+
+    $content = 'no versions here';
+    $result = $replacement->apply($content);
+
+    $this->assertFalse($result);
+    $this->assertSame('no versions here', $content);
+  }
+
+  public function testAddExclusionAllMatches(): void {
+    $replacement = Replacement::create('test', '/\d+\.\d+\.\d+/', '__VERSION__')
+      ->addExclusion('/^0\./');
+
+    $content = '0.0.1 0.1.0 0.2.0';
+    $result = $replacement->apply($content);
+
+    // All matches are excluded, so no change.
+    $this->assertFalse($result);
+    $this->assertSame('0.0.1 0.1.0 0.2.0', $content);
+  }
+
+  public function testClosureMatcherIgnoresExclusions(): void {
+    // Closures don't support exclusions - they handle their own logic.
+    $replacement = Replacement::create('test', strtoupper(...))
+      ->addExclusion('/foo/');
+
+    $content = 'foo bar';
+    $replacement->apply($content);
+
+    // Closure applies to entire content, exclusion is ignored.
+    $this->assertSame('FOO BAR', $content);
+  }
+
+  public function testAddExclusionReturnsSelf(): void {
+    $replacement = Replacement::create('test', '/pattern/');
+
+    $result = $replacement->addExclusion('/exclusion/');
+
+    $this->assertSame($replacement, $result);
+  }
+
+  public function testAddExclusionWithBackreference(): void {
+    $replacement = Replacement::create('test', '/(v?)(\d+\.\d+\.\d+)/', '${1}__VERSION__')
+      ->addExclusion('/^v?0\./');
+
+    $content = 'v1.2.3 0.0.1 v0.5.0 2.0.0';
+    $replacement->apply($content);
+
+    $this->assertSame('v__VERSION__ 0.0.1 v0.5.0 __VERSION__', $content);
+  }
+
 }
