@@ -121,17 +121,11 @@ class Replacement implements ReplacementInterface {
    * {@inheritdoc}
    */
   public function addExclusion(string|\Closure $exclusion): static {
-    if ($exclusion instanceof \Closure) {
-      $this->exclusions[] = $exclusion;
-    }
-    elseif (str_starts_with($exclusion, '/')) {
-      // Already a regex.
-      $this->exclusions[] = $exclusion;
-    }
-    else {
-      // Exact string - convert to regex.
-      $this->exclusions[] = '/^' . preg_quote($exclusion, '/') . '$/';
-    }
+    // Store exclusions as-is. Type is determined by:
+    // - Closure: callback
+    // - String starting with '/': regex
+    // - Other string: exact string (checked via str_starts_with).
+    $this->exclusions[] = $exclusion;
 
     return $this;
   }
@@ -153,6 +147,36 @@ class Replacement implements ReplacementInterface {
   }
 
   /**
+   * Check if a string is a regex pattern.
+   *
+   * @param string $string
+   *   The string to check.
+   *
+   * @return bool
+   *   TRUE if the string is a regex pattern, FALSE otherwise.
+   */
+  public static function isRegex(string $string): bool {
+    if (strlen($string) < 2) {
+      return FALSE;
+    }
+
+    $delimiter = $string[0];
+
+    // Common regex delimiters.
+    if (!in_array($delimiter, ['/', '#', '~', '@', '%'], TRUE)) {
+      return FALSE;
+    }
+
+    // Must end with the delimiter (optionally followed by modifiers).
+    if (!preg_match('/^' . preg_quote($delimiter, '/') . '.+' . preg_quote($delimiter, '/') . '[imsxADSUXJu]*$/', $string)) {
+      return FALSE;
+    }
+
+    // Validate it's actually a working regex.
+    return @preg_match($string, '') !== FALSE;
+  }
+
+  /**
    * Check if matched text should be excluded.
    *
    * @param string $match
@@ -168,7 +192,14 @@ class Replacement implements ReplacementInterface {
           return TRUE;
         }
       }
-      elseif (preg_match($exclusion, $match)) {
+      elseif (self::isRegex($exclusion)) {
+        if (preg_match($exclusion, $match)) {
+          return TRUE;
+        }
+      }
+      elseif (str_starts_with($exclusion, $match)) {
+        // Exact string: exclude if the exclusion starts with the match.
+        // This handles cases like match "127.0.0" with exclusion "127.0.0.1".
         return TRUE;
       }
     }
