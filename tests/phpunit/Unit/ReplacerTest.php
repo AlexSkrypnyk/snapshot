@@ -388,6 +388,29 @@ final class ReplacerTest extends UnitTestCase {
     $this->assertDirectoriesIdentical($after_dir, $temp_dir);
   }
 
+  public function testReplaceInDirWithIgnorePaths(): void {
+    $temp_dir = self::$tmp . '/replacer_ignore_test';
+    $ignored_dir = $temp_dir . '/ignored';
+
+    // Create directory structure.
+    File::mkdir($temp_dir);
+    File::mkdir($ignored_dir);
+
+    // Create files with version strings.
+    file_put_contents($temp_dir . '/root.txt', 'version 1.2.3');
+    file_put_contents($ignored_dir . '/ignored.txt', 'version 4.5.6');
+
+    $replacer = Replacer::versions()->setMaxReplacements(0);
+
+    $result = $replacer->replaceInDir($temp_dir, [$ignored_dir]);
+
+    $this->assertSame($replacer, $result);
+    // Root file should be replaced.
+    $this->assertSame('version __VERSION__', file_get_contents($temp_dir . '/root.txt'));
+    // Ignored directory file should NOT be replaced.
+    $this->assertSame('version 4.5.6', file_get_contents($ignored_dir . '/ignored.txt'));
+  }
+
   public function testAddExclusionsAppliesToAllRules(): void {
     $replacer = Replacer::create()
       ->addReplacement(Replacement::create('r1', '/\d+\.\d+\.\d+/', '__V1__'))
