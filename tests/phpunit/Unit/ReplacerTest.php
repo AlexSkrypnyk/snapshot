@@ -512,4 +512,15 @@ final class ReplacerTest extends UnitTestCase {
     $this->assertCount(2, $exclusions);
   }
 
+  public function testAddExclusionsWithIpAddress(): void {
+    $replacer = Replacer::versions()
+      ->setMaxReplacements(0)
+      ->addExclusions(['127.0.0.1']);
+
+    $content = 'version: 1.2.3, localhost: 127.0.0.1';
+    $replacer->replace($content);
+
+    $this->assertSame('version: __VERSION__, localhost: 127.0.0.1', $content);
+  }
+
 }

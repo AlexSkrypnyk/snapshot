@@ -192,7 +192,7 @@ final class ReplacementTest extends UnitTestCase {
 
     $this->assertCount(3, $exclusions);
     $this->assertSame('/^0\./', $exclusions[0]);
-    $this->assertSame('/^1\.0\.0$/', $exclusions[1]);
+    $this->assertSame('1.0.0', $exclusions[1]);
     $this->assertSame($callback, $exclusions[2]);
   }
 
@@ -266,6 +266,30 @@ final class ReplacementTest extends UnitTestCase {
     $replacement->apply($content);
 
     $this->assertSame('v__VERSION__ 0.0.1 v0.5.0 __VERSION__', $content);
+  }
+
+  #[DataProvider('dataProviderIsRegex')]
+  public function testIsRegex(string $string, bool $expected): void {
+    $this->assertSame($expected, Replacement::isRegex($string));
+  }
+
+  public static function dataProviderIsRegex(): \Iterator {
+    yield 'slash delimiter' => ['/pattern/', TRUE];
+    yield 'slash with modifiers' => ['/pattern/i', TRUE];
+    yield 'slash with multiple modifiers' => ['/pattern/ims', TRUE];
+    yield 'hash delimiter' => ['#pattern#', TRUE];
+    yield 'tilde delimiter' => ['~pattern~', TRUE];
+    yield 'at delimiter' => ['@pattern@', TRUE];
+    yield 'percent delimiter' => ['%pattern%', TRUE];
+
+    yield 'plain string' => ['hello', FALSE];
+    yield 'version string' => ['1.0.0', FALSE];
+    yield 'ip address' => ['127.0.0.1', FALSE];
+    yield 'single char' => ['/', FALSE];
+    yield 'empty string' => ['', FALSE];
+    yield 'path like string' => ['/usr/bin', FALSE];
+    yield 'url' => ['https://example.com', FALSE];
+    yield 'glob pattern' => ['*/web/themes/contrib/*', FALSE];
   }
 
 }
