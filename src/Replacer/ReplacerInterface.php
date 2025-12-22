@@ -114,11 +114,13 @@ interface ReplacerInterface {
    *
    * @param string $directory
    *   The directory to process.
+   * @param array<string> $ignore_paths
+   *   Paths to ignore during scanning.
    *
    * @return static
    *   The replacer instance for chaining.
    */
-  public function replaceInDir(string $directory): static;
+  public function replaceInDir(string $directory, array $ignore_paths = []): static;
 
   /**
    * Add exclusions to replacement rules.
