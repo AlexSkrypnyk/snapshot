@@ -1,8 +1,0 @@
-{
-  "name": "test-package",
-  "version": "__VERSION__",
-  "dependencies": {
-    "lodash": "__VERSION__",
-    "react": "__VERSION__"
-  }
-}

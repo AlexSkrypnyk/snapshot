@@ -1,8 +1,0 @@
-{
-  "name": "test-package",
-  "version": "3.0.0-beta.1",
-  "dependencies": {
-    "lodash": "^4.17.21",
-    "react": ">=18.0.0"
-  }
-}

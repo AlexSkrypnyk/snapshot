@@ -1,7 +1,0 @@
-services:
-  app:
-    image: nginx/nginx:__VERSION__
-  db:
-    image: mysql/mysql:__VERSION__
-  redis:
-    image: redis/redis:__VERSION__

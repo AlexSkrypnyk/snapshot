@@ -339,11 +339,11 @@ normalizes this content during snapshot updates.
 #### Default Behavior
 
 The `snapshotUpdateBefore()` hook automatically applies version normalization
-using `Replacer::versions()`:
+using `File::getReplacer()->addVersionReplacements()`:
 
 ```php
 // This happens automatically in snapshotUpdateOnFailure()
-Replacer::versions()->replaceInDir($actual);
+File::getReplacer()->addVersionReplacements()->replaceInDir($actual);
 ```
 
 The default patterns replace:
@@ -361,7 +361,8 @@ Override `snapshotUpdateBefore()` to customize the replacement behavior:
 ```php
 protected function snapshotUpdateBefore(string $actual): void {
     // Use default patterns but add custom ones
-    Replacer::versions()
+    File::getReplacer()
+        ->addVersionReplacements()
         ->setMaxReplacements(0)
         ->addReplacement(Replacement::create('custom', '/BUILD-\d+/', '__BUILD__'))
         ->replaceInDir($actual);
@@ -381,15 +382,15 @@ protected function snapshotUpdateBefore(string $actual): void {
 Use `Replacer` independently for custom workflows:
 
 ```php
-use AlexSkrypnyk\Snapshot\Replacer\Replacer;
-use AlexSkrypnyk\Snapshot\Replacer\Replacement;
+use AlexSkrypnyk\File\File;
+use AlexSkrypnyk\File\Replacer\Replacement;
 
 // Use preset version patterns
-$replacer = Replacer::versions();
+$replacer = File::getReplacer()->addVersionReplacements();
 $replacer->replaceInDir($directory);
 
 // Or create custom replacer
-$replacer = Replacer::create()
+$replacer = File::getReplacer()
     ->addReplacement(Replacement::create('version', '/v\d+\.\d+\.\d+/', '__VERSION__'))
     ->addReplacement(Replacement::create('date', '/\d{4}-\d{2}-\d{2}/', '__DATE__'));
 

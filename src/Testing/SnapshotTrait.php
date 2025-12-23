@@ -6,7 +6,6 @@ namespace AlexSkrypnyk\Snapshot\Testing;
 
 use AlexSkrypnyk\File\File;
 use AlexSkrypnyk\Snapshot\Exception\PatchException;
-use AlexSkrypnyk\Snapshot\Replacer\Replacer;
 use AlexSkrypnyk\Snapshot\Snapshot;
 use PHPUnit\Framework\TestStatus\Error;
 use PHPUnit\Framework\TestStatus\Failure;
@@ -233,7 +232,7 @@ trait SnapshotTrait {
    * @codeCoverageIgnoreStart
    */
   protected function snapshotUpdateBefore(string $actual): void {
-    Replacer::versions()->replaceInDir($actual);
+    File::getReplacer()->addVersionReplacements()->replaceInDir($actual);
   }
 
 }
