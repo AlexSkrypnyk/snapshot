@@ -1,9 +1,0 @@
-{
-  "name": "test/package",
-  "version": "__VERSION__",
-  "require": {
-    "php": "__VERSION__",
-    "some/package": "__VERSION__",
-    "another/lib": "__VERSION__"
-  }
-}
