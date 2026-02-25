@@ -295,6 +295,51 @@ final class IndexedFileTest extends UnitTestCase {
     $this->assertSame(sha1($content), $indexed_file->getHash());
   }
 
+  public function testSmallFileReadOnce(): void {
+    $file_path = self::$sut . DIRECTORY_SEPARATOR . 'small.txt';
+    $content = 'small file content';
+    file_put_contents($file_path, $content);
+
+    $indexed_file = new IndexedFile($file_path, self::$sut);
+
+    // Getting hash should also load content in a single read for small files.
+    $this->assertSame(sha1($content), $indexed_file->getHash());
+    // Content should already be available without a second file read.
+    $this->assertSame($content, $indexed_file->getContent());
+  }
+
+  public function testLargeFileStreamingHash(): void {
+    $file_path = self::$sut . DIRECTORY_SEPARATOR . 'large_streaming.txt';
+    // Create a file larger than 1MB to trigger streaming hash path.
+    $content = str_repeat('x', 1048577);
+    file_put_contents($file_path, $content);
+
+    $indexed_file = new IndexedFile($file_path, self::$sut);
+
+    // Hash should be computed via streaming (hashFile).
+    $this->assertSame(sha1($content), $indexed_file->getHash());
+    // Content should still be loadable on demand.
+    $this->assertSame($content, $indexed_file->getContent());
+  }
+
+  public function testLargeFileHashOnlyDoesNotLoadContent(): void {
+    $file_path = self::$sut . DIRECTORY_SEPARATOR . 'large_hash_only.txt';
+    $content = str_repeat('y', 1048577);
+    file_put_contents($file_path, $content);
+
+    $indexed_file = new IndexedFile($file_path, self::$sut);
+
+    // After getHash(), content should remain NULL for large files (streaming).
+    $indexed_file->getHash();
+
+    // Use reflection to check that content is NULL after hash-only access.
+    $reflection = new \ReflectionProperty($indexed_file, 'content');
+    $this->assertNull($reflection->getValue($indexed_file), 'Large file content should remain NULL after hash-only access');
+
+    // But getContent() should still return the content when explicitly called.
+    $this->assertSame($content, $indexed_file->getContent());
+  }
+
   public function testSetIgnoreContentToggle(): void {
     $file_path = self::$sut . DIRECTORY_SEPARATOR . 'test.txt';
     file_put_contents($file_path, 'test content');

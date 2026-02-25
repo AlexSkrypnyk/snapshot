@@ -411,7 +411,7 @@ function parse_arguments(array $argv): array {
     'root' => (string) getcwd(),
     'test_dir' => 'tests',
     'timeout' => 30,
-    'retries' => 3,
+    'retries' => 12,
   ];
 
   // Remove script name.
@@ -647,7 +647,7 @@ function execute_phpunit(string $filter, int $timeout, string $root): array {
   stream_set_blocking($pipes[2], FALSE);
 
   $output = [];
-  $last_dot_time = time();
+  $last_dot_time = microtime(TRUE);
 
   while (TRUE) {
     $status = proc_get_status($process);
@@ -659,10 +659,10 @@ function execute_phpunit(string $filter, int $timeout, string $root): array {
       break;
     }
 
-    // Print progress dot every second.
-    if (time() > $last_dot_time) {
+    // Print progress dot every 0.25 seconds.
+    if (microtime(TRUE) - $last_dot_time >= 0.25) {
       verbose('.');
-      $last_dot_time = time();
+      $last_dot_time = microtime(TRUE);
     }
 
     usleep(100000);
