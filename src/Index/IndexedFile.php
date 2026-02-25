@@ -37,6 +37,14 @@ class IndexedFile extends \SplFileInfo implements IndexedFileInterface {
   protected bool $contentLoaded = FALSE;
 
   /**
+   * File size threshold for read-once optimization (1 MB).
+   *
+   * Files smaller than this are read entirely into memory and hashed from the
+   * buffer. Files larger than this use streaming hash to avoid memory issues.
+   */
+  protected const LARGE_FILE_THRESHOLD = 1048576;
+
+  /**
    * Constructs a new IndexedFile object.
    *
    * @param string $filename
@@ -85,7 +93,8 @@ class IndexedFile extends \SplFileInfo implements IndexedFileInterface {
       $this->loadContent();
     }
 
-    // Lazy load actual content for files if not already loaded.
+    // Large files: content was not loaded during loadContent() to save memory.
+    // Load it now that it is explicitly requested.
     if ($this->content === NULL && !$this->isLink()) {
       $this->content = (string) file_get_contents($this->getRealPath());
     }
@@ -159,10 +168,17 @@ class IndexedFile extends \SplFileInfo implements IndexedFileInterface {
       }
       $this->hash = $this->hash($this->content);
     }
+    elseif ($this->getSize() <= static::LARGE_FILE_THRESHOLD) {
+      // Small files: read content once and compute hash from in-memory buffer.
+      // This eliminates the double-read that previously occurred when both
+      // getHash() and getContent() were called on the same file.
+      $this->content = (string) file_get_contents($this->getRealPath());
+      $this->hash = $this->hash($this->content);
+    }
     else {
-      // For files, compute hash incrementally without loading entire content.
+      // Large files: compute hash via streaming to avoid loading entire
+      // content into memory. Content remains NULL until explicitly requested.
       $this->hash = $this->hashFile($this->getRealPath());
-      // Content remains NULL until explicitly requested via getContent().
     }
 
     $this->contentLoaded = TRUE;

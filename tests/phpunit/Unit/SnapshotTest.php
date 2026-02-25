@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace AlexSkrypnyk\Snapshot\Tests\Unit;
 
+use AlexSkrypnyk\Snapshot\Index\IndexedFile;
 use AlexSkrypnyk\File\Exception\FileException;
 use AlexSkrypnyk\File\File;
 use AlexSkrypnyk\Snapshot\Compare\Comparer;
@@ -289,6 +290,26 @@ ABSENT,
     $this->assertTrue($processor_called, 'Content processor should be called');
   }
 
+  public function testPatchWithContentProcessorThatModifies(): void {
+    $baseline = File::dir($this->locationsFixtureDir('diff') . DIRECTORY_SEPARATOR . 'baseline');
+    $diff = File::dir($this->locationsFixtureDir('diff') . DIRECTORY_SEPARATOR . 'files_equal' . DIRECTORY_SEPARATOR . 'diff');
+
+    $processor = (fn(string $content): string => str_replace('f1l1', 'REPLACED', $content));
+
+    Snapshot::patch($baseline, $diff, self::$sut, $processor);
+
+    // Verify content was actually modified on disk.
+    $files = File::scandir(self::$sut);
+    $modified = FALSE;
+    foreach ($files as $file_path) {
+      if (is_file($file_path) && str_contains((string) file_get_contents($file_path), 'REPLACED')) {
+        $modified = TRUE;
+        break;
+      }
+    }
+    $this->assertTrue($modified, 'Content processor should have modified file content on disk');
+  }
+
   public function testGetBaselinePath(): void {
     // Create the baseline directory structure.
     $parent = self::$sut;
@@ -340,6 +361,73 @@ ABSENT,
     $index = Snapshot::scan($src, $rules, $processor);
 
     $this->assertGreaterThan(0, count($index->getFiles()));
+  }
+
+  public function testComparerCacheInvalidation(): void {
+    $dir1 = self::$sut . DIRECTORY_SEPARATOR . 'dir1';
+    $dir2 = self::$sut . DIRECTORY_SEPARATOR . 'dir2';
+    mkdir($dir1);
+    mkdir($dir2);
+
+    file_put_contents($dir1 . DIRECTORY_SEPARATOR . 'f1.txt', 'content1');
+    file_put_contents($dir2 . DIRECTORY_SEPARATOR . 'f1.txt', 'content1');
+
+    $comparer = Snapshot::compare($dir1, $dir2);
+
+    // First call - should be empty (directories are identical).
+    $this->assertEmpty($comparer->getAbsentLeftDiffs());
+    $this->assertEmpty($comparer->getAbsentRightDiffs());
+    $this->assertEmpty($comparer->getContentDiffs());
+
+    // Second call - should return same cached results.
+    $this->assertEmpty($comparer->getAbsentLeftDiffs());
+    $this->assertEmpty($comparer->getContentDiffs());
+  }
+
+  public function testComparerCacheInvalidatedOnAddFile(): void {
+    $dir1 = self::$sut . DIRECTORY_SEPARATOR . 'dir1';
+    $dir2 = self::$sut . DIRECTORY_SEPARATOR . 'dir2';
+    mkdir($dir1);
+    mkdir($dir2);
+
+    file_put_contents($dir1 . DIRECTORY_SEPARATOR . 'f1.txt', 'content1');
+    file_put_contents($dir2 . DIRECTORY_SEPARATOR . 'f1.txt', 'content1');
+
+    $comparer = Snapshot::compare($dir1, $dir2);
+
+    // Populate cache.
+    $this->assertEmpty($comparer->getAbsentLeftDiffs());
+
+    // Add a new file to the left side - this should invalidate cache.
+    $new_file_path = $dir1 . DIRECTORY_SEPARATOR . 'f2.txt';
+    file_put_contents($new_file_path, 'new content');
+    $new_file = new IndexedFile($new_file_path, $dir1);
+    $comparer->addLeftFile($new_file);
+
+    // Cache should be invalidated - absent right should now include f2.txt.
+    $absent_right = $comparer->getAbsentRightDiffs();
+    $this->assertArrayHasKey('f2.txt', $absent_right);
+  }
+
+  public function testSyncUsesFileCopy(): void {
+    $src = self::$sut . DIRECTORY_SEPARATOR . 'src';
+    $dst = self::$sut . DIRECTORY_SEPARATOR . 'dst';
+    mkdir($src);
+
+    // Create various file types.
+    file_put_contents($src . DIRECTORY_SEPARATOR . 'regular.txt', 'regular content');
+    mkdir($src . DIRECTORY_SEPARATOR . 'subdir');
+    file_put_contents($src . DIRECTORY_SEPARATOR . 'subdir' . DIRECTORY_SEPARATOR . 'nested.txt', 'nested content');
+    symlink($src . DIRECTORY_SEPARATOR . 'regular.txt', $src . DIRECTORY_SEPARATOR . 'link.txt');
+
+    Snapshot::sync($src, $dst);
+
+    // Verify all files were copied correctly.
+    $this->assertFileExists($dst . DIRECTORY_SEPARATOR . 'regular.txt');
+    $this->assertSame('regular content', file_get_contents($dst . DIRECTORY_SEPARATOR . 'regular.txt'));
+    $this->assertFileExists($dst . DIRECTORY_SEPARATOR . 'subdir' . DIRECTORY_SEPARATOR . 'nested.txt');
+    $this->assertSame('nested content', file_get_contents($dst . DIRECTORY_SEPARATOR . 'subdir' . DIRECTORY_SEPARATOR . 'nested.txt'));
+    $this->assertTrue(is_link($dst . DIRECTORY_SEPARATOR . 'link.txt'));
   }
 
 }
