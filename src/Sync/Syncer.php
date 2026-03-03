@@ -32,7 +32,12 @@ class Syncer implements SyncerInterface {
     foreach ($this->srcIndex->getFiles() as $file) {
       $absolute_src_path = $file->getPathname();
       $absolute_dst_path = $dst . DIRECTORY_SEPARATOR . $file->getPathnameFromBasepath();
-      File::copy($absolute_src_path, $absolute_dst_path, $permissions, $copy_empty_dirs);
+      if ($file->isIgnoreContent()) {
+        File::dump($absolute_dst_path, $file->getContent());
+      }
+      else {
+        File::copy($absolute_src_path, $absolute_dst_path, $permissions, $copy_empty_dirs);
+      }
     }
 
     return $this;

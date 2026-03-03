@@ -409,6 +409,23 @@ ABSENT,
     $this->assertArrayHasKey('f2.txt', $absent_right);
   }
 
+  public function testSyncRespectsContentIgnored(): void {
+    $src = self::$sut . DIRECTORY_SEPARATOR . 'src';
+    $dst = self::$sut . DIRECTORY_SEPARATOR . 'dst';
+    mkdir($src);
+
+    file_put_contents($src . DIRECTORY_SEPARATOR . 'regular.txt', 'regular content');
+    file_put_contents($src . DIRECTORY_SEPARATOR . 'ignored.txt', 'actual secret content');
+    file_put_contents($src . DIRECTORY_SEPARATOR . Snapshot::IGNORECONTENT, "^ignored.txt\n");
+
+    Snapshot::sync($src, $dst);
+
+    $this->assertFileExists($dst . DIRECTORY_SEPARATOR . 'regular.txt');
+    $this->assertSame('regular content', file_get_contents($dst . DIRECTORY_SEPARATOR . 'regular.txt'));
+    $this->assertFileExists($dst . DIRECTORY_SEPARATOR . 'ignored.txt');
+    $this->assertSame(IndexedFile::CONTENT_IGNORED_MARKER, file_get_contents($dst . DIRECTORY_SEPARATOR . 'ignored.txt'));
+  }
+
   public function testSyncUsesFileCopy(): void {
     $src = self::$sut . DIRECTORY_SEPARATOR . 'src';
     $dst = self::$sut . DIRECTORY_SEPARATOR . 'dst';
