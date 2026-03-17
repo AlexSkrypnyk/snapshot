@@ -59,6 +59,7 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
     $this->assertProcessOutputContains('--root=');
     $this->assertProcessOutputContains('--timeout=');
     $this->assertProcessOutputContains('--retries=');
+    $this->assertProcessOutputContains('--jobs=');
     $this->assertProcessOutputContains('--debug');
     $this->assertProcessOutputContains('dataset ...');
     $this->assertProcessOutputContains('Examples:');
@@ -406,6 +407,112 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
 
     $expected_file = $this->fixturesDir . '/scenario_change/expected/scenario1/scenario_file.txt';
     $this->assertFileEquals($expected_file, $scenario_file);
+  }
+
+  /**
+   * Test no_change scenario works with parallel jobs.
+   */
+  public function testNoChangeParallelJobs(): void {
+    $this->setupTestProject('no_change');
+
+    $this->processRun('php', [
+      $this->scriptPath,
+      '--root=' . $this->projectDir,
+      '--test-dir=tests',
+      '--timeout=60',
+      '--jobs=2',
+      'testSnapshot',
+      'tests/snapshots',
+    ]);
+
+    $this->assertProcessOutputContains('Discovering datasets');
+    $this->assertProcessOutputContains('Found');
+    $this->assertProcessOutputContains('parallel: 2');
+
+    $commit_count = $this->getCommitCount();
+    $this->assertSame(1, $commit_count, 'Expected only initial commit');
+  }
+
+  /**
+   * Test baseline_change scenario works with parallel jobs.
+   */
+  public function testBaselineChangeParallelJobs(): void {
+    $this->setupTestProject('baseline_change');
+
+    $this->processRun('php', [
+      $this->scriptPath,
+      '--root=' . $this->projectDir,
+      '--test-dir=tests',
+      '--timeout=60',
+      '--jobs=2',
+      'testSnapshot',
+      'tests/snapshots',
+    ]);
+
+    $this->assertProcessOutputContains('Discovering datasets');
+    $this->assertProcessOutputContains('parallel: 2');
+
+    $commit_count = $this->getCommitCount();
+    $this->assertSame(2, $commit_count, 'Expected initial + update commit');
+
+    $this->assertDirectoriesIdentical(
+      $this->fixturesDir . '/baseline_change/expected/_baseline',
+      $this->projectDir . '/tests/snapshots/_baseline'
+    );
+  }
+
+  /**
+   * Test both_change scenario works with parallel jobs.
+   */
+  public function testBothChangeParallelJobs(): void {
+    $this->setupTestProject('both_change');
+
+    $this->processRun('php', [
+      $this->scriptPath,
+      '--root=' . $this->projectDir,
+      '--test-dir=tests',
+      '--timeout=60',
+      '--jobs=2',
+      'testSnapshot',
+      'tests/snapshots',
+    ]);
+
+    $this->assertProcessOutputContains('Discovering datasets');
+    $this->assertProcessOutputContains('parallel: 2');
+
+    $commit_count = $this->getCommitCount();
+    $this->assertSame(2, $commit_count, 'Expected initial + update commit');
+
+    $this->assertDirectoriesIdentical(
+      $this->fixturesDir . '/both_change/expected/_baseline',
+      $this->projectDir . '/tests/snapshots/_baseline'
+    );
+
+    $scenario_path = $this->projectDir . '/tests/snapshots/scenario1';
+    $scenario_files = array_diff(scandir($scenario_path), ['.', '..', '.gitkeep', '.ignorecontent']);
+    $this->assertCount(0, $scenario_files, 'scenario1 should not contain any diff files');
+  }
+
+  /**
+   * Test that --jobs=1 works as sequential fallback.
+   */
+  public function testJobsOneSequential(): void {
+    $this->setupTestProject('no_change');
+
+    $this->processRun('php', [
+      $this->scriptPath,
+      '--root=' . $this->projectDir,
+      '--test-dir=tests',
+      '--timeout=60',
+      '--jobs=1',
+      'testSnapshot',
+      'tests/snapshots',
+    ]);
+
+    $this->assertProcessOutputContains('parallel: 1');
+
+    $commit_count = $this->getCommitCount();
+    $this->assertSame(1, $commit_count, 'Expected only initial commit');
   }
 
   /**

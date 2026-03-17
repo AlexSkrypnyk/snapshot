@@ -166,32 +166,38 @@ function run_all_datasets(array $config): void {
 
   $stats = ['current' => 0, 'succeeded' => 0, 'failed' => 0, 'timedout' => 0];
 
-  foreach ($datasets as $dataset) {
+  // Run baseline sequentially first.
+  $scenario_datasets = $datasets;
+  if ($datasets[0] === BASELINE_DATASET_NAME) {
     $stats['current']++;
 
     $result = run_with_timeout(
-      $config['test_name'] . '@' . $dataset,
+      $config['test_name'] . '@' . BASELINE_DATASET_NAME,
       $stats['current'],
       $total_datasets,
-      $dataset,
+      BASELINE_DATASET_NAME,
       $config['timeout'],
       $config['retries'],
       $config['debug'],
       $config['root']
     );
 
-    // Handle baseline dataset specially.
-    if ($dataset === BASELINE_DATASET_NAME) {
-      $baseline_committed = handle_baseline_result($result, $config['root'], $baseline_path);
-    }
-
-    // Update statistics.
+    $baseline_committed = handle_baseline_result($result, $config['root'], $baseline_path);
     $stats = update_stats($stats, $result, $total_datasets);
 
-    // Exit on timeout.
     if ($result === 2) {
       throw new \Exception('Test timed out');
     }
+
+    $scenario_datasets = array_slice($datasets, 1);
+  }
+
+  // Run remaining scenarios in parallel.
+  if (!empty($scenario_datasets)) {
+    $parallel_stats = run_datasets_parallel($scenario_datasets, $stats['current'], $total_datasets, $config);
+    $stats['succeeded'] += $parallel_stats['succeeded'];
+    $stats['failed'] += $parallel_stats['failed'];
+    $stats['timedout'] += $parallel_stats['timedout'];
   }
 
   // Print summary.
@@ -425,6 +431,7 @@ function parse_arguments(array $argv): array {
     'test_dir' => 'tests',
     'timeout' => 30,
     'retries' => 12,
+    'jobs' => 4,
   ];
 
   // Remove script name.
@@ -500,6 +507,10 @@ function parse_option(string $arg, array $config): array {
       $config['retries'] = (int) $value;
       break;
 
+    case 'jobs':
+      $config['jobs'] = max(1, (int) $value);
+      break;
+
     case 'debug':
       $config['debug'] = TRUE;
       break;
@@ -536,6 +547,7 @@ Options:
   --test-dir=<path>     Directory containing tests (default: tests)
   --timeout=<seconds>   Timeout for each test run (default: 30)
   --retries=<count>     Max retries for timed out tests (default: 12)
+  --jobs=<count>        Number of parallel jobs for scenarios (default: 4)
   --debug               Show PHPUnit output for failed tests.
   --help                This help.
 
@@ -622,6 +634,333 @@ function run_with_timeout(string $filter, int $current, int $total, string $data
   verbose(" ✗\n");
 
   return 1;
+}
+
+/**
+ * Run datasets in parallel with live progress display.
+ *
+ * @param array<string> $datasets
+ *   Dataset names to run.
+ * @param int $start_number
+ *   Starting dataset number (for display).
+ * @param int $total_datasets
+ *   Total number of datasets (for display).
+ * @param array<string, mixed> $config
+ *   Configuration array.
+ *
+ * @return array<string, int>
+ *   Statistics: succeeded, failed, timedout counts.
+ */
+function run_datasets_parallel(array $datasets, int $start_number, int $total_datasets, array $config): array {
+  $jobs = (int) $config['jobs'];
+  $is_tty = function_exists('posix_isatty') && posix_isatty(STDOUT);
+
+  // Build task list.
+  $tasks = [];
+  $number = $start_number;
+  foreach ($datasets as $dataset) {
+    $number++;
+    $tasks[] = [
+      'dataset' => $dataset,
+      'number' => $number,
+      'status' => 'queued',
+      'process' => NULL,
+      'pipes' => [],
+      'output' => [],
+      'start_time' => NULL,
+      'elapsed' => NULL,
+      'dots' => 0,
+      'attempt' => 1,
+      'last_dot_time' => 0.0,
+    ];
+  }
+
+  $rendered_lines = 0;
+
+  verbose("Running %d scenarios (parallel: %d)\n\n", count($datasets), $jobs);
+
+  // Event loop.
+  while (TRUE) {
+    dispatch_signals();
+
+    // Start phase: fill empty slots.
+    $running_count = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'running'));
+    foreach ($tasks as &$task) {
+      if ($running_count >= $jobs) {
+        break;
+      }
+      if ($task['status'] !== 'queued') {
+        continue;
+      }
+      $task = start_task($task, $config);
+      $running_count++;
+    }
+    unset($task);
+
+    // Poll phase: check running processes.
+    foreach ($tasks as &$task) {
+      if ($task['status'] !== 'running') {
+        continue;
+      }
+      $task = poll_task($task, $config);
+    }
+    unset($task);
+
+    // Render phase.
+    $rendered_lines = render_progress($tasks, $total_datasets, $is_tty, $rendered_lines);
+
+    // Exit check: all done?
+    $pending = array_filter($tasks, fn(array $t): bool => $t['status'] === 'queued' || $t['status'] === 'running');
+    if (empty($pending)) {
+      break;
+    }
+
+    usleep(100000);
+  }
+
+  // Print debug output for failures.
+  if ($config['debug']) {
+    foreach ($tasks as $task) {
+      if ($task['status'] === 'failed' || $task['status'] === 'timeout') {
+        verbose("\n--- DEBUG: %s ---\n", $task['dataset']);
+        verbose("%s\n", implode("\n", $task['output']));
+        verbose("--- END DEBUG ---\n");
+      }
+    }
+  }
+
+  verbose("\n");
+
+  // Aggregate stats.
+  $stats = ['succeeded' => 0, 'failed' => 0, 'timedout' => 0];
+  foreach ($tasks as $task) {
+    if ($task['status'] === 'success') {
+      $stats['succeeded']++;
+    }
+    elseif ($task['status'] === 'timeout') {
+      $stats['timedout']++;
+    }
+    else {
+      $stats['failed']++;
+    }
+  }
+
+  return $stats;
+}
+
+/**
+ * Start a queued task by spawning a PHPUnit process.
+ *
+ * @param array<string, mixed> $task
+ *   Task array.
+ * @param array<string, mixed> $config
+ *   Configuration array.
+ *
+ * @return array<string, mixed>
+ *   Updated task array with running process.
+ */
+function start_task(array $task, array $config): array {
+  $filter = $config['test_name'] . '@' . $task['dataset'];
+  $cmd = sprintf(
+    'XDEBUG_MODE=off UPDATE_SNAPSHOTS=1 timeout --foreground %ds %s/vendor/bin/phpunit --no-coverage --filter=%s 2>&1',
+    $config['timeout'],
+    $config['root'],
+    escapeshellarg($filter)
+  );
+
+  $descriptors = [
+    0 => ['pipe', 'r'],
+    1 => ['pipe', 'w'],
+    2 => ['pipe', 'w'],
+  ];
+
+  $process = proc_open($cmd, $descriptors, $pipes);
+
+  if (!is_resource($process)) {
+    $task['status'] = 'failed';
+    return $task;
+  }
+
+  fclose($pipes[0]);
+  stream_set_blocking($pipes[1], FALSE);
+  stream_set_blocking($pipes[2], FALSE);
+
+  $task['status'] = 'running';
+  $task['process'] = $process;
+  $task['pipes'] = $pipes;
+  $task['start_time'] = microtime(TRUE);
+  $task['last_dot_time'] = microtime(TRUE);
+
+  return $task;
+}
+
+/**
+ * Poll a running task for completion and progress.
+ *
+ * @param array<string, mixed> $task
+ *   Task array with running process.
+ * @param array<string, mixed> $config
+ *   Configuration array.
+ *
+ * @return array<string, mixed>
+ *   Updated task array.
+ */
+function poll_task(array $task, array $config): array {
+  $status = proc_get_status($task['process']);
+  $task['output'] = collect_output($task['pipes'], $task['output']);
+
+  // Update dots every 250ms.
+  if (microtime(TRUE) - $task['last_dot_time'] >= 0.25) {
+    $task['dots']++;
+    $task['last_dot_time'] = microtime(TRUE);
+  }
+
+  if ($status['running']) {
+    return $task;
+  }
+
+  // Process finished.
+  $task['output'] = collect_output($task['pipes'], $task['output']);
+  fclose($task['pipes'][1]);
+  fclose($task['pipes'][2]);
+  $exit_code = proc_close($task['process']);
+  $task['elapsed'] = round(microtime(TRUE) - $task['start_time'], 1);
+  $task['process'] = NULL;
+  $task['pipes'] = [];
+
+  if ($exit_code === 0) {
+    $task['status'] = 'success';
+    return $task;
+  }
+
+  // Timeout - retry if attempts remain.
+  if ($exit_code === 124) {
+    if ($task['attempt'] < $config['retries']) {
+      $task['attempt']++;
+      $task['status'] = 'queued';
+      $task['dots'] = 0;
+      $task['start_time'] = NULL;
+      $task['elapsed'] = NULL;
+      return $task;
+    }
+    $task['status'] = 'timeout';
+    return $task;
+  }
+
+  // Interrupt.
+  if ($exit_code === 130) {
+    exit(130);
+  }
+
+  $task['status'] = 'failed';
+
+  return $task;
+}
+
+/**
+ * Render progress display for all tasks.
+ *
+ * @param array<int, array<string, mixed>> $tasks
+ *   All tasks.
+ * @param int $total_datasets
+ *   Total dataset count for numbering.
+ * @param bool $is_tty
+ *   Whether output is a TTY.
+ * @param int $previous_lines
+ *   Number of lines rendered in the previous frame.
+ *
+ * @return int
+ *   Number of lines rendered.
+ */
+function render_progress(array $tasks, int $total_datasets, bool $is_tty, int $previous_lines): int {
+  $lines = [];
+
+  foreach ($tasks as $task) {
+    $prefix = sprintf('  [%d/%d] %s ', $task['number'], $total_datasets, $task['dataset']);
+
+    switch ($task['status']) {
+      case 'queued':
+        $lines[] = $prefix;
+        break;
+
+      case 'running':
+        $lines[] = $prefix . str_repeat('.', $task['dots']);
+        break;
+
+      case 'success':
+        $lines[] = $prefix . '✓ ' . $task['elapsed'] . 's';
+        break;
+
+      case 'failed':
+        $lines[] = $prefix . '✗ ' . $task['elapsed'] . 's';
+        break;
+
+      case 'timeout':
+        $lines[] = $prefix . '⏱ ' . $task['elapsed'] . 's';
+        break;
+    }
+  }
+
+  // Footer.
+  $succeeded = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'success'));
+  $failed = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'failed'));
+  $running = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'running'));
+  $queued = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'queued'));
+  $timedout = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'timeout'));
+
+  $lines[] = '';
+  $lines[] = sprintf('  Done: %d  Failed: %d  Running: %d  Queued: %d  Timeout: %d', $succeeded, $failed, $running, $queued, $timedout);
+
+  $total_lines = count($lines);
+
+  if (!$is_tty) {
+    // Non-TTY: only print when all done.
+    if ($running === 0 && $queued === 0) {
+      foreach ($lines as $line) {
+        verbose("%s\n", $line);
+      }
+    }
+    return $total_lines;
+  }
+
+  // TTY: move cursor up to overwrite previous frame.
+  if ($previous_lines > 0) {
+    verbose("\033[%dA", $previous_lines);
+  }
+
+  foreach ($lines as $line) {
+    verbose("\033[K%s\n", $line);
+  }
+
+  return $total_lines;
+}
+
+/**
+ * Kill all running processes in task list.
+ *
+ * @param array<int, array<string, mixed>> $tasks
+ *   All tasks.
+ */
+function kill_all_tasks(array &$tasks): void {
+  foreach ($tasks as &$task) {
+    if ($task['status'] === 'running' && is_resource($task['process'])) {
+      $status = proc_get_status($task['process']);
+      if ($status['running'] && $status['pid'] > 0) {
+        posix_kill($status['pid'], SIGTERM);
+      }
+      if (is_resource($task['pipes'][1])) {
+        fclose($task['pipes'][1]);
+      }
+      if (is_resource($task['pipes'][2])) {
+        fclose($task['pipes'][2]);
+      }
+      proc_close($task['process']);
+      $task['status'] = 'failed';
+      $task['process'] = NULL;
+      $task['pipes'] = [];
+    }
+  }
+  unset($task);
 }
 
 /**
