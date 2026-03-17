@@ -47,63 +47,63 @@ final class SnapshotTest extends UnitTestCase {
   public static function dataProviderCompare(): \Iterator {
     yield 'files_equal' => [];
     yield 'files_not_equal' => [
-        [
-          'absent_dir1' => [
-            'f4.txt',
-          ],
-          'absent_dir2' => [
-            'f3.txt',
-          ],
-          'content' => [
-            'f2.txt' => [
-              'dir1' => "f2l1\n",
-              'dir2' => "f2l1-changed\n",
-            ],
+      [
+        'absent_dir1' => [
+          'f4.txt',
+        ],
+        'absent_dir2' => [
+          'f3.txt',
+        ],
+        'content' => [
+          'f2.txt' => [
+            'dir1' => "f2l1\n",
+            'dir2' => "f2l1-changed\n",
           ],
         ],
+      ],
     ];
     yield 'files_equal_ignorecontent' => [];
     yield 'files_not_equal_ignorecontent' => [
-        [
-          'absent_dir1' => [
-            'f4.txt',
-          ],
-          'absent_dir2' => [
-            'f3.txt',
-          ],
-          'content' => [
-            'f2.txt' => [
-              'dir1' => "f2l1\n",
-              'dir2' => "f2l1-changed\n",
-            ],
+      [
+        'absent_dir1' => [
+          'f4.txt',
+        ],
+        'absent_dir2' => [
+          'f3.txt',
+        ],
+        'content' => [
+          'f2.txt' => [
+            'dir1' => "f2l1\n",
+            'dir2' => "f2l1-changed\n",
           ],
         ],
+      ],
     ];
     yield 'files_equal_advanced' => [];
     yield 'files_not_equal_advanced' => [
-        [
-          'absent_dir1' => [
-            'dir2_flat-present-dst/d2f1.txt',
-            'dir2_flat-present-dst/d2f2.txt',
-            'dir3_subdirs/dir31/f4-new-file-notignore-everywhere.txt',
-            'dir5_content_ignore/dir51/d51f2-new-file.txt',
-            'f4-new-file-notignore-everywhere.txt',
-          ],
-          'absent_dir2' => [
-            'd32f2_symlink_deep.txt',
-            'dir1_flat/d1f1_symlink.txt',
-            'dir1_flat/d1f3-only-src.txt',
-            'dir3_subdirs/dir32-unignored/d32f1_symlink.txt',
-            'dir3_subdirs_symlink',
-            'f2_symlink.txt',
-          ],
-          'content' => [
-            'dir3_subdirs/dir32-unignored/d32f2.txt' => [
-              'dir1' => "d32f2l1\n",
-              'dir2' => "d32f2l1-changed\n",
-            ],
+      [
+        'absent_dir1' => [
+          'dir2_flat-present-dst/d2f1.txt',
+          'dir2_flat-present-dst/d2f2.txt',
+          'dir3_subdirs/dir31/f4-new-file-notignore-everywhere.txt',
+          'dir5_content_ignore/dir51/d51f2-new-file.txt',
+          'f4-new-file-notignore-everywhere.txt',
+        ],
+        'absent_dir2' => [
+          'd32f2_symlink_deep.txt',
+          'dir1_flat/d1f1_symlink.txt',
+          'dir1_flat/d1f3-only-src.txt',
+          'dir3_subdirs/dir32-unignored/d32f1_symlink.txt',
+          'dir3_subdirs_symlink',
+          'f2_symlink.txt',
+        ],
+        'content' => [
+          'dir3_subdirs/dir32-unignored/d32f2.txt' => [
+            'dir1' => "d32f2l1\n",
+            'dir2' => "d32f2l1-changed\n",
           ],
         ],
+      ],
     ];
   }
 
@@ -130,11 +130,11 @@ final class SnapshotTest extends UnitTestCase {
 
   public static function dataProviderCompareRender(): \Iterator {
     yield 'files_equal' => [
-        [],
+      [],
     ];
     yield 'files_not_equal' => [
-        [
-          'Differences between directories',
+      [
+        'Differences between directories',
           <<<ABSENT
 Files absent in [left]:
   f4.txt
@@ -143,22 +143,22 @@ ABSENT,
 Files absent in [right]:
   f3.txt
 ABSENT,
-          'Files that differ in content:',
-          'f2.txt' => <<<DIFF_WRAP
+        'Files that differ in content:',
+        'f2.txt' => <<<DIFF_WRAP
           --- DIFF START ---
           @@ -1 +1 @@
           -f2l1
           +f2l1-changed
           --- DIFF END ---
           DIFF_WRAP,
-        ],
+      ],
     ];
     yield 'files_equal_ignorecontent' => [
-        [],
+      [],
     ];
     yield 'files_not_equal_ignorecontent' => [
-        [
-          'Differences between directories',
+      [
+        'Differences between directories',
           <<<ABSENT
 Files absent in [left]:
   f4.txt
@@ -167,23 +167,23 @@ ABSENT,
 Files absent in [right]:
   f3.txt
 ABSENT,
-          'Files that differ in content:',
-          'f2.txt' => <<<DIFF_WRAP
+        'Files that differ in content:',
+        'f2.txt' => <<<DIFF_WRAP
           --- DIFF START ---
           @@ -1 +1 @@
           -f2l1
           +f2l1-changed
           --- DIFF END ---
           DIFF_WRAP,
-        ],
+      ],
     ];
     yield 'files_equal_advanced' => [
-        [],
+      [],
     ];
     yield 'files_not_equal_advanced' => [
-        [
-          'Differences between directories',
-          "Files absent in [left]:\n",
+      [
+        'Differences between directories',
+        "Files absent in [left]:\n",
           <<<ABSENT
   dir2_flat-present-dst/d2f1.txt
   dir2_flat-present-dst/d2f2.txt
@@ -191,7 +191,7 @@ ABSENT,
   dir5_content_ignore/dir51/d51f2-new-file.txt
   f4-new-file-notignore-everywhere.txt
 ABSENT,
-          "Files absent in [right]:\n",
+        "Files absent in [right]:\n",
           <<<ABSENT
   d32f2_symlink_deep.txt
   dir1_flat/d1f1_symlink.txt
@@ -200,15 +200,15 @@ ABSENT,
   dir3_subdirs_symlink
   f2_symlink.txt
 ABSENT,
-          'Files that differ in content:',
-          'dir3_subdirs/dir32-unignored/d32f2.txt' => <<<DIFF_WRAP
+        'Files that differ in content:',
+        'dir3_subdirs/dir32-unignored/d32f2.txt' => <<<DIFF_WRAP
           --- DIFF START ---
           @@ -1 +1 @@
           -d32f2l1
           +d32f2l1-changed
           --- DIFF END ---
           DIFF_WRAP,
-        ],
+      ],
     ];
   }
 
