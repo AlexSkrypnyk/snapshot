@@ -80,8 +80,9 @@ trait SnapshotTrait {
       $this->fail($message ?: sprintf('The baseline directory does not exist: %s', $baseline));
     }
 
-    // We use the .expected dir to easily assess the combined expected snapshot.
-    $expected = $expected ?: File::realpath($baseline . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '.expected');
+    // Use a unique temp directory per invocation to avoid collisions when
+    // multiple PHPUnit processes run snapshot tests in parallel.
+    $expected = $expected ?: sys_get_temp_dir() . DIRECTORY_SEPARATOR . '.snapshot-expected-' . getmypid() . '-' . hrtime(TRUE);
     File::rmdir($expected);
 
     try {
