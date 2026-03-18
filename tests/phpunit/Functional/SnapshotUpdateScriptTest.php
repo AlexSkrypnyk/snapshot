@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace AlexSkrypnyk\Snapshot\Tests\Functional;
 
+use PHPUnit\Framework\Exception;
 use AlexSkrypnyk\File\File;
 use PHPUnit\Framework\Attributes\CoversNothing;
 
@@ -356,6 +357,55 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
     $scenario_path = $this->projectDir . '/tests/snapshots/scenario1';
     $scenario_files = array_diff(scandir($scenario_path), ['.', '..', '.gitkeep', '.ignorecontent']);
     $this->assertCount(0, $scenario_files, 'scenario1 should not contain any diff files');
+  }
+
+  /**
+   * Test that stderr from snapshotUpdateOnFailure() is captured separately.
+   *
+   * The execute_phpunit() function uses proc_open with separate pipes for
+   * stdout and stderr. The [SNAPSHOT] messages written to stderr by
+   * snapshotUpdateOnFailure() must not be merged into stdout (no 2>&1),
+   * as this can cause false PHPUnit errors.
+   *
+   * Scenario: scenario_change with --debug
+   * - Run scenario1 dataset (triggers snapshot update with stderr output)
+   * - Expected: [SNAPSHOT] messages captured in debug output, no
+   *   PHPUnit\Framework\Exception, files updated correctly.
+   */
+  public function testStderrNotMergedIntoStdout(): void {
+    $this->setupTestProject('scenario_change');
+
+    // Run with --debug to expose captured PHPUnit output.
+    $this->processRun('php', [
+      $this->scriptPath,
+      '--root=' . $this->projectDir,
+      '--test-dir=tests',
+      '--timeout=60',
+      '--debug',
+      'testSnapshot',
+      'tests/snapshots',
+      'scenario1',
+    ]);
+
+    $output = $this->processGet()->getOutput();
+
+    // The [SNAPSHOT] messages should appear in debug output, captured from
+    // PHPUnit's stderr pipe.
+    $this->assertStringContainsString('[SNAPSHOT]', $output, 'stderr messages should be captured in debug output');
+
+    // Stderr messages must not cause PHPUnit to wrap them as exceptions.
+    $this->assertStringNotContainsString(
+      Exception::class,
+      $output,
+      'stderr messages should not cause PHPUnit framework exceptions'
+    );
+
+    // Files must still be updated correctly despite stderr output.
+    $scenario_file = $this->projectDir . '/tests/snapshots/scenario1/scenario_file.txt';
+    $this->assertFileExists($scenario_file);
+
+    $expected_file = $this->fixturesDir . '/scenario_change/expected/scenario1/scenario_file.txt';
+    $this->assertFileEquals($expected_file, $scenario_file);
   }
 
   /**

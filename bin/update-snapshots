@@ -639,7 +639,11 @@ function run_with_timeout(string $filter, int $current, int $total, string $data
  */
 function execute_phpunit(string $filter, int $timeout, string $root): array {
   $cmd = sprintf(
-    'XDEBUG_MODE=off UPDATE_SNAPSHOTS=1 timeout --foreground %ds %s/vendor/bin/phpunit --no-coverage --filter=%s 2>&1',
+    // Do not use 2>&1 here: proc_open already captures stdout and stderr on
+    // separate pipes. Merging them at the shell level forces fwrite(STDERR,...)
+    // in SnapshotTrait::snapshotUpdateOnFailure() to write to stdout, which
+    // can cause false PHPUnit errors.
+    'XDEBUG_MODE=off UPDATE_SNAPSHOTS=1 timeout --foreground %ds %s/vendor/bin/phpunit --no-coverage --filter=%s',
     $timeout,
     $root,
     escapeshellarg($filter)
