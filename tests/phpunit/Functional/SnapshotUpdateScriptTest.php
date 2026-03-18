@@ -59,6 +59,7 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
     $this->assertProcessOutputContains('--timeout=');
     $this->assertProcessOutputContains('--retries=');
     $this->assertProcessOutputContains('--debug');
+    $this->assertProcessOutputContains('dataset ...');
     $this->assertProcessOutputContains('Examples:');
   }
 
@@ -229,18 +230,19 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
   }
 
   /**
-   * Test scenario_change: single dataset mode updates files (no commit).
+   * Test scenario_change: specified dataset mode updates files (no commit).
    *
    * Scenario: scenario_change
    * - Actual has extra scenario_file.txt
-   * - Run ONLY scenario1 dataset (single dataset mode)
-   * - Expected: Files updated, no commit (single dataset mode doesn't commit)
+   * - Run ONLY scenario1 dataset (specified dataset mode)
+   * - Expected: Files updated, no commit (specified dataset mode doesn't
+   *   commit)
    */
   public function testScenarioChangeUpdatesFiles(): void {
     $this->setupTestProject('scenario_change');
 
     // Run update-snapshots for ONLY scenario1 dataset.
-    // Single dataset mode doesn't create commits.
+    // Specified dataset mode doesn't create commits.
     $this->processRun('php', [
       $this->scriptPath,
       '--root=' . $this->projectDir,
@@ -251,7 +253,7 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
       'scenario1',
     ]);
 
-    // Assert: single dataset mode ran.
+    // Assert: specified dataset mode ran.
     $this->assertProcessOutputContains('Scanning for dataset: scenario1');
 
     // Assert: scenario diff file was created.
@@ -262,9 +264,46 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
     $expected_file = $this->fixturesDir . '/scenario_change/expected/scenario1/scenario_file.txt';
     $this->assertFileEquals($expected_file, $scenario_file);
 
-    // Assert: only 1 commit (initial - single dataset mode doesn't commit).
+    // Assert: only 1 commit (initial - specified dataset mode doesn't commit).
     $commit_count = $this->getCommitCount();
-    $this->assertSame(1, $commit_count, 'Single dataset mode should not create commits');
+    $this->assertSame(1, $commit_count, 'Specified dataset mode should not create commits');
+  }
+
+  /**
+   * Test multiple datasets: specified datasets are all processed.
+   *
+   * Scenario: scenario_change
+   * - Run baseline AND scenario1 datasets
+   * - Expected: Both datasets processed, files updated, no commit.
+   */
+  public function testMultipleDatasetsUpdatesFiles(): void {
+    $this->setupTestProject('both_change');
+
+    // Run update-snapshots for baseline AND scenario1 datasets.
+    $this->processRun('php', [
+      $this->scriptPath,
+      '--root=' . $this->projectDir,
+      '--test-dir=tests',
+      '--timeout=60',
+      'testSnapshot',
+      'tests/snapshots',
+      'baseline',
+      'scenario1',
+    ]);
+
+    // Assert: both datasets were scanned.
+    $this->assertProcessOutputContains('Scanning for dataset: baseline');
+    $this->assertProcessOutputContains('Scanning for dataset: scenario1');
+
+    // Assert: baseline files match expected (includes scenario_file.txt).
+    $this->assertDirectoriesIdentical(
+      $this->fixturesDir . '/both_change/expected/_baseline',
+      $this->projectDir . '/tests/snapshots/_baseline'
+    );
+
+    // Assert: only 1 commit (initial - specified dataset mode doesn't commit).
+    $commit_count = $this->getCommitCount();
+    $this->assertSame(1, $commit_count, 'Specified dataset mode should not create commits');
   }
 
   /**
