@@ -10,9 +10,10 @@
  *
  * Usage:
  * @code
- * vendor/bin/snapshot-update [options] <test-name> <snapshots-path> [dataset]
+ * vendor/bin/snapshot-update [options] <test-name> <snapshots-path> [dataset ...]
  * vendor/bin/snapshot-update testMySnapshot path/to/snapshots
  * vendor/bin/snapshot-update testMySnapshot path/to/snapshots baseline
+ * vendor/bin/snapshot-update testMySnapshot path/to/snapshots baseline scenario1
  * vendor/bin/snapshot-update --root=../.. testMySnapshot path/to/snapshots
  * @endcode
  */
@@ -57,9 +58,9 @@ function main(array $argv, int $argc): void {
   // Change to root directory.
   chdir($config['root']);
 
-  // If dataset provided, run single PHPUnit command with filter.
-  if ($config['dataset'] !== '') {
-    run_single_dataset($config);
+  // If datasets provided, run only specified datasets.
+  if (!empty($config['datasets'])) {
+    run_specified_datasets($config);
 
     return;
   }
@@ -110,29 +111,37 @@ function setup_signal_handlers(): void {
 }
 
 /**
- * Run a single dataset.
+ * Run specified datasets.
  *
  * @param array<string, mixed> $config
  *   Configuration array.
  */
-function run_single_dataset(array $config): void {
-  verbose("Scanning for dataset: %s\n", $config['dataset']);
+function run_specified_datasets(array $config): void {
+  $datasets = $config['datasets'];
+  $failed = [];
 
-  $cmd = sprintf(
-    'XDEBUG_MODE=off UPDATE_SNAPSHOTS=1 %s/vendor/bin/phpunit --no-coverage --filter=%s',
-    $config['root'],
-    escapeshellarg($config['test_name'] . '@' . $config['dataset'])
-  );
+  foreach ($datasets as $dataset) {
+    verbose("Scanning for dataset: %s\n", $dataset);
 
-  passthru($cmd, $exit_code);
+    $cmd = sprintf(
+      'XDEBUG_MODE=off UPDATE_SNAPSHOTS=1 %s/vendor/bin/phpunit --no-coverage --filter=%s',
+      $config['root'],
+      escapeshellarg($config['test_name'] . '@' . $dataset)
+    );
 
-  if ($exit_code === 0) {
-    verbose("Completed successfully\n");
+    passthru($cmd, $exit_code);
 
-    return;
+    if ($exit_code === 0) {
+      verbose("Completed successfully\n");
+    }
+    else {
+      $failed[] = $dataset;
+    }
   }
 
-  throw new \Exception('Failed');
+  if (!empty($failed)) {
+    throw new \Exception(sprintf('Failed datasets: %s', implode(', ', $failed)));
+  }
 }
 
 /**
@@ -407,7 +416,7 @@ function parse_arguments(array $argv): array {
     'debug' => FALSE,
     'test_name' => '',
     'snapshots_path' => '',
-    'dataset' => '',
+    'datasets' => [],
     'root' => (string) getcwd(),
     'test_dir' => 'tests',
     'timeout' => 30,
@@ -443,8 +452,8 @@ function parse_arguments(array $argv): array {
   if (isset($positional[1])) {
     $config['snapshots_path'] = $positional[1];
   }
-  if (isset($positional[2])) {
-    $config['dataset'] = $positional[2];
+  if (count($positional) > 2) {
+    $config['datasets'] = array_slice($positional, 2);
   }
 
   return $config;
@@ -508,13 +517,14 @@ This script runs PHPUnit with UPDATE_SNAPSHOTS=1 for each dataset to avoid
 memory issues and handle hanging tests with timeouts and retries.
 
 Usage:
-  vendor/bin/{$script_name} [options] <test-name> <snapshots-path> [dataset]
+  vendor/bin/{$script_name} [options] <test-name> <snapshots-path> [dataset ...]
 
 Arguments:
   test-name             Test method name pattern (e.g., 'testMySnapshot').
   snapshots-path        Path to snapshots directory (relative to --root).
                         Baseline path is derived as '_baseline' subdirectory.
-  dataset               Optional dataset name to update (e.g., 'baseline').
+  dataset               Optional dataset name(s) to update (e.g., 'baseline').
+                        Multiple datasets can be specified separated by spaces.
                         If not provided, all datasets will be updated.
 
 Options:
@@ -528,6 +538,7 @@ Options:
 Examples:
   vendor/bin/{$script_name} testMySnapshot tests/snapshots
   vendor/bin/{$script_name} testMySnapshot tests/snapshots baseline
+  vendor/bin/{$script_name} testMySnapshot tests/snapshots baseline scenario1
   vendor/bin/{$script_name} --root=/path/to/project testMySnapshot tests/snapshots
   vendor/bin/{$script_name} --test-dir=tests/Functional testMySnapshot tests/snapshots
 
