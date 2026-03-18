@@ -172,14 +172,17 @@ UPDATE_SNAPSHOTS=1 ./vendor/bin/phpunit
 ### Batch Snapshot Updates
 
 For tests with many datasets, use the `update-snapshots` CLI tool to update
-snapshots one dataset at a time with timeout handling and automatic retries:
+snapshots with timeout handling, automatic retries, and parallel execution:
 
 ```bash
 # Update all datasets for a test
 vendor/bin/update-snapshots testMySnapshot tests/snapshots
 
-# Update a specific dataset
-vendor/bin/update-snapshots testMySnapshot tests/snapshots baseline
+# Update specific datasets
+vendor/bin/update-snapshots testMySnapshot tests/snapshots baseline scenario1
+
+# Run with 8 parallel jobs
+vendor/bin/update-snapshots --jobs=8 testMySnapshot tests/snapshots
 
 # Specify project root (useful when running from subdirectory)
 vendor/bin/update-snapshots --root=/path/to/project testMySnapshot tests/snapshots
@@ -187,39 +190,28 @@ vendor/bin/update-snapshots --root=/path/to/project testMySnapshot tests/snapsho
 
 The tool:
 - Discovers all datasets from PHPUnit test list
-- Runs baseline dataset first, then remaining datasets
+- Runs baseline dataset first (sequentially), then remaining scenarios in parallel
 - Handles timeouts with configurable retries
 - Auto-commits baseline and snapshot changes
-- Shows progress with visual feedback
+- Shows a live TUI progress display with scrolling when running in a terminal
 
 Options:
 - `--root=<path>` - Project root directory (default: current directory)
 - `--test-dir=<path>` - Directory containing tests (default: `tests`)
 - `--timeout=<seconds>` - Timeout per test run (default: 30)
-- `--retries=<count>` - Max retries for timed out tests (default: 3)
+- `--retries=<count>` - Max retries for timed out tests (default: 12)
+- `--jobs=<count>` - Number of parallel jobs for scenarios (default: 4)
 - `--debug` - Show PHPUnit output for failed tests
 
-Example output:
+#### Parallel Execution
 
-```
-Discovering datasets...
-Found 13 unique datasets
-[1/13] baseline .......... ✓
-[2/13] name ........... ✓
-[3/13] no docs ..... ✓
-[4/13] no funding ..... ✓
-[5/13] no languages .......... ✓
-[6/13] no pr autoassign .... ✓
-[7/13] no pr template ..... ✓
-[8/13] no release drafter ..... ✓
-[9/13] no renovate ..... ✓
-[10/13] nodejs ........... ✓
-[11/13] php command ......... ✓
-[12/13] php script ......... ✓
-[13/13] shell ..... ✓
-Total: 13 | Succeeded: 13 | Failed: 0 | Timed out: 0
-Total execution time: 1 minutes 37 seconds
-```
+When updating all datasets, the baseline is always run first (since other
+scenarios may depend on it). Once the baseline completes, all remaining
+scenarios run in parallel using the number of jobs specified by `--jobs`.
+
+In a TTY terminal, a live progress display shows the status of all tasks with
+keyboard scrolling (arrow keys and Page Up/Down). In non-TTY environments
+(e.g., CI), results are printed after all tasks complete.
 
 ### Ignore Rules
 
