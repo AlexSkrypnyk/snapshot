@@ -118,23 +118,27 @@ function setup_signal_handlers(): void {
  */
 function run_specified_datasets(array $config): void {
   $datasets = $config['datasets'];
+  $total = count($datasets);
   $failed = [];
 
-  foreach ($datasets as $dataset) {
-    verbose("Scanning for dataset: %s\n", $dataset);
+  verbose("Running %d specified dataset(s)\n", $total);
 
-    $cmd = sprintf(
-      'XDEBUG_MODE=off UPDATE_SNAPSHOTS=1 %s/vendor/bin/phpunit --no-coverage --filter=%s',
-      $config['root'],
-      escapeshellarg($config['test_name'] . '@' . $dataset)
+  $current = 0;
+  foreach ($datasets as $dataset) {
+    $current++;
+
+    $result = run_with_timeout(
+      $config['test_name'] . '@' . $dataset,
+      $current,
+      $total,
+      $dataset,
+      $config['timeout'],
+      $config['retries'],
+      $config['debug'],
+      $config['root']
     );
 
-    passthru($cmd, $exit_code);
-
-    if ($exit_code === 0) {
-      verbose("Completed successfully\n");
-    }
-    else {
+    if ($result !== 0) {
       $failed[] = $dataset;
     }
   }
@@ -531,7 +535,7 @@ Options:
   --root=<path>         Path to project root directory (default: current dir)
   --test-dir=<path>     Directory containing tests (default: tests)
   --timeout=<seconds>   Timeout for each test run (default: 30)
-  --retries=<count>     Max retries for timed out tests (default: 3)
+  --retries=<count>     Max retries for timed out tests (default: 12)
   --debug               Show PHPUnit output for failed tests.
   --help                This help.
 

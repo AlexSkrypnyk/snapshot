@@ -254,7 +254,8 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
     ]);
 
     // Assert: specified dataset mode ran.
-    $this->assertProcessOutputContains('Scanning for dataset: scenario1');
+    $this->assertProcessOutputContains('Running 1 specified dataset(s)');
+    $this->assertProcessOutputContains('scenario1');
 
     // Assert: scenario diff file was created.
     $scenario_file = $this->projectDir . '/tests/snapshots/scenario1/scenario_file.txt';
@@ -292,8 +293,9 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
     ]);
 
     // Assert: both datasets were scanned.
-    $this->assertProcessOutputContains('Scanning for dataset: baseline');
-    $this->assertProcessOutputContains('Scanning for dataset: scenario1');
+    $this->assertProcessOutputContains('Running 2 specified dataset(s)');
+    $this->assertProcessOutputContains('baseline');
+    $this->assertProcessOutputContains('scenario1');
 
     // Assert: baseline files match expected (includes scenario_file.txt).
     $this->assertDirectoriesIdentical(
