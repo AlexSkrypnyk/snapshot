@@ -99,14 +99,14 @@ function validate_config(array $config): void {
  */
 function setup_signal_handlers(): void {
   if (function_exists('pcntl_signal')) {
-    pcntl_signal(SIGINT, function (): void {
+    $handler = function (): void {
+      // Restore terminal if in TUI mode.
+      exit_tui();
       verbose("\nInterrupted by user\n");
       exit(130);
-    });
-    pcntl_signal(SIGTERM, function (): void {
-      verbose("\nInterrupted by user\n");
-      exit(130);
-    });
+    };
+    pcntl_signal(SIGINT, $handler);
+    pcntl_signal(SIGTERM, $handler);
   }
 }
 
@@ -675,13 +675,23 @@ function run_datasets_parallel(array $datasets, int $start_number, int $total_da
     ];
   }
 
-  $rendered_lines = 0;
+  $scroll_offset = 0;
+  $start_time = microtime(TRUE);
 
-  verbose("Running %d scenarios (parallel: %d)\n\n", count($datasets), $jobs);
+  verbose("Running %d scenarios (parallel: %d)\n", count($datasets), $jobs);
+
+  if ($is_tty) {
+    enter_tui();
+  }
 
   // Event loop.
   while (TRUE) {
     dispatch_signals();
+
+    // Read keyboard input for scrolling (TTY only).
+    if ($is_tty) {
+      $scroll_offset = read_keyboard_input($scroll_offset, count($tasks));
+    }
 
     // Start phase: fill empty slots.
     $running_count = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'running'));
@@ -707,7 +717,7 @@ function run_datasets_parallel(array $datasets, int $start_number, int $total_da
     unset($task);
 
     // Render phase.
-    $rendered_lines = render_progress($tasks, $total_datasets, $is_tty, $rendered_lines);
+    render_progress($tasks, $total_datasets, $is_tty, $jobs, $scroll_offset, $start_time);
 
     // Exit check: all done?
     $pending = array_filter($tasks, fn(array $t): bool => $t['status'] === 'queued' || $t['status'] === 'running');
@@ -715,10 +725,22 @@ function run_datasets_parallel(array $datasets, int $start_number, int $total_da
       break;
     }
 
-    usleep(100000);
+    usleep(50000);
   }
 
-  // Print debug output for failures.
+  if ($is_tty) {
+    // Hold final frame briefly so user can see results.
+    sleep(2);
+    exit_tui();
+  }
+
+  // Print final summary and debug output to normal scrollback.
+  $succeeded = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'success'));
+  $failed_count = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'failed'));
+  $timedout_count = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'timeout'));
+
+  verbose("Parallel run: %d succeeded, %d failed, %d timed out\n", $succeeded, $failed_count, $timedout_count);
+
   if ($config['debug']) {
     foreach ($tasks as $task) {
       if ($task['status'] === 'failed' || $task['status'] === 'timeout') {
@@ -728,8 +750,6 @@ function run_datasets_parallel(array $datasets, int $start_number, int $total_da
       }
     }
   }
-
-  verbose("\n");
 
   // Aggregate stats.
   $stats = ['succeeded' => 0, 'failed' => 0, 'timedout' => 0];
@@ -858,7 +878,112 @@ function poll_task(array $task, array $config): array {
 }
 
 /**
+ * Track whether TUI mode is active.
+ *
+ * @param bool|null $set
+ *   Set to TRUE/FALSE to change state, or NULL to query.
+ *
+ * @return bool
+ *   Whether TUI mode is active.
+ */
+function is_tui_active(?bool $set = NULL): bool {
+  static $active = FALSE;
+
+  if ($set !== NULL) {
+    $active = $set;
+  }
+
+  return $active;
+}
+
+/**
+ * Enter TUI mode: alternate screen, hidden cursor, raw input.
+ */
+function enter_tui(): void {
+  // @codeCoverageIgnoreStart
+  print "\033[?1049h";
+  print "\033[2J\033[H";
+  print "\033[?25l";
+  system('stty -icanon -echo');
+  stream_set_blocking(STDIN, FALSE);
+  is_tui_active(TRUE);
+  // @codeCoverageIgnoreEnd
+}
+
+/**
+ * Exit TUI mode: show cursor, restore screen, reset terminal.
+ */
+function exit_tui(): void {
+  // @codeCoverageIgnoreStart
+  if (!is_tui_active()) {
+    return;
+  }
+  print "\033[?25h";
+  print "\033[?1049l";
+  system('stty sane');
+  is_tui_active(FALSE);
+  // @codeCoverageIgnoreEnd
+}
+
+/**
+ * Read keyboard input and update scroll offset.
+ *
+ * @param int $scroll_offset
+ *   Current scroll offset.
+ * @param int $task_count
+ *   Total number of tasks.
+ *
+ * @return int
+ *   Updated scroll offset.
+ */
+function read_keyboard_input(int $scroll_offset, int $task_count): int {
+  // @codeCoverageIgnoreStart
+  $viewport_height = get_viewport_height();
+  $max_scroll = max(0, $task_count - $viewport_height);
+
+  $all_input = '';
+  while (($chunk = fread(STDIN, 256)) !== FALSE && $chunk !== '') {
+    $all_input .= $chunk;
+  }
+
+  if ($all_input === '') {
+    return $scroll_offset;
+  }
+
+  $scroll_offset -= substr_count($all_input, "\033[A");
+  $scroll_offset += substr_count($all_input, "\033[B");
+  $scroll_offset -= substr_count($all_input, "\033[5~") * $viewport_height;
+  $scroll_offset += substr_count($all_input, "\033[6~") * $viewport_height;
+
+  return max(0, min($max_scroll, $scroll_offset));
+  // @codeCoverageIgnoreEnd
+}
+
+/**
+ * Get the viewport height for task display.
+ *
+ * @return int
+ *   Number of task lines that fit in the viewport.
+ */
+function get_viewport_height(): int {
+  $term_height = (int) exec('tput lines');
+  if ($term_height < 10) {
+    $term_height = 24;
+  }
+
+  // Header (2) + footer (3) + scroll hint (1) = 6 chrome lines.
+  $chrome_lines = 6;
+  $min_task_lines = 10;
+  $max_task_lines = (int) floor($term_height * 0.8);
+
+  return max($min_task_lines, min($max_task_lines, $term_height - $chrome_lines));
+}
+
+/**
  * Render progress display for all tasks.
+ *
+ * In TTY mode, uses alternate screen with viewport scrolling.
+ * In non-TTY mode, prints final results only.
  *
  * @param array<int, array<string, mixed>> $tasks
  *   All tasks.
@@ -866,73 +991,105 @@ function poll_task(array $task, array $config): array {
  *   Total dataset count for numbering.
  * @param bool $is_tty
  *   Whether output is a TTY.
- * @param int $previous_lines
- *   Number of lines rendered in the previous frame.
- *
- * @return int
- *   Number of lines rendered.
+ * @param int $jobs
+ *   Number of parallel jobs.
+ * @param int $scroll_offset
+ *   Current scroll offset for viewport.
+ * @param float $start_time
+ *   Start time of parallel run.
  */
-function render_progress(array $tasks, int $total_datasets, bool $is_tty, int $previous_lines): int {
-  $lines = [];
-
-  foreach ($tasks as $task) {
-    $prefix = sprintf('  [%d/%d] %s ', $task['number'], $total_datasets, $task['dataset']);
-
-    switch ($task['status']) {
-      case 'queued':
-        $lines[] = $prefix;
-        break;
-
-      case 'running':
-        $lines[] = $prefix . str_repeat('.', $task['dots']);
-        break;
-
-      case 'success':
-        $lines[] = $prefix . '✓ ' . $task['elapsed'] . 's';
-        break;
-
-      case 'failed':
-        $lines[] = $prefix . '✗ ' . $task['elapsed'] . 's';
-        break;
-
-      case 'timeout':
-        $lines[] = $prefix . '⏱ ' . $task['elapsed'] . 's';
-        break;
-    }
-  }
-
-  // Footer.
+function render_progress(array $tasks, int $total_datasets, bool $is_tty, int $jobs, int $scroll_offset, float $start_time): void {
+  $task_count = count($tasks);
   $succeeded = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'success'));
   $failed = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'failed'));
   $running = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'running'));
   $queued = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'queued'));
   $timedout = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'timeout'));
-
-  $lines[] = '';
-  $lines[] = sprintf('  Done: %d  Failed: %d  Running: %d  Queued: %d  Timeout: %d', $succeeded, $failed, $running, $queued, $timedout);
-
-  $total_lines = count($lines);
+  $pad = strlen((string) $total_datasets);
 
   if (!$is_tty) {
     // Non-TTY: only print when all done.
     if ($running === 0 && $queued === 0) {
-      foreach ($lines as $line) {
-        verbose("%s\n", $line);
+      foreach ($tasks as $task) {
+        $line = sprintf('  [%' . $pad . 'd/%d] %s ', $task['number'], $total_datasets, $task['dataset']);
+        if ($task['status'] === 'success') {
+          verbose("%s✓ %ss\n", $line, $task['elapsed']);
+        }
+        elseif ($task['status'] === 'timeout') {
+          verbose("%s⏱ %ss\n", $line, $task['elapsed']);
+        }
+        else {
+          verbose("%s✗ %ss\n", $line, $task['elapsed']);
+        }
       }
+      verbose("\n");
+      verbose("  Done: %d  Failed: %d  Timeout: %d\n", $succeeded, $failed, $timedout);
     }
-    return $total_lines;
+
+    return;
   }
 
-  // TTY: move cursor up to overwrite previous frame.
-  if ($previous_lines > 0) {
-    verbose("\033[%dA", $previous_lines);
+  // @codeCoverageIgnoreStart
+  $viewport_height = get_viewport_height();
+  $max_scroll = max(0, $task_count - $viewport_height);
+  $scroll_offset = min($scroll_offset, $max_scroll);
+
+  // Cursor to home.
+  print "\033[H";
+
+  // Header.
+  printf("\033[K  Running %d scenarios (parallel: %d)\n", $task_count, $jobs);
+  print "\033[K\n";
+
+  // Visible slice of tasks.
+  $visible_end = min($task_count, $scroll_offset + $viewport_height);
+  for ($i = $scroll_offset; $i < $visible_end; $i++) {
+    $task = $tasks[$i];
+    $prefix = sprintf('  [%' . $pad . 'd/%d] %-20s ', $task['number'], $total_datasets, $task['dataset']);
+
+    switch ($task['status']) {
+      case 'queued':
+        printf("\033[K%s\033[90m·\033[0m\n", $prefix);
+        break;
+
+      case 'running':
+        printf("\033[K%s\033[33m%s\033[0m\n", $prefix, str_repeat('.', $task['dots']));
+        break;
+
+      case 'success':
+        printf("\033[K%s\033[32m✓\033[0m %ss\n", $prefix, $task['elapsed']);
+        break;
+
+      case 'failed':
+        printf("\033[K%s\033[31m✗\033[0m %ss\n", $prefix, $task['elapsed']);
+        break;
+
+      case 'timeout':
+        printf("\033[K%s\033[33m⏱\033[0m %ss\n", $prefix, $task['elapsed']);
+        break;
+    }
   }
 
-  foreach ($lines as $line) {
-    verbose("\033[K%s\n", $line);
-  }
+  // Footer.
+  print "\033[K\n";
+  printf(
+    "\033[K  \033[32mDone: %d\033[0m  \033[31mFailed: %d\033[0m  \033[33mRunning: %d\033[0m  Queued: %d  Timeout: %d\n",
+    $succeeded,
+    $failed,
+    $running,
+    $queued,
+    $timedout
+  );
+  printf("\033[K  Elapsed: %s\n", format_time((int) (microtime(TRUE) - $start_time)));
 
-  return $total_lines;
+  // Scroll indicator.
+  if ($max_scroll > 0) {
+    printf("\033[K\033[90m  ↑↓ Scroll (%d-%d of %d)\033[0m\n", $scroll_offset + 1, $visible_end, $task_count);
+  }
+  else {
+    print "\033[K\n";
+  }
+  // @codeCoverageIgnoreEnd
 }
 
 /**
