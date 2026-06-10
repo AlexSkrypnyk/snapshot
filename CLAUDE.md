@@ -239,6 +239,30 @@ when tests fail due to directory comparison mismatches:
 UPDATE_SNAPSHOTS=1 ./vendor/bin/phpunit
 ```
 
+### Bulk Snapshot Updates (`bin/update-snapshots`)
+
+CLI that runs PHPUnit per dataset with `UPDATE_SNAPSHOTS=1` (in parallel, with
+timeouts and retries) to regenerate many snapshots at once:
+
+```bash
+vendor/bin/update-snapshots testMySnapshot tests/snapshots
+```
+
+**Exit-code contract**: successfully updating snapshots is the expected outcome
+and exits `0`. The script exits non-zero **only** when a dataset genuinely
+cannot be updated - a non-snapshot failure or a timeout.
+
+A per-dataset PHPUnit run still exits non-zero when it updates a snapshot (the
+assertion fails before `tearDown()` rewrites it). The script reclassifies such
+runs as "updated" by detecting `SnapshotTrait`'s `[SNAPSHOT] Baseline updated` /
+`[SNAPSHOT] Diffs updated` completion markers in the captured output - so those
+marker strings are a contract shared with `src/Testing/SnapshotTrait.php`; keep
+them in sync.
+
+Functional tests run the script as a subprocess against fixtures in
+`tests/phpunit/Fixtures/functional_update/`. Coverage measures `src/` only, so
+`bin/` is not coverage-gated.
+
 
 ## Performance Benchmarks
 
