@@ -22,14 +22,14 @@
         "sebastian/diff": "^6.0 || ^7.0"
     },
     "require-dev": {
-        "alexskrypnyk/phpunit-helpers": "^0.15.0",
+        "alexskrypnyk/phpunit-helpers": "^0.16.0",
         "dealerdirect/phpcodesniffer-composer-installer": "^1",
-        "drevops/phpcs-standard": "^0.6",
-        "drupal/coder": "^9.0@alpha",
-        "ergebnis/composer-normalize": "^2.48",
-        "phpbench/phpbench": "^1.4",
+        "drevops/phpcs-standard": "^0.7",
+        "drupal/coder": "^9.0.0@alpha",
+        "ergebnis/composer-normalize": "^2.52.0",
+        "phpbench/phpbench": "^1.7.0",
         "phpstan/phpstan": "^2",
-        "phpunit/phpunit": "^11.5",
+        "phpunit/phpunit": "^11.5.55",
         "rector/rector": "^2"
     },
     "minimum-stability": "stable",
