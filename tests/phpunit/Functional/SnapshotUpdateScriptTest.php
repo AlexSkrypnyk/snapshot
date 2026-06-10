@@ -210,7 +210,7 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
       'tests/snapshots',
     ]);
 
-    // Assert: a successful update exits 0 - only genuine failures exit non-zero.
+    // Assert: a successful update exits 0. Only genuine failures exit non-zero.
     $this->assertProcessSuccessful();
 
     // Assert: datasets discovered.
