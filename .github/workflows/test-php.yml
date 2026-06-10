@@ -82,7 +82,7 @@ jobs:
 
       - name: Post coverage summary as PR comment
         if: matrix.php-versions == '8.3' && matrix.deps == 'normal' && github.event_name == 'pull_request'
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0 # v3.0.4
         with:
           message: |
             ```
@@ -92,7 +92,7 @@ jobs:
           hide_and_recreate: true
 
       - name: Upload coverage report as an artifact
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ${{github.job}}-code-coverage-report-${{ matrix.php-versions }}-${{ matrix.deps }}
           path: .logs
@@ -109,7 +109,7 @@ jobs:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Upload coverage report to Codecov
-        uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7
         if: matrix.php-versions == '8.3' && matrix.deps == 'normal' && env.CODECOV_TOKEN != ''
         with:
           files: .logs/cobertura.xml
