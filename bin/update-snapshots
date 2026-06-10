@@ -877,11 +877,16 @@ function poll_task(array $task, array $config): array {
     return $task;
   }
 
+  // Capture the exit code from proc_get_status(): the first call that reports
+  // the process stopped reaps the child, so a later proc_close() returns -1 on
+  // PHP < 8.3. proc_close() below only releases the handle.
+  $exit_code = $status['exitcode'];
+
   // Process finished.
   $task['output'] = collect_output($task['pipes'], $task['output']);
   fclose($task['pipes'][1]);
   fclose($task['pipes'][2]);
-  $exit_code = proc_close($task['process']);
+  proc_close($task['process']);
   $task['elapsed'] = round(microtime(TRUE) - $task['start_time'], 1);
   $task['process'] = NULL;
   $task['pipes'] = [];
@@ -1218,6 +1223,7 @@ function execute_phpunit(string $filter, int $timeout, string $root): array {
 
   $output = [];
   $last_dot_time = microtime(TRUE);
+  $exit_code = -1;
 
   while (TRUE) {
     $status = proc_get_status($process);
@@ -1226,6 +1232,10 @@ function execute_phpunit(string $filter, int $timeout, string $root): array {
     $output = collect_output($pipes, $output);
 
     if (!$status['running']) {
+      // Capture the exit code here: proc_get_status() reaps the child on the
+      // first call that reports it stopped, so a later proc_close() returns -1
+      // on PHP < 8.3. proc_close() below only releases the handle.
+      $exit_code = $status['exitcode'];
       break;
     }
 
@@ -1245,7 +1255,7 @@ function execute_phpunit(string $filter, int $timeout, string $root): array {
   fclose($pipes[1]);
   fclose($pipes[2]);
 
-  $exit_code = proc_close($process);
+  proc_close($process);
 
   return [
     'exit_code' => $exit_code,
