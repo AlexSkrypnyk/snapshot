@@ -180,6 +180,7 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
     ]);
 
     // Assert: datasets discovered, all pass.
+    $this->assertProcessSuccessful();
     $this->assertProcessOutputContains('Discovering datasets');
     $this->assertProcessOutputContains('Found');
 
@@ -208,6 +209,9 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
       'testSnapshot',
       'tests/snapshots',
     ]);
+
+    // Assert: a successful update exits 0 - only genuine failures exit non-zero.
+    $this->assertProcessSuccessful();
 
     // Assert: datasets discovered.
     $this->assertProcessOutputContains('Discovering datasets');
@@ -255,6 +259,9 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
       'scenario1',
     ]);
 
+    // Assert: a successful update exits 0 even in specified dataset mode.
+    $this->assertProcessSuccessful();
+
     // Assert: specified dataset mode ran.
     $this->assertProcessOutputContains('Running 1 specified dataset(s)');
     $this->assertProcessOutputContains('scenario1');
@@ -294,6 +301,9 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
       'scenario1',
     ]);
 
+    // Assert: a successful update exits 0 with multiple specified datasets.
+    $this->assertProcessSuccessful();
+
     // Assert: both datasets were scanned.
     $this->assertProcessOutputContains('Running 2 specified dataset(s)');
     $this->assertProcessOutputContains('baseline');
@@ -331,6 +341,10 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
       'testSnapshot',
       'tests/snapshots',
     ]);
+
+    // Assert: a successful update exits 0 even when baseline and scenario both
+    // change.
+    $this->assertProcessSuccessful();
 
     // Assert: datasets discovered.
     $this->assertProcessOutputContains('Discovering datasets');
@@ -425,6 +439,7 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
       'tests/snapshots',
     ]);
 
+    $this->assertProcessSuccessful();
     $this->assertProcessOutputContains('Discovering datasets');
     $this->assertProcessOutputContains('Found');
     $this->assertProcessOutputContains('parallel: 2');
@@ -449,6 +464,7 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
       'tests/snapshots',
     ]);
 
+    $this->assertProcessSuccessful();
     $this->assertProcessOutputContains('Discovering datasets');
     $this->assertProcessOutputContains('parallel: 2');
 
@@ -477,6 +493,7 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
       'tests/snapshots',
     ]);
 
+    $this->assertProcessSuccessful();
     $this->assertProcessOutputContains('Discovering datasets');
     $this->assertProcessOutputContains('parallel: 2');
 
@@ -509,10 +526,102 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
       'tests/snapshots',
     ]);
 
+    $this->assertProcessSuccessful();
     $this->assertProcessOutputContains('parallel: 1');
 
     $commit_count = $this->getCommitCount();
     $this->assertSame(1, $commit_count, 'Expected only initial commit');
+  }
+
+  /**
+   * Test that a genuine (non-updatable) failure exits non-zero.
+   *
+   * Scenario: genuine_failure
+   * - Baseline matches actual (the baseline dataset passes).
+   * - The 'failing' dataset fails for a non-snapshot reason, so no snapshot is
+   *   updated and no completion marker is emitted.
+   * - Expected: the script exits non-zero because the failure cannot be
+   *   resolved by an update.
+   */
+  public function testGenuineFailureExitsNonZero(): void {
+    $this->setupTestProject('genuine_failure');
+
+    $this->processRun('php', [
+      $this->scriptPath,
+      '--root=' . $this->projectDir,
+      '--test-dir=tests',
+      '--timeout=60',
+      'testSnapshot',
+      'tests/snapshots',
+    ]);
+
+    // A genuine failure (no snapshot update) must exit non-zero.
+    $this->assertProcessFailed();
+    $this->assertProcessOutputContains('Some tests failed');
+
+    // No update commit should be created.
+    $commit_count = $this->getCommitCount();
+    $this->assertSame(1, $commit_count, 'Genuine failure should not create a commit');
+  }
+
+  /**
+   * Test that a genuine failure in specified dataset mode exits non-zero.
+   */
+  public function testGenuineFailureSpecifiedDatasetExitsNonZero(): void {
+    $this->setupTestProject('genuine_failure');
+
+    $this->processRun('php', [
+      $this->scriptPath,
+      '--root=' . $this->projectDir,
+      '--test-dir=tests',
+      '--timeout=60',
+      'testSnapshot',
+      'tests/snapshots',
+      'failing',
+    ]);
+
+    $this->assertProcessFailed();
+    $this->assertProcessOutputContains('Failed datasets: failing');
+  }
+
+  /**
+   * Test a scenario-only update in all-datasets (parallel) mode exits 0.
+   *
+   * Scenario: scenario_only_change
+   * - Baseline matches actual (the baseline dataset passes).
+   * - scenario1 holds a stale diff, so the scenario dataset updates while
+   *   running in the parallel phase.
+   * - Expected: the script exits 0, the stale diff is reset, and the update is
+   *   committed.
+   */
+  public function testScenarioOnlyChangeUpdatesInParallel(): void {
+    $this->setupTestProject('scenario_only_change');
+
+    // Sanity check: the stale diff file exists before the run.
+    $stale_file = $this->projectDir . '/tests/snapshots/scenario1/extra.txt';
+    $this->assertFileExists($stale_file);
+
+    $this->processRun('php', [
+      $this->scriptPath,
+      '--root=' . $this->projectDir,
+      '--test-dir=tests',
+      '--timeout=60',
+      'testSnapshot',
+      'tests/snapshots',
+    ]);
+
+    // A scenario updated in parallel is a success, not a failure.
+    $this->assertProcessSuccessful();
+
+    // The stale diff file was removed by the update.
+    $this->assertFileDoesNotExist($stale_file);
+
+    // The update was committed (initial + update).
+    $commit_count = $this->getCommitCount();
+    $this->assertSame(2, $commit_count, 'Expected initial + update commit');
+
+    $last_commit_msg = $this->getLastCommitMessage();
+    $this->assertStringContainsString('Updated', $last_commit_msg);
   }
 
   /**

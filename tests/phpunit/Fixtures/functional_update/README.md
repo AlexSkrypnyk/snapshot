@@ -154,6 +154,32 @@ functional_update/
 7. Compare `_baseline/` with `expected/_baseline/`
 8. Assert: `scenario1/` has no diff files (only .gitkeep, .ignorecontent)
 
+### scenario_only_change
+
+**Test**: `testScenarioOnlyChangeUpdatesInParallel`
+
+**Purpose**: Verify a scenario that updates in the parallel phase (while the baseline is unchanged) is treated as a success and exits 0.
+
+**Flow**:
+1. Copy `scenario_only_change/` to `$sut/test_project/`
+2. Run `update-snapshots testSnapshot tests/snapshots` (all datasets)
+3. Baseline matches actual → baseline dataset passes
+4. `scenario1/` holds a stale `extra.txt` diff → scenario dataset updates in parallel and resets the diff
+5. Assert: script exits 0, `extra.txt` is gone, 2 commits (initial + update)
+
+### genuine_failure
+
+**Test**: `testGenuineFailureExitsNonZero`, `testGenuineFailureSpecifiedDatasetExitsNonZero`
+
+**Purpose**: Verify a failure that cannot be resolved by an update keeps a non-zero exit code.
+
+**Flow**:
+1. Copy `genuine_failure/` to `$sut/test_project/`
+2. Run `update-snapshots testSnapshot tests/snapshots` (all datasets) or with the `failing` dataset
+3. Baseline matches actual → baseline dataset passes
+4. The `failing` dataset fails for a non-snapshot reason → no `[SNAPSHOT]` completion marker is emitted
+5. Assert: script exits non-zero, no commit is created
+
 ## File Contents
 
 | File                                       | Content                         |

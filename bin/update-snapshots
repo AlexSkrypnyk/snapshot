@@ -33,6 +33,13 @@ define('COMMIT_MESSAGE_BASELINE', 'Updated baseline.');
 // Commit message for all snapshots.
 define('COMMIT_MESSAGE_SNAPSHOTS', 'Updated snapshots.');
 
+// Completion markers emitted by SnapshotTrait once a snapshot has been
+// rewritten. When a PHPUnit run exits non-zero but its output contains one of
+// these markers, the snapshot was updated successfully and the dataset must be
+// treated as updated rather than failed.
+define('SNAPSHOT_MARKER_BASELINE_UPDATED', '[SNAPSHOT] Baseline updated');
+define('SNAPSHOT_MARKER_DIFFS_UPDATED', '[SNAPSHOT] Diffs updated');
+
 // ----------------------------------------------------------------------------
 
 /**
@@ -120,6 +127,7 @@ function run_specified_datasets(array $config): void {
   $datasets = $config['datasets'];
   $total = count($datasets);
   $failed = [];
+  $updated = 0;
 
   verbose("Running %d specified dataset(s)\n", $total);
 
@@ -138,9 +146,18 @@ function run_specified_datasets(array $config): void {
       $config['root']
     );
 
+    if ($result === 3) {
+      $updated++;
+      continue;
+    }
+
     if ($result !== 0) {
       $failed[] = $dataset;
     }
+  }
+
+  if ($updated > 0) {
+    verbose("Updated %d dataset(s)\n", $updated);
   }
 
   if (!empty($failed)) {
@@ -164,7 +181,7 @@ function run_all_datasets(array $config): void {
 
   verbose("Found %d unique datasets\n", $total_datasets);
 
-  $stats = ['current' => 0, 'succeeded' => 0, 'failed' => 0, 'timedout' => 0];
+  $stats = ['current' => 0, 'succeeded' => 0, 'updated' => 0, 'failed' => 0, 'timedout' => 0];
 
   // Run baseline sequentially first.
   $scenario_datasets = $datasets;
@@ -196,6 +213,7 @@ function run_all_datasets(array $config): void {
   if (!empty($scenario_datasets)) {
     $parallel_stats = run_datasets_parallel($scenario_datasets, $stats['current'], $total_datasets, $config);
     $stats['succeeded'] += $parallel_stats['succeeded'];
+    $stats['updated'] += $parallel_stats['updated'];
     $stats['failed'] += $parallel_stats['failed'];
     $stats['timedout'] += $parallel_stats['timedout'];
   }
@@ -203,15 +221,17 @@ function run_all_datasets(array $config): void {
   // Print summary.
   print_summary($stats, $total_datasets);
 
-  // Handle failures.
-  if ($stats['failed'] > 0 || $stats['timedout'] > 0) {
-    commit_snapshot_changes($config, $baseline_committed);
-    print_execution_time($start_time);
-
-    throw new \Exception('Some tests failed');
-  }
+  // Commit any snapshot changes that were applied. This is a no-op when the
+  // working tree is clean, so it is safe to call unconditionally.
+  commit_snapshot_changes($config, $baseline_committed);
 
   print_execution_time($start_time);
+
+  // Successful updates are the expected outcome of this script and must not
+  // produce a non-zero exit code. Only genuine failures or timeouts do.
+  if ($stats['failed'] > 0 || $stats['timedout'] > 0) {
+    throw new \Exception('Some tests failed');
+  }
 }
 
 /**
@@ -258,7 +278,7 @@ function discover_datasets(array $config): array {
  * Handle baseline test result and commit if needed.
  *
  * @param int $result
- *   Test result (0 = success, 1 = failed, 2 = timeout).
+ *   Test result (0 = success, 1 = failed, 2 = timeout, 3 = updated).
  * @param string $root
  *   Git root directory.
  * @param string $baseline_path
@@ -360,7 +380,7 @@ function commit_snapshot_changes(array $config, bool $baseline_committed): void 
  * @param array<string, int> $stats
  *   Current statistics.
  * @param int $result
- *   Test result (0 = success, 1 = failed, 2 = timeout).
+ *   Test result (0 = success, 1 = failed, 2 = timeout, 3 = updated).
  * @param int $total
  *   Total number of datasets.
  *
@@ -370,6 +390,9 @@ function commit_snapshot_changes(array $config, bool $baseline_committed): void 
 function update_stats(array $stats, int $result, int $total): array {
   if ($result === 0) {
     $stats['succeeded']++;
+  }
+  elseif ($result === 3) {
+    $stats['updated']++;
   }
   elseif ($result === 2) {
     $stats['timedout']++;
@@ -392,9 +415,10 @@ function update_stats(array $stats, int $result, int $total): array {
  */
 function print_summary(array $stats, int $total): void {
   verbose(
-    "Total: %d | Succeeded: %d | Failed: %d | Timed out: %d\n",
+    "Total: %d | Succeeded: %d | Updated: %d | Failed: %d | Timed out: %d\n",
     $total,
     $stats['succeeded'],
+    $stats['updated'],
     $stats['failed'],
     $stats['timedout']
   );
@@ -587,7 +611,7 @@ EOF;
  *   Project root directory.
  *
  * @return int
- *   0 = success, 1 = failed, 2 = timeout.
+ *   0 = success, 1 = failed, 2 = timeout, 3 = updated.
  */
 function run_with_timeout(string $filter, int $current, int $total, string $dataset, int $timeout, int $max_retries, bool $debug, string $root): int {
   $attempt = 1;
@@ -622,6 +646,16 @@ function run_with_timeout(string $filter, int $current, int $total, string $data
       print_debug_output($debug, $result['output']);
 
       return 2;
+    }
+
+    // A successfully updated snapshot still exits non-zero in PHPUnit (the
+    // assertion failed before the update ran in tearDown), but the trait
+    // reports completion. Treat it as updated, not failed.
+    if (output_has_update_marker($result['output'])) {
+      verbose(" ✓ updated\n");
+      print_debug_output($debug, $result['output']);
+
+      return 3;
     }
 
     // Test failure - do not retry.
@@ -736,10 +770,11 @@ function run_datasets_parallel(array $datasets, int $start_number, int $total_da
 
   // Print final summary and debug output to normal scrollback.
   $succeeded = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'success'));
+  $updated_count = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'updated'));
   $failed_count = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'failed'));
   $timedout_count = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'timeout'));
 
-  verbose("Parallel run: %d succeeded, %d failed, %d timed out\n", $succeeded, $failed_count, $timedout_count);
+  verbose("Parallel run: %d succeeded, %d updated, %d failed, %d timed out\n", $succeeded, $updated_count, $failed_count, $timedout_count);
 
   if ($config['debug']) {
     foreach ($tasks as $task) {
@@ -752,10 +787,13 @@ function run_datasets_parallel(array $datasets, int $start_number, int $total_da
   }
 
   // Aggregate stats.
-  $stats = ['succeeded' => 0, 'failed' => 0, 'timedout' => 0];
+  $stats = ['succeeded' => 0, 'updated' => 0, 'failed' => 0, 'timedout' => 0];
   foreach ($tasks as $task) {
     if ($task['status'] === 'success') {
       $stats['succeeded']++;
+    }
+    elseif ($task['status'] === 'updated') {
+      $stats['updated']++;
     }
     elseif ($task['status'] === 'timeout') {
       $stats['timedout']++;
@@ -870,6 +908,14 @@ function poll_task(array $task, array $config): array {
   // Interrupt.
   if ($exit_code === 130) {
     exit(130);
+  }
+
+  // A non-zero exit accompanied by the trait's completion marker means the
+  // snapshot was updated rather than the test genuinely failing.
+  if (output_has_update_marker($task['output'])) {
+    $task['status'] = 'updated';
+
+    return $task;
   }
 
   $task['status'] = 'failed';
@@ -1001,6 +1047,7 @@ function get_viewport_height(): int {
 function render_progress(array $tasks, int $total_datasets, bool $is_tty, int $jobs, int $scroll_offset, float $start_time): void {
   $task_count = count($tasks);
   $succeeded = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'success'));
+  $updated = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'updated'));
   $failed = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'failed'));
   $running = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'running'));
   $queued = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'queued'));
@@ -1015,6 +1062,9 @@ function render_progress(array $tasks, int $total_datasets, bool $is_tty, int $j
         if ($task['status'] === 'success') {
           verbose("%s✓ %ss\n", $line, $task['elapsed']);
         }
+        elseif ($task['status'] === 'updated') {
+          verbose("%s✓ updated %ss\n", $line, $task['elapsed']);
+        }
         elseif ($task['status'] === 'timeout') {
           verbose("%s⏱ %ss\n", $line, $task['elapsed']);
         }
@@ -1023,7 +1073,7 @@ function render_progress(array $tasks, int $total_datasets, bool $is_tty, int $j
         }
       }
       verbose("\n");
-      verbose("  Done: %d  Failed: %d  Timeout: %d\n", $succeeded, $failed, $timedout);
+      verbose("  Done: %d  Updated: %d  Failed: %d  Timeout: %d\n", $succeeded, $updated, $failed, $timedout);
     }
 
     return;
@@ -1060,6 +1110,10 @@ function render_progress(array $tasks, int $total_datasets, bool $is_tty, int $j
         printf("\033[K%s\033[32m✓\033[0m %ss\n", $prefix, $task['elapsed']);
         break;
 
+      case 'updated':
+        printf("\033[K%s\033[32m✓\033[0m updated %ss\n", $prefix, $task['elapsed']);
+        break;
+
       case 'failed':
         printf("\033[K%s\033[31m✗\033[0m %ss\n", $prefix, $task['elapsed']);
         break;
@@ -1073,8 +1127,9 @@ function render_progress(array $tasks, int $total_datasets, bool $is_tty, int $j
   // Footer.
   print "\033[K\n";
   printf(
-    "\033[K  \033[32mDone: %d\033[0m  \033[31mFailed: %d\033[0m  \033[33mRunning: %d\033[0m  Queued: %d  Timeout: %d\n",
+    "\033[K  \033[32mDone: %d\033[0m  \033[36mUpdated: %d\033[0m  \033[31mFailed: %d\033[0m  \033[33mRunning: %d\033[0m  Queued: %d  Timeout: %d\n",
     $succeeded,
+    $updated,
     $failed,
     $running,
     $queued,
@@ -1221,6 +1276,26 @@ function collect_output(array $pipes, array $output): array {
   }
 
   return $output;
+}
+
+/**
+ * Check whether captured output reports a completed snapshot update.
+ *
+ * SnapshotTrait emits a completion marker after it finishes rewriting baseline
+ * or diff files. When PHPUnit exits non-zero but this marker is present, the
+ * snapshot was updated successfully and the dataset must not be treated as a
+ * failure.
+ *
+ * @param array<string> $output
+ *   Captured PHPUnit output lines.
+ *
+ * @return bool
+ *   TRUE if a snapshot update completion marker is present.
+ */
+function output_has_update_marker(array $output): bool {
+  $text = implode("\n", $output);
+
+  return str_contains($text, SNAPSHOT_MARKER_BASELINE_UPDATED) || str_contains($text, SNAPSHOT_MARKER_DIFFS_UPDATED);
 }
 
 /**
