@@ -25,7 +25,7 @@
         "alexskrypnyk/phpunit-helpers": "^0.16.0",
         "dealerdirect/phpcodesniffer-composer-installer": "^1",
         "drevops/phpcs-standard": "^0.7",
-        "drupal/coder": "^9.0.0@alpha",
+        "drupal/coder": "^9.0.1@alpha",
         "ergebnis/composer-normalize": "^2.52.0",
         "phpbench/phpbench": "^1.7.0",
         "phpstan/phpstan": "^2",
