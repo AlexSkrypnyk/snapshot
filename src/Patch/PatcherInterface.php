@@ -27,8 +27,6 @@ interface PatcherInterface {
    *
    * @param \AlexSkrypnyk\Snapshot\Index\IndexedFileInterface $file
    *   The patch file.
-   *
-   * @return $this
    */
   public function addPatchFile(IndexedFileInterface $file): static;
 
@@ -39,8 +37,6 @@ interface PatcherInterface {
    *   The diff content.
    * @param string $pathname
    *   The source file path.
-   *
-   * @return $this
    */
   public function addDiff(string|array $diff, string $pathname): static;
 
