@@ -47,20 +47,26 @@ class Comparer implements ComparerInterface {
     $left_files = $this->left->getFiles();
     $right_files = $this->right->getFiles();
 
-    // Process all left files and matching right files.
+    // The index keys are already the pathname relative to the base directory
+    // (the same value addLeftFile()/addRightFile() would recompute), so reuse
+    // them directly as the diff keys.
     foreach ($left_files as $path => $left_file) {
-      $this->addLeftFile($left_file);
+      ($this->diffs[$path] ??= new Diff())->setLeft($left_file);
       if (isset($right_files[$path])) {
-        $this->addRightFile($right_files[$path]);
+        $this->diffs[$path]->setRight($right_files[$path]);
         // Mark as processed to avoid duplicate processing.
         unset($right_files[$path]);
       }
     }
 
     // Process remaining right files that don't exist in left.
-    foreach ($right_files as $right_file) {
-      $this->addRightFile($right_file);
+    foreach ($right_files as $path => $right_file) {
+      ($this->diffs[$path] ??= new Diff())->setRight($right_file);
     }
+
+    // Filter results derive from $this->diffs; reset the cache once after the
+    // full rebuild instead of on every added file.
+    $this->cache = [];
 
     return $this;
   }
