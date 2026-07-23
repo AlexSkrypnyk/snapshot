@@ -44,6 +44,9 @@ class Comparer implements ComparerInterface {
    * {@inheritdoc}
    */
   public function compare(): static {
+    // Full rebuild: drop any diffs retained from a previous invocation.
+    $this->diffs = [];
+
     $left_files = $this->left->getFiles();
     $right_files = $this->right->getFiles();
 

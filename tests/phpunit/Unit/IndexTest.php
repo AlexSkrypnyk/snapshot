@@ -160,7 +160,7 @@ final class IndexTest extends UnitTestCase {
     $index = new Index($dir);
 
     // Transforming through the callback must not corrupt the cached index.
-    $index->getFiles(fn(IndexedFile $file): string => 'transformed');
+    $index->getFiles(fn(IndexedFile $file): string => 'transformed:' . $file->getFilename());
 
     $this->assertContainsOnlyInstancesOf(IndexedFile::class, $index->getFiles());
   }
