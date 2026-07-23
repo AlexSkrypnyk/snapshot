@@ -44,22 +44,22 @@ class Comparer implements ComparerInterface {
    * {@inheritdoc}
    */
   public function compare(): static {
-    $dir_left_files = $this->left->getFiles();
-    $dir_right_files = $this->right->getFiles();
+    $left_files = $this->left->getFiles();
+    $right_files = $this->right->getFiles();
 
     // Process all left files and matching right files.
-    foreach ($dir_left_files as $path => $left_file) {
+    foreach ($left_files as $path => $left_file) {
       $this->addLeftFile($left_file);
-      if (isset($dir_right_files[$path])) {
-        $this->addRightFile($dir_right_files[$path]);
+      if (isset($right_files[$path])) {
+        $this->addRightFile($right_files[$path]);
         // Mark as processed to avoid duplicate processing.
-        unset($dir_right_files[$path]);
+        unset($right_files[$path]);
       }
     }
 
     // Process remaining right files that don't exist in left.
-    foreach ($dir_right_files as $dir_right_file) {
-      $this->addRightFile($dir_right_file);
+    foreach ($right_files as $right_file) {
+      $this->addRightFile($right_file);
     }
 
     return $this;
@@ -167,9 +167,9 @@ class Comparer implements ComparerInterface {
 
     $absent_left = $comparer->getAbsentLeftDiffs();
     $absent_right = $comparer->getAbsentRightDiffs();
-    $file_diffs = $comparer->getContentDiffs();
+    $content_diffs = $comparer->getContentDiffs();
 
-    if (empty($absent_left) && empty($absent_right) && empty($file_diffs)) {
+    if (empty($absent_left) && empty($absent_right) && empty($content_diffs)) {
       return NULL;
     }
 
@@ -188,18 +188,18 @@ class Comparer implements ComparerInterface {
         $render .= sprintf("  %s\n", $file);
       }
     }
-    if (!empty($file_diffs)) {
+    if (!empty($content_diffs)) {
       $render .= "Files that differ in content:\n";
 
-      $file_diffs_render_count = is_int($options['show_diff_file_limit']) ? $options['show_diff_file_limit'] : count($file_diffs);
-      foreach ($file_diffs as $file => $diff) {
+      $content_diffs_render_count = is_int($options['show_diff_file_limit']) ? $options['show_diff_file_limit'] : count($content_diffs);
+      foreach ($content_diffs as $file => $diff) {
         $render .= sprintf("  %s\n", $file);
 
-        if ($options['show_diff'] && $file_diffs_render_count > 0 && $diff instanceof Diff) {
+        if ($options['show_diff'] && $content_diffs_render_count > 0 && $diff instanceof Diff) {
           $render .= '--- DIFF START ---' . PHP_EOL;
           $render .= $diff->render();
           $render .= '--- DIFF END ---' . PHP_EOL;
-          $file_diffs_render_count--;
+          $content_diffs_render_count--;
         }
       }
     }
