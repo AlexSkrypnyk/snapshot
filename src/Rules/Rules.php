@@ -209,7 +209,10 @@ class Rules implements RulesInterface {
         continue;
       }
       if ($line[0] === '!') {
-        $this->includePatterns[] = $line[1] === '^' ? substr($line, 2) : substr($line, 1);
+        $pattern = ($line[1] ?? '') === '^' ? substr($line, 2) : substr($line, 1);
+        if ($pattern !== '') {
+          $this->includePatterns[] = $pattern;
+        }
       }
       elseif ($line[0] === '^') {
         $this->ignoreContentPatterns[] = substr($line, 1);
