@@ -80,11 +80,14 @@ class Index implements IndexInterface {
   protected function scan(): static {
     $this->files = [];
 
-    // Pre-cache pattern arrays for faster matching.
-    $global_patterns = $this->rules->getGlobal();
-    $include_patterns = $this->rules->getInclude();
-    $skip_patterns = $this->rules->getSkip();
-    $ignore_content_patterns = $this->rules->getIgnoreContent();
+    // Pre-cache pattern arrays for faster matching. The same Rules object can
+    // be shared across indexes (and re-seeded with the default skip rules by
+    // each Index constructor), so dedupe to avoid matching a pattern twice per
+    // file.
+    $global_patterns = array_unique($this->rules->getGlobal());
+    $include_patterns = array_unique($this->rules->getInclude());
+    $skip_patterns = array_unique($this->rules->getSkip());
+    $ignore_content_patterns = array_unique($this->rules->getIgnoreContent());
 
     foreach ($this->iterator($this->directory) as $resource) {
       if (!$resource instanceof \SplFileInfo) {
