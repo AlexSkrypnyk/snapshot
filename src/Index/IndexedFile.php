@@ -22,6 +22,11 @@ class IndexedFile extends \SplFileInfo implements IndexedFileInterface {
   protected string $basepath;
 
   /**
+   * Memoized pathname relative to the base path.
+   */
+  protected ?string $relativePathname = NULL;
+
+  /**
    * Content hash value.
    */
   protected ?string $hash = NULL;
@@ -66,6 +71,7 @@ class IndexedFile extends \SplFileInfo implements IndexedFileInterface {
    */
   public function setBasepath(string $basepath): void {
     $this->basepath = rtrim($basepath, DIRECTORY_SEPARATOR);
+    $this->relativePathname = NULL;
   }
 
   /**
@@ -113,7 +119,7 @@ class IndexedFile extends \SplFileInfo implements IndexedFileInterface {
    * {@inheritdoc}
    */
   public function getPathnameFromBasepath(): string {
-    return static::stripBasepath($this->getBasepath(), $this->getPathname());
+    return $this->relativePathname ??= static::stripBasepath($this->getBasepath(), $this->getPathname());
   }
 
   /**
@@ -254,7 +260,7 @@ class IndexedFile extends \SplFileInfo implements IndexedFileInterface {
       throw new SnapshotException(sprintf('Path %s does not start with basepath %s', $path, $basepath));
     }
 
-    return ltrim(str_replace($basepath, '', $path), DIRECTORY_SEPARATOR);
+    return ltrim(substr($path, strlen($basepath)), DIRECTORY_SEPARATOR);
   }
 
 }
