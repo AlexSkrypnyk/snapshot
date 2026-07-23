@@ -377,7 +377,7 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
   /**
    * Test that stderr from snapshotUpdateOnFailure() is captured separately.
    *
-   * The execute_phpunit() function uses proc_open with separate pipes for
+   * The run_phpunit() function uses proc_open with separate pipes for
    * stdout and stderr. The [SNAPSHOT] messages written to stderr by
    * snapshotUpdateOnFailure() must not be merged into stdout (no 2>&1),
    * as this can cause false PHPUnit errors.

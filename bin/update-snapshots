@@ -10,11 +10,11 @@
  *
  * Usage:
  * @code
- * vendor/bin/snapshot-update [options] <test-name> <snapshots-path> [dataset ...]
- * vendor/bin/snapshot-update testMySnapshot path/to/snapshots
- * vendor/bin/snapshot-update testMySnapshot path/to/snapshots baseline
- * vendor/bin/snapshot-update testMySnapshot path/to/snapshots baseline scenario1
- * vendor/bin/snapshot-update --root=../.. testMySnapshot path/to/snapshots
+ * vendor/bin/update-snapshots [options] <test-name> <snapshots-path> [dataset ...]
+ * vendor/bin/update-snapshots testMySnapshot path/to/snapshots
+ * vendor/bin/update-snapshots testMySnapshot path/to/snapshots baseline
+ * vendor/bin/update-snapshots testMySnapshot path/to/snapshots baseline scenario1
+ * vendor/bin/update-snapshots --root=../.. testMySnapshot path/to/snapshots
  * @endcode
  */
 
@@ -547,7 +547,7 @@ function parse_option(string $arg, array $config): array {
  * Print help.
  */
 function print_help(): void {
-  $script_name = 'snapshot-update';
+  $script_name = 'update-snapshots';
   $out = <<<EOF
 Update test snapshots
 ---------------------
@@ -621,7 +621,7 @@ function run_with_timeout(string $filter, int $current, int $total, string $data
   while ($attempt <= $retries) {
     dispatch_signals();
 
-    $result = execute_phpunit($filter, $timeout, $root);
+    $result = run_phpunit($filter, $timeout, $root);
 
     if ($result['exit_code'] === 130) {
       verbose("\n");
@@ -651,7 +651,7 @@ function run_with_timeout(string $filter, int $current, int $total, string $data
     // A successfully updated snapshot still exits non-zero in PHPUnit (the
     // assertion failed before the update ran in tearDown), but the trait
     // reports completion. Treat it as updated, not failed.
-    if (output_has_update_marker($result['output'])) {
+    if (has_update_marker($result['output'])) {
       verbose(" ✓ updated\n");
       print_debug_output($debug, $result['output']);
 
@@ -917,7 +917,7 @@ function poll_task(array $task, array $config): array {
 
   // A non-zero exit accompanied by the trait's completion marker means the
   // snapshot was updated rather than the test genuinely failing.
-  if (output_has_update_marker($task['output'])) {
+  if (has_update_marker($task['output'])) {
     $task['status'] = 'updated';
 
     return $task;
@@ -1193,7 +1193,7 @@ function kill_all_tasks(array &$tasks): void {
  * @return array{exit_code: int, output: array<string>}
  *   Array with exit code and output lines.
  */
-function execute_phpunit(string $filter, int $timeout, string $root): array {
+function run_phpunit(string $filter, int $timeout, string $root): array {
   $cmd = sprintf(
     // Do not use 2>&1 here: proc_open already captures stdout and stderr on
     // separate pipes. Merging them at the shell level forces fwrite(STDERR,...)
@@ -1302,7 +1302,7 @@ function collect_output(array $pipes, array $output): array {
  * @return bool
  *   TRUE if a snapshot update completion marker is present.
  */
-function output_has_update_marker(array $output): bool {
+function has_update_marker(array $output): bool {
   $text = implode("\n", $output);
 
   return str_contains($text, SNAPSHOT_MARKER_BASELINE_UPDATED) || str_contains($text, SNAPSHOT_MARKER_DIFFS_UPDATED);
