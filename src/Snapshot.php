@@ -173,8 +173,10 @@ class Snapshot {
         File::copy($file->getPathname(), $destination . DIRECTORY_SEPARATOR . $relative_path);
       }
       else {
-        // Patch file - queue for patching.
-        $patcher->addPatchFile($file);
+        // Patch file - queue for patching. The isPatchFile() check above
+        // already validated it, so add the diff directly and skip
+        // addPatchFile()'s redundant re-read of the same file.
+        $patcher->addDiff($file->getContent(), $relative_path);
       }
     }
 
