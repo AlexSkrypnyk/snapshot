@@ -51,13 +51,17 @@ class Index implements IndexInterface {
 
     $this->files ??= [];
 
-    if (is_callable($cb)) {
-      foreach ($this->files as $path => $file) {
-        $this->files[$path] = $cb($file);
-      }
+    if (!is_callable($cb)) {
+      return $this->files;
     }
 
-    return $this->files;
+    // Transform a copy so the callback never mutates the cached index.
+    $files = [];
+    foreach ($this->files as $path => $file) {
+      $files[$path] = $cb($file);
+    }
+
+    return $files;
   }
 
   /**

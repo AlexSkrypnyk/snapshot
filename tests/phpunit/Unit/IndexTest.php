@@ -154,6 +154,17 @@ final class IndexTest extends UnitTestCase {
     $this->assertNotEmpty($result1);
   }
 
+  public function testGetFilesWithCallbackDoesNotMutateIndex(): void {
+    $dir = File::dir($this->locationsFixtureDir('compare') . DIRECTORY_SEPARATOR . 'files_equal_advanced' . DIRECTORY_SEPARATOR . 'directory2');
+
+    $index = new Index($dir);
+
+    // Transforming through the callback must not corrupt the cached index.
+    $index->getFiles(fn(IndexedFile $file): string => 'transformed');
+
+    $this->assertContainsOnlyInstancesOf(IndexedFile::class, $index->getFiles());
+  }
+
   public function testConstructorWithIgnoreContentFile(): void {
     $test_dir = $this->locationsTmp() . DIRECTORY_SEPARATOR . 'test_dir_with_ignorecontent';
     File::mkdir($test_dir);
