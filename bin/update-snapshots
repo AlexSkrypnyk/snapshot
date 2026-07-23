@@ -10,11 +10,11 @@
  *
  * Usage:
  * @code
- * vendor/bin/snapshot-update [options] <test-name> <snapshots-path> [dataset ...]
- * vendor/bin/snapshot-update testMySnapshot path/to/snapshots
- * vendor/bin/snapshot-update testMySnapshot path/to/snapshots baseline
- * vendor/bin/snapshot-update testMySnapshot path/to/snapshots baseline scenario1
- * vendor/bin/snapshot-update --root=../.. testMySnapshot path/to/snapshots
+ * vendor/bin/update-snapshots [options] <test-name> <snapshots-path> [dataset ...]
+ * vendor/bin/update-snapshots testMySnapshot path/to/snapshots
+ * vendor/bin/update-snapshots testMySnapshot path/to/snapshots baseline
+ * vendor/bin/update-snapshots testMySnapshot path/to/snapshots baseline scenario1
+ * vendor/bin/update-snapshots --root=../.. testMySnapshot path/to/snapshots
  * @endcode
  */
 
@@ -177,9 +177,9 @@ function run_all_datasets(array $config): void {
   $baseline_path = rtrim((string) $config['snapshots_path'], '/') . '/' . BASELINE_SUFFIX;
 
   $datasets = discover_datasets($config);
-  $total_datasets = count($datasets);
+  $total = count($datasets);
 
-  verbose("Found %d unique datasets\n", $total_datasets);
+  verbose("Found %d unique datasets\n", $total);
 
   $stats = ['current' => 0, 'succeeded' => 0, 'updated' => 0, 'failed' => 0, 'timedout' => 0];
 
@@ -191,7 +191,7 @@ function run_all_datasets(array $config): void {
     $result = run_with_timeout(
       $config['test_name'] . '@' . BASELINE_DATASET_NAME,
       $stats['current'],
-      $total_datasets,
+      $total,
       BASELINE_DATASET_NAME,
       $config['timeout'],
       $config['retries'],
@@ -200,7 +200,7 @@ function run_all_datasets(array $config): void {
     );
 
     $baseline_committed = handle_baseline_result($result, $config['root'], $baseline_path);
-    $stats = update_stats($stats, $result, $total_datasets);
+    $stats = update_stats($stats, $result, $total);
 
     if ($result === 2) {
       throw new \Exception('Test timed out');
@@ -211,7 +211,7 @@ function run_all_datasets(array $config): void {
 
   // Run remaining scenarios in parallel.
   if (!empty($scenario_datasets)) {
-    $parallel_stats = run_datasets_parallel($scenario_datasets, $stats['current'], $total_datasets, $config);
+    $parallel_stats = run_datasets_parallel($scenario_datasets, $stats['current'], $total, $config);
     $stats['succeeded'] += $parallel_stats['succeeded'];
     $stats['updated'] += $parallel_stats['updated'];
     $stats['failed'] += $parallel_stats['failed'];
@@ -219,7 +219,7 @@ function run_all_datasets(array $config): void {
   }
 
   // Print summary.
-  print_summary($stats, $total_datasets);
+  print_summary($stats, $total);
 
   // Commit any snapshot changes that were applied. This is a no-op when the
   // working tree is clean, so it is safe to call unconditionally.
@@ -547,7 +547,7 @@ function parse_option(string $arg, array $config): array {
  * Print help.
  */
 function print_help(): void {
-  $script_name = 'snapshot-update';
+  $script_name = 'update-snapshots';
   $out = <<<EOF
 Update test snapshots
 ---------------------
@@ -603,7 +603,7 @@ EOF;
  *   Dataset name.
  * @param int $timeout
  *   Timeout in seconds.
- * @param int $max_retries
+ * @param int $retries
  *   Maximum number of retries.
  * @param bool $debug
  *   Whether to print debug output on failure.
@@ -613,15 +613,15 @@ EOF;
  * @return int
  *   0 = success, 1 = failed, 2 = timeout, 3 = updated.
  */
-function run_with_timeout(string $filter, int $current, int $total, string $dataset, int $timeout, int $max_retries, bool $debug, string $root): int {
+function run_with_timeout(string $filter, int $current, int $total, string $dataset, int $timeout, int $retries, bool $debug, string $root): int {
   $attempt = 1;
 
   verbose('[%d/%d] %s ', $current, $total, $dataset);
 
-  while ($attempt <= $max_retries) {
+  while ($attempt <= $retries) {
     dispatch_signals();
 
-    $result = execute_phpunit($filter, $timeout, $root);
+    $result = run_phpunit($filter, $timeout, $root);
 
     if ($result['exit_code'] === 130) {
       verbose("\n");
@@ -636,8 +636,8 @@ function run_with_timeout(string $filter, int $current, int $total, string $data
 
     // Timeout - retry if attempts remain.
     if ($result['exit_code'] === 124) {
-      if ($attempt < $max_retries) {
-        verbose(" TIMEOUT, retry %d/%d ", $attempt + 1, $max_retries);
+      if ($attempt < $retries) {
+        verbose(" TIMEOUT, retry %d/%d ", $attempt + 1, $retries);
         $attempt++;
         continue;
       }
@@ -651,7 +651,7 @@ function run_with_timeout(string $filter, int $current, int $total, string $data
     // A successfully updated snapshot still exits non-zero in PHPUnit (the
     // assertion failed before the update ran in tearDown), but the trait
     // reports completion. Treat it as updated, not failed.
-    if (output_has_update_marker($result['output'])) {
+    if (has_update_marker($result['output'])) {
       verbose(" ✓ updated\n");
       print_debug_output($debug, $result['output']);
 
@@ -677,7 +677,7 @@ function run_with_timeout(string $filter, int $current, int $total, string $data
  *   Dataset names to run.
  * @param int $start_number
  *   Starting dataset number (for display).
- * @param int $total_datasets
+ * @param int $total
  *   Total number of datasets (for display).
  * @param array<string, mixed> $config
  *   Configuration array.
@@ -685,7 +685,7 @@ function run_with_timeout(string $filter, int $current, int $total, string $data
  * @return array<string, int>
  *   Statistics: succeeded, failed, timedout counts.
  */
-function run_datasets_parallel(array $datasets, int $start_number, int $total_datasets, array $config): array {
+function run_datasets_parallel(array $datasets, int $start_number, int $total, array $config): array {
   $jobs = (int) $config['jobs'];
   $is_tty = function_exists('posix_isatty') && posix_isatty(STDOUT);
 
@@ -751,7 +751,7 @@ function run_datasets_parallel(array $datasets, int $start_number, int $total_da
     unset($task);
 
     // Render phase.
-    render_progress($tasks, $total_datasets, $is_tty, $jobs, $scroll_offset, $start_time);
+    render_progress($tasks, $total, $is_tty, $jobs, $scroll_offset, $start_time);
 
     // Exit check: all done?
     $pending = array_filter($tasks, fn(array $t): bool => $t['status'] === 'queued' || $t['status'] === 'running');
@@ -770,11 +770,11 @@ function run_datasets_parallel(array $datasets, int $start_number, int $total_da
 
   // Print final summary and debug output to normal scrollback.
   $succeeded = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'success'));
-  $updated_count = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'updated'));
-  $failed_count = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'failed'));
-  $timedout_count = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'timeout'));
+  $updated = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'updated'));
+  $failed = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'failed'));
+  $timedout = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'timeout'));
 
-  verbose("Parallel run: %d succeeded, %d updated, %d failed, %d timed out\n", $succeeded, $updated_count, $failed_count, $timedout_count);
+  verbose("Parallel run: %d succeeded, %d updated, %d failed, %d timed out\n", $succeeded, $updated, $failed, $timedout);
 
   if ($config['debug']) {
     foreach ($tasks as $task) {
@@ -917,7 +917,7 @@ function poll_task(array $task, array $config): array {
 
   // A non-zero exit accompanied by the trait's completion marker means the
   // snapshot was updated rather than the test genuinely failing.
-  if (output_has_update_marker($task['output'])) {
+  if (has_update_marker($task['output'])) {
     $task['status'] = 'updated';
 
     return $task;
@@ -1038,7 +1038,7 @@ function get_viewport_height(): int {
  *
  * @param array<int, array<string, mixed>> $tasks
  *   All tasks.
- * @param int $total_datasets
+ * @param int $total
  *   Total dataset count for numbering.
  * @param bool $is_tty
  *   Whether output is a TTY.
@@ -1049,7 +1049,7 @@ function get_viewport_height(): int {
  * @param float $start_time
  *   Start time of parallel run.
  */
-function render_progress(array $tasks, int $total_datasets, bool $is_tty, int $jobs, int $scroll_offset, float $start_time): void {
+function render_progress(array $tasks, int $total, bool $is_tty, int $jobs, int $scroll_offset, float $start_time): void {
   $task_count = count($tasks);
   $succeeded = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'success'));
   $updated = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'updated'));
@@ -1057,13 +1057,13 @@ function render_progress(array $tasks, int $total_datasets, bool $is_tty, int $j
   $running = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'running'));
   $queued = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'queued'));
   $timedout = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'timeout'));
-  $pad = strlen((string) $total_datasets);
+  $pad = strlen((string) $total);
 
   if (!$is_tty) {
     // Non-TTY: only print when all done.
     if ($running === 0 && $queued === 0) {
       foreach ($tasks as $task) {
-        $line = sprintf('  [%' . $pad . 'd/%d] %s ', $task['number'], $total_datasets, $task['dataset']);
+        $line = sprintf('  [%' . $pad . 'd/%d] %s ', $task['number'], $total, $task['dataset']);
         if ($task['status'] === 'success') {
           verbose("%s✓ %ss\n", $line, $task['elapsed']);
         }
@@ -1100,7 +1100,7 @@ function render_progress(array $tasks, int $total_datasets, bool $is_tty, int $j
   $visible_end = min($task_count, $scroll_offset + $viewport_height);
   for ($i = $scroll_offset; $i < $visible_end; $i++) {
     $task = $tasks[$i];
-    $prefix = sprintf('  [%' . $pad . 'd/%d] %-20s ', $task['number'], $total_datasets, $task['dataset']);
+    $prefix = sprintf('  [%' . $pad . 'd/%d] %-20s ', $task['number'], $total, $task['dataset']);
 
     switch ($task['status']) {
       case 'queued':
@@ -1193,7 +1193,7 @@ function kill_all_tasks(array &$tasks): void {
  * @return array{exit_code: int, output: array<string>}
  *   Array with exit code and output lines.
  */
-function execute_phpunit(string $filter, int $timeout, string $root): array {
+function run_phpunit(string $filter, int $timeout, string $root): array {
   $cmd = sprintf(
     // Do not use 2>&1 here: proc_open already captures stdout and stderr on
     // separate pipes. Merging them at the shell level forces fwrite(STDERR,...)
@@ -1302,7 +1302,7 @@ function collect_output(array $pipes, array $output): array {
  * @return bool
  *   TRUE if a snapshot update completion marker is present.
  */
-function output_has_update_marker(array $output): bool {
+function has_update_marker(array $output): bool {
   $text = implode("\n", $output);
 
   return str_contains($text, SNAPSHOT_MARKER_BASELINE_UPDATED) || str_contains($text, SNAPSHOT_MARKER_DIFFS_UPDATED);

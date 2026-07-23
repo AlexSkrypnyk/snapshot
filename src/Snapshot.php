@@ -115,17 +115,17 @@ class Snapshot {
 
     // Files in actual but not in baseline - copy to output.
     foreach (array_keys($absent_left) as $file) {
-      $src = $actual . DIRECTORY_SEPARATOR . $file;
-      $dst = $output . DIRECTORY_SEPARATOR . $file;
-      File::mkdir(dirname($dst));
-      File::copy($src, $dst);
+      $source = $actual . DIRECTORY_SEPARATOR . $file;
+      $destination = $output . DIRECTORY_SEPARATOR . $file;
+      File::mkdir(dirname($destination));
+      File::copy($source, $destination);
     }
 
     // Files in baseline but not in actual - create deletion marker.
     foreach (array_keys($absent_right) as $file) {
-      $dst = $output . DIRECTORY_SEPARATOR . dirname((string) $file);
-      File::mkdir($dst);
-      File::dump($dst . DIRECTORY_SEPARATOR . '-' . basename((string) $file), '');
+      $destination = $output . DIRECTORY_SEPARATOR . dirname((string) $file);
+      File::mkdir($destination);
+      File::dump($destination . DIRECTORY_SEPARATOR . '-' . basename((string) $file), '');
     }
 
     // Files with content differences - save diff.

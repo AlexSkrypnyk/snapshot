@@ -121,8 +121,8 @@ class Patcher implements PatcherInterface {
 
     if (next($lines) === FALSE) {
       $current_key = key($lines);
-      $source_file = count($this->diffs) > 0 ? array_key_first($this->diffs) : '';
-      throw new PatchException('Unexpected EOF', $source_file, $current_key);
+      $src_file = count($this->diffs) > 0 ? array_key_first($this->diffs) : '';
+      throw new PatchException('Unexpected EOF', $src_file, $current_key);
     }
 
     return [
@@ -211,8 +211,8 @@ class Patcher implements PatcherInterface {
     }
 
     // Verify source lines match the expected ones before applying.
-    $source_hunk_slice = array_slice($this->srcLines[$src], $src_idx, count($src_hunk));
-    if ($source_hunk_slice !== $src_hunk) {
+    $src_hunk_slice = array_slice($this->srcLines[$src], $src_idx, count($src_hunk));
+    if ($src_hunk_slice !== $src_hunk) {
       throw new PatchException('Source file verification failed', $src, key($lines));
     }
 

@@ -144,10 +144,10 @@ class Diff implements DiffInterface {
       return $diff->getLeft()->getContent();
     }
 
-    $src_content = $diff->getLeft()->getContent();
-    $dst_content = $diff->getRight()->getContent();
+    $left_content = $diff->getLeft()->getContent();
+    $right_content = $diff->getRight()->getContent();
 
-    return (new Differ(new UnifiedDiffOutputBuilder('', TRUE)))->diff($src_content, $dst_content);
+    return (new Differ(new UnifiedDiffOutputBuilder('', TRUE)))->diff($left_content, $right_content);
   }
 
 }

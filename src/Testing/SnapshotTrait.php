@@ -178,14 +178,14 @@ trait SnapshotTrait {
   protected function snapshotUpdateBaseline(string $baseline, string $actual, string $tmp): void {
     fwrite(STDERR, PHP_EOL . '[SNAPSHOT] Updating baseline' . PHP_EOL);
 
-    $ic = Snapshot::IGNORECONTENT;
-    File::copyIfExists($baseline . '/' . $ic, $actual . '/' . $ic);
-    File::copyIfExists($baseline . '/' . $ic, $tmp . '/' . $ic);
+    $ignorecontent = Snapshot::IGNORECONTENT;
+    File::copyIfExists($baseline . '/' . $ignorecontent, $actual . '/' . $ignorecontent);
+    File::copyIfExists($baseline . '/' . $ignorecontent, $tmp . '/' . $ignorecontent);
 
     File::rmdir($baseline);
     Snapshot::sync($actual, $baseline);
 
-    File::copyIfExists($tmp . '/' . $ic, $baseline . '/' . $ic);
+    File::copyIfExists($tmp . '/' . $ignorecontent, $baseline . '/' . $ignorecontent);
 
     fwrite(STDERR, '[SNAPSHOT] Baseline updated' . PHP_EOL);
   }
@@ -207,13 +207,13 @@ trait SnapshotTrait {
   protected function snapshotUpdateDiffs(string $baseline, string $snapshots, string $actual, string $tmp): void {
     fwrite(STDERR, PHP_EOL . '[SNAPSHOT] Updating diffs' . PHP_EOL);
 
-    $ic = Snapshot::IGNORECONTENT;
-    File::copyIfExists($snapshots . '/' . $ic, $tmp . '/' . $ic);
+    $ignorecontent = Snapshot::IGNORECONTENT;
+    File::copyIfExists($snapshots . '/' . $ignorecontent, $tmp . '/' . $ignorecontent);
 
     File::rmdir($snapshots);
     Snapshot::diff($baseline, $actual, $snapshots);
 
-    File::copyIfExists($tmp . '/' . $ic, $snapshots . '/' . $ic);
+    File::copyIfExists($tmp . '/' . $ignorecontent, $snapshots . '/' . $ignorecontent);
 
     fwrite(STDERR, '[SNAPSHOT] Diffs updated' . PHP_EOL);
   }
