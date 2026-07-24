@@ -214,6 +214,27 @@ final class DiffTest extends UnitTestCase {
     $this->assertStringContainsString('+line2', $result);
   }
 
+  public function testDoRenderWithAbsentSide(): void {
+    $file_path = self::$sut . DIRECTORY_SEPARATOR . 'one-side.txt';
+    file_put_contents($file_path, "one side line\n");
+    $file_info = new IndexedFile($file_path, self::$sut);
+
+    // Absent left (an added file) renders as a pure addition instead of
+    // throwing on the uninitialized side.
+    $added = new Diff();
+    $added->setRight($file_info);
+    $rendered_added = self::callProtectedMethod(Diff::class, 'doRender', [$added]);
+    $this->assertIsString($rendered_added);
+    $this->assertStringContainsString('+one side line', $rendered_added);
+
+    // Absent right (a removed file) renders as a pure deletion.
+    $removed = new Diff();
+    $removed->setLeft($file_info);
+    $rendered_removed = self::callProtectedMethod(Diff::class, 'doRender', [$removed]);
+    $this->assertIsString($rendered_removed);
+    $this->assertStringContainsString('-one side line', $rendered_removed);
+  }
+
   public function testIsSameContentWithDifferentSizes(): void {
     $diff = new Diff();
 

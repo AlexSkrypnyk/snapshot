@@ -144,8 +144,11 @@ class Diff implements DiffInterface {
       return $diff->getLeft()->getContent();
     }
 
-    $left_content = $diff->getLeft()->getContent();
-    $right_content = $diff->getRight()->getContent();
+    // A one-sided diff (a file present on only one side) renders as a pure
+    // addition or deletion; treat the missing side as empty content rather than
+    // reading an uninitialized property.
+    $left_content = $diff->existsLeft() ? $diff->getLeft()->getContent() : '';
+    $right_content = $diff->existsRight() ? $diff->getRight()->getContent() : '';
 
     return (new Differ(new UnifiedDiffOutputBuilder('', TRUE)))->diff($left_content, $right_content);
   }

@@ -123,6 +123,8 @@ final class RulesTest extends UnitTestCase {
     yield 'special characters in include rule' => ["!special@chars", ["special@chars"], [], [], []];
     yield 'regex special characters as global rule' => ["[regex].special+chars?{test}", [], [], ["[regex].special+chars?{test}"], []];
     yield 'very long pattern' => [str_repeat("a", 1000), [], [], [str_repeat("a", 1000)], []];
+    yield 'lone negation prefix is ignored' => ['!', [], [], [], []];
+    yield 'negation of content marker only is ignored' => ['!^', [], [], [], []];
   }
 
   public function testParseMethodChaining(): void {
