@@ -24,7 +24,7 @@ class IndexedFile extends \SplFileInfo implements IndexedFileInterface {
   /**
    * Memoized pathname relative to the base path.
    */
-  protected ?string $relativePathname = NULL;
+  protected ?string $relativePathname;
 
   /**
    * Content hash value.
