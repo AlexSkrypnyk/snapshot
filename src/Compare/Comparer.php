@@ -129,9 +129,7 @@ class Comparer implements ComparerInterface {
    *   Filtered (and optionally transformed) array of diffs.
    */
   protected function filterCached(string $cache_key, callable $filter, ?callable $cb = NULL): array {
-    if (!isset($this->cache[$cache_key])) {
-      $this->cache[$cache_key] = array_filter($this->diffs, $filter);
-    }
+    $this->cache[$cache_key] ??= array_filter($this->diffs, $filter);
 
     $diffs = $this->cache[$cache_key];
 
