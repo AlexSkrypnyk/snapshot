@@ -26,7 +26,6 @@ use Rector\Naming\Rector\ClassMethod\RenameVariableToMatchNewTypeRector;
 use Rector\Naming\Rector\Foreach_\RenameForeachValueVariableToMatchExprVariableRector;
 use Rector\Naming\Rector\Foreach_\RenameForeachValueVariableToMatchMethodCallReturnTypeRector;
 use Rector\Php80\Rector\Switch_\ChangeSwitchToMatchRector;
-use Rector\PHPUnit\Set\PHPUnitSetList;
 use Rector\Strict\Rector\Empty_\DisallowedEmptyRuleFixerRector;
 use Rector\TypeDeclaration\Rector\StmtsAwareInterface\DeclareStrictTypesRector;
 
@@ -34,7 +33,7 @@ return RectorConfig::configure()
   ->withPaths([
     __DIR__ . '/**',
   ])
-  ->withPhpSets(php82: TRUE)
+  ->withPhpSets(php83: TRUE)
   ->withPreparedSets(
     deadCode: TRUE,
     codeQuality: TRUE,
@@ -45,9 +44,7 @@ return RectorConfig::configure()
     earlyReturn: TRUE,
     phpunitCodeQuality: TRUE,
   )
-  ->withSets([
-    PHPUnitSetList::COMPOSER_BASED,
-  ])
+  ->withComposerBased(phpunit: TRUE)
   ->withRules([
     DeclareStrictTypesRector::class,
   ])
