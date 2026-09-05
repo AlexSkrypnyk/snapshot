@@ -13,18 +13,18 @@ namespace AlexSkrypnyk\Snapshot\Rules;
 abstract class AbstractRuleSet implements RuleSetInterface {
 
   /**
-   * Patterns for files to skip.
-   *
-   * @var array<int, string>
-   */
-  protected const SKIP_PATTERNS = [];
-
-  /**
    * Patterns for files where only content should be ignored.
    *
    * @var array<int, string>
    */
   protected const IGNORE_CONTENT_PATTERNS = [];
+
+  /**
+   * Patterns for files to skip.
+   *
+   * @var array<int, string>
+   */
+  protected const SKIP_PATTERNS = [];
 
   /**
    * Global patterns that apply everywhere.
@@ -50,15 +50,15 @@ abstract class AbstractRuleSet implements RuleSetInterface {
   /**
    * {@inheritdoc}
    */
-  public function getSkip(): array {
-    return static::SKIP_PATTERNS;
+  public function getIgnoreContent(): array {
+    return static::IGNORE_CONTENT_PATTERNS;
   }
 
   /**
    * {@inheritdoc}
    */
-  public function getIgnoreContent(): array {
-    return static::IGNORE_CONTENT_PATTERNS;
+  public function getSkip(): array {
+    return static::SKIP_PATTERNS;
   }
 
   /**
@@ -88,12 +88,12 @@ abstract class AbstractRuleSet implements RuleSetInterface {
   public function applyTo(?RulesInterface $rules = NULL): RulesInterface {
     $rules ??= new Rules();
 
-    foreach ($this->getSkip() as $pattern) {
-      $rules->addSkip($pattern);
-    }
-
     foreach ($this->getIgnoreContent() as $pattern) {
       $rules->addIgnoreContent($pattern);
+    }
+
+    foreach ($this->getSkip() as $pattern) {
+      $rules->addSkip($pattern);
     }
 
     foreach ($this->getGlobal() as $pattern) {

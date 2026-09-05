@@ -12,9 +12,6 @@ class PatchException extends SnapshotException {
   /**
    * Constructs a PatchException.
    *
-   * The promoted parameters declare properties, so they carry the camelCase
-   * property names rather than the snake_case argument names.
-   *
    * @param string $message
    *   The exception message.
    * @param string|null $filePath

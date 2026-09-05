@@ -37,9 +37,9 @@ class Index implements IndexInterface {
    *   Optional rules to apply when indexing. Falls back to the directory's
    *   rules file, then to empty rules.
    * @param mixed $fileFilter
-   *   Optional callback receiving the IndexedFile of each candidate file. Real
-   *   directories and files matched by an ignore-content rule never reach it,
-   *   but a symlink to a directory does. Returning FALSE excludes the file
+   *   Optional callback receiving the IndexedFile of each file that survives
+   *   the skip, global and ignore-content rules. A symlink to a directory
+   *   reaches it; a broken symlink does not. Returning FALSE excludes the file
    *   from the index; any other return value is discarded, and any change the
    *   callback made to the file is kept.
    */

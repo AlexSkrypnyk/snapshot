@@ -155,6 +155,7 @@ composer install
 - All files must end with a newline character
 - Local variables/method arguments: `snake_case`
 - Method names/class properties: `camelCase`
+- Promoted constructor properties declare properties, so they follow the property convention: `camelCase`
 
 
 ## Testing Patterns
