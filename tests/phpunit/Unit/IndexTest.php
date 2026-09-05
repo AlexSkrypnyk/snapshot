@@ -421,11 +421,18 @@ final class IndexTest extends UnitTestCase {
 
       $files = (new Index($test_dir, $rules))->getFiles();
 
+      // 'important.txt' + '!important.txt': the file is indexed.
       $this->assertArrayHasKey('important.txt', $files);
+
+      // '*.log' + '!important.log': the file is indexed at any depth,
+      // 'other.log' stays excluded.
       $this->assertArrayHasKey('important.log', $files);
       $this->assertArrayHasKey('sub/important.log', $files);
       $this->assertArrayNotHasKey('other.log', $files);
       $this->assertArrayNotHasKey('sub/other.log', $files);
+
+      // 'cache/' + '!cache/keep.txt': the named file is indexed, its
+      // sibling stays excluded.
       $this->assertArrayHasKey('cache/keep.txt', $files);
       $this->assertArrayNotHasKey('cache/other.txt', $files);
     }

@@ -251,6 +251,8 @@ A `!` rule overrides either kind: it is matched against both the file name and t
 
 A `!^` rule overrides content ignoring instead: `!^composer.lock` keeps comparing that file's content even though `^composer.lock` would otherwise leave it unchecked. Unlike `!`, a `!^` rule is matched only against the relative path, the same way a `^` rule is.
 
+The `.ignorecontent` file itself and the `.git/` directory are always skipped and cannot be re-included by any `!` rule.
+
 #### Why Ignore Content?
 
 Some files should exist but have unpredictable or environment-specific content:
