@@ -122,7 +122,6 @@ trait SnapshotTrait {
     $tmp ??= sys_get_temp_dir();
     $baseline = Snapshot::getBaselinePath($snapshots);
 
-    // Hook for preprocessing.
     $this->snapshotUpdateBefore($actual);
 
     if (Snapshot::isBaseline($snapshots)) {

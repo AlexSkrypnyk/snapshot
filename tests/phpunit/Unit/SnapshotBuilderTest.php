@@ -123,10 +123,9 @@ final class SnapshotBuilderTest extends UnitTestCase {
     $builder = SnapshotBuilder::create();
     $result = $builder->diff($baseline, $dst, self::$sut);
 
-    // Verify fluent return.
     $this->assertSame($builder, $result);
 
-    // No diff should be generated for equal directories.
+    // Equal directories generate no diff.
     $files = glob(self::$sut . '/*');
     $this->assertEmpty($files);
   }
@@ -139,7 +138,6 @@ final class SnapshotBuilderTest extends UnitTestCase {
     $builder = SnapshotBuilder::create();
     $result = $builder->patch($baseline, $diff, self::$sut);
 
-    // Verify fluent return.
     $this->assertSame($builder, $result);
 
     $this->assertDirectoriesIdentical($expected, self::$sut);
@@ -154,7 +152,6 @@ final class SnapshotBuilderTest extends UnitTestCase {
     $builder = SnapshotBuilder::create();
     $result = $builder->sync($src, self::$sut);
 
-    // Verify fluent return.
     $this->assertSame($builder, $result);
 
     $this->assertDirectoriesIdentical($expected, self::$sut);
@@ -207,7 +204,6 @@ final class SnapshotBuilderTest extends UnitTestCase {
     $dir1 = File::dir($this->locationsFixtureDir('compare') . DIRECTORY_SEPARATOR . 'files_equal' . DIRECTORY_SEPARATOR . 'directory1');
     $dir2 = File::dir($this->locationsFixtureDir('compare') . DIRECTORY_SEPARATOR . 'files_equal' . DIRECTORY_SEPARATOR . 'directory2');
 
-    // Create builder once, use multiple times.
     $builder = SnapshotBuilder::create()->withRules(Rules::phpProject());
 
     $index = $builder->scan($src);

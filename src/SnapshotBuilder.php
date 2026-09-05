@@ -12,8 +12,8 @@ use AlexSkrypnyk\Snapshot\Sync\Syncer;
 /**
  * Configurable snapshot builder for repeated operations.
  *
- * Use this class when you need to configure rules or content processors
- * and perform multiple operations with the same settings.
+ * Use this class to configure rules or content processors and perform
+ * multiple operations with the same settings.
  *
  * @code
  * $builder = SnapshotBuilder::create()

@@ -24,19 +24,17 @@ declare(strict_types=1);
 // Suffix appended to snapshots path to create baseline snapshots path.
 define('BASELINE_DIR', '_baseline');
 
-// Name of the baseline dataset (will be run first).
+// Name of the baseline dataset, which runs first.
 define('BASELINE_DATASET_NAME', 'baseline');
 
-// Commit message for baseline snapshots.
 define('COMMIT_MESSAGE_BASELINE', 'Updated baseline.');
 
-// Commit message for all snapshots.
 define('COMMIT_MESSAGE_SNAPSHOTS', 'Updated snapshots.');
 
 // Completion markers emitted by SnapshotTrait once a snapshot has been
-// rewritten. When a PHPUnit run exits non-zero but its output contains one of
-// these markers, the snapshot was updated successfully and the dataset must be
-// treated as updated rather than failed.
+// rewritten. When a PHPUnit run exits non-zero but its output contains one
+// of these markers, the snapshot was updated successfully. The dataset must
+// then be treated as updated rather than failed.
 define('SNAPSHOT_MARKER_BASELINE_UPDATED', '[SNAPSHOT] Baseline updated');
 define('SNAPSHOT_MARKER_DIFFS_UPDATED', '[SNAPSHOT] Diffs updated');
 
@@ -62,17 +60,14 @@ function main(array $argv, int $argc): void {
   validate_config($config);
   setup_signal_handlers();
 
-  // Change to root directory.
   chdir($config['root']);
 
-  // If datasets provided, run only specified datasets.
   if (!empty($config['datasets'])) {
     run_specified_datasets($config);
 
     return;
   }
 
-  // Run all datasets.
   run_all_datasets($config);
 }
 
@@ -107,7 +102,6 @@ function validate_config(array $config): void {
 function setup_signal_handlers(): void {
   if (function_exists('pcntl_signal')) {
     $handler = function (): void {
-      // Restore terminal if in TUI mode.
       exit_tui();
       verbose("\nInterrupted by user\n");
       exit(130);
@@ -183,7 +177,6 @@ function run_all_datasets(array $config): void {
 
   $stats = ['current' => 0, 'succeeded' => 0, 'updated' => 0, 'failed' => 0, 'timedout' => 0];
 
-  // Run baseline sequentially first.
   $scenario_datasets = $datasets;
   if ($datasets[0] === BASELINE_DATASET_NAME) {
     $stats['current']++;
@@ -209,7 +202,6 @@ function run_all_datasets(array $config): void {
     $scenario_datasets = array_slice($datasets, 1);
   }
 
-  // Run remaining scenarios in parallel.
   if (!empty($scenario_datasets)) {
     $parallel_stats = run_datasets_parallel($scenario_datasets, $stats['current'], $total, $config);
     $stats['succeeded'] += $parallel_stats['succeeded'];
@@ -218,11 +210,10 @@ function run_all_datasets(array $config): void {
     $stats['timedout'] += $parallel_stats['timedout'];
   }
 
-  // Print summary.
   print_summary($stats, $total);
 
-  // Commit any snapshot changes that were applied. This is a no-op when the
-  // working tree is clean, so it is safe to call unconditionally.
+  // A no-op when the working tree is clean, so it is safe to call
+  // unconditionally.
   commit_snapshot_changes($config, $baseline_committed);
 
   print_execution_time($start_time);
@@ -258,7 +249,6 @@ function discover_datasets(array $config): array {
     throw new \Exception('No datasets found');
   }
 
-  // Extract dataset names from test list.
   // Format: " - ClassName::testMethodName"dataset_name"".
   $pattern = '/' . preg_quote((string) $config['test_name'], '/') . '"([^"]+)"/';
   preg_match_all($pattern, $test_list, $matches);
@@ -458,29 +448,24 @@ function parse_arguments(array $argv): array {
     'jobs' => 4,
   ];
 
-  // Remove script name.
   array_shift($argv);
 
   $positional = [];
 
   foreach ($argv as $arg) {
-    // Check for help flags.
     if (in_array($arg, ['help', '--help', '-h', '-?'], TRUE)) {
       $config['help'] = TRUE;
       continue;
     }
 
-    // Parse options with values (--option=value).
     if (str_starts_with($arg, '--')) {
       $config = parse_option($arg, $config);
       continue;
     }
 
-    // Collect positional arguments.
     $positional[] = $arg;
   }
 
-  // Assign positional arguments.
   if (isset($positional[0])) {
     $config['test_name'] = $positional[0];
   }
@@ -689,7 +674,6 @@ function run_datasets_parallel(array $datasets, int $start_number, int $total, a
   $jobs = (int) $config['jobs'];
   $is_tty = function_exists('posix_isatty') && posix_isatty(STDOUT);
 
-  // Build task list.
   $tasks = [];
   $number = $start_number;
   foreach ($datasets as $dataset) {
@@ -718,16 +702,13 @@ function run_datasets_parallel(array $datasets, int $start_number, int $total, a
     enter_tui();
   }
 
-  // Event loop.
   while (TRUE) {
     dispatch_signals();
 
-    // Read keyboard input for scrolling (TTY only).
     if ($is_tty) {
       $scroll_offset = read_keyboard_input($scroll_offset, count($tasks));
     }
 
-    // Start phase: fill empty slots.
     $running_count = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'running'));
     foreach ($tasks as &$task) {
       if ($running_count >= $jobs) {
@@ -741,7 +722,6 @@ function run_datasets_parallel(array $datasets, int $start_number, int $total, a
     }
     unset($task);
 
-    // Poll phase: check running processes.
     foreach ($tasks as &$task) {
       if ($task['status'] !== 'running') {
         continue;
@@ -750,10 +730,8 @@ function run_datasets_parallel(array $datasets, int $start_number, int $total, a
     }
     unset($task);
 
-    // Render phase.
     render_progress($tasks, $total, $is_tty, $jobs, $scroll_offset, $start_time);
 
-    // Exit check: all done?
     $pending = array_filter($tasks, fn(array $t): bool => $t['status'] === 'queued' || $t['status'] === 'running');
     if (empty($pending)) {
       break;
@@ -786,7 +764,6 @@ function run_datasets_parallel(array $datasets, int $start_number, int $total, a
     }
   }
 
-  // Aggregate stats.
   $stats = ['succeeded' => 0, 'updated' => 0, 'failed' => 0, 'timedout' => 0];
   foreach ($tasks as $task) {
     if ($task['status'] === 'success') {
@@ -867,7 +844,6 @@ function poll_task(array $task, array $config): array {
   $status = proc_get_status($task['process']);
   $task['output'] = collect_output($task['pipes'], $task['output']);
 
-  // Update dots every 250ms.
   if (microtime(TRUE) - $task['last_dot_time'] >= 0.25) {
     $task['dots']++;
     $task['last_dot_time'] = microtime(TRUE);
@@ -882,7 +858,6 @@ function poll_task(array $task, array $config): array {
   // PHP < 8.3. proc_close() below only releases the handle.
   $exit_code = $status['exitcode'];
 
-  // Process finished.
   $task['output'] = collect_output($task['pipes'], $task['output']);
   fclose($task['pipes'][1]);
   fclose($task['pipes'][2]);
@@ -1060,7 +1035,6 @@ function render_progress(array $tasks, int $total, bool $is_tty, int $jobs, int 
   $pad = strlen((string) $total);
 
   if (!$is_tty) {
-    // Non-TTY: only print when all done.
     if ($running === 0 && $queued === 0) {
       foreach ($tasks as $task) {
         $line = sprintf('  [%' . $pad . 'd/%d] %s ', $task['number'], $total, $task['dataset']);
@@ -1092,11 +1066,9 @@ function render_progress(array $tasks, int $total, bool $is_tty, int $jobs, int 
   // Cursor to home.
   print "\033[H";
 
-  // Header.
   printf("\033[K  Running %d scenarios (parallel: %d)\n", $task_count, $jobs);
   print "\033[K\n";
 
-  // Visible slice of tasks.
   $visible_end = min($task_count, $scroll_offset + $viewport_height);
   for ($i = $scroll_offset; $i < $visible_end; $i++) {
     $task = $tasks[$i];
@@ -1129,7 +1101,6 @@ function render_progress(array $tasks, int $total, bool $is_tty, int $jobs, int 
     }
   }
 
-  // Footer.
   print "\033[K\n";
   printf(
     "\033[K  \033[32mDone: %d\033[0m  \033[36mUpdated: %d\033[0m  \033[31mFailed: %d\033[0m  \033[33mRunning: %d\033[0m  Queued: %d  Timeout: %d\n",
@@ -1142,7 +1113,6 @@ function render_progress(array $tasks, int $total, bool $is_tty, int $jobs, int 
   );
   printf("\033[K  Elapsed: %s\n", format_time((int) (microtime(TRUE) - $start_time)));
 
-  // Scroll indicator.
   if ($max_scroll > 0) {
     printf("\033[K\033[90m  ↑↓ Scroll (%d-%d of %d)\033[0m\n", $scroll_offset + 1, $visible_end, $task_count);
   }
@@ -1228,7 +1198,6 @@ function run_phpunit(string $filter, int $timeout, string $root): array {
   while (TRUE) {
     $status = proc_get_status($process);
 
-    // Collect output.
     $output = collect_output($pipes, $output);
 
     if (!$status['running']) {
@@ -1239,7 +1208,6 @@ function run_phpunit(string $filter, int $timeout, string $root): array {
       break;
     }
 
-    // Print progress dot every 0.25 seconds.
     if (microtime(TRUE) - $last_dot_time >= 0.25) {
       verbose('.');
       $last_dot_time = microtime(TRUE);
@@ -1249,7 +1217,6 @@ function run_phpunit(string $filter, int $timeout, string $root): array {
     dispatch_signals();
   }
 
-  // Collect remaining output.
   $output = collect_output($pipes, $output);
 
   fclose($pipes[1]);
@@ -1411,7 +1378,6 @@ if (PHP_SAPI !== 'cli' || !empty($_SERVER['REMOTE_ADDR'])) {
   die('This script can be only ran from the command line.');
 }
 
-// Allow to skip the script run.
 if (getenv('SCRIPT_RUN_SKIP') != 1) {
   set_error_handler(function (int $severity, string $message, string $file, int $line): bool {
     if ((error_reporting() & $severity) === 0) {
@@ -1425,7 +1391,7 @@ if (getenv('SCRIPT_RUN_SKIP') != 1) {
   try {
     $argv = is_array($_SERVER['argv'] ?? NULL) ? array_filter($_SERVER['argv'], is_string(...)) : [];
     $argc = is_scalar($_SERVER['argc'] ?? NULL) ? (int) $_SERVER['argc'] : 0;
-    // The function should not provide an exit code but rather throw exceptions.
+    // The function throws exceptions instead of providing an exit code.
     main($argv, $argc);
   }
   catch (\ErrorException $exception) {

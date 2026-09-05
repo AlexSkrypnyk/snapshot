@@ -67,10 +67,8 @@ final class DiffTest extends UnitTestCase {
   public function testIsSameContentWhenMissingFiles(): void {
     $diff = new Diff();
 
-    // No files set.
     $this->assertFalse($diff->isSameContent());
 
-    // Only left file set.
     $file_path = self::$sut . DIRECTORY_SEPARATOR . 'test.txt';
     file_put_contents($file_path, 'test content');
     $indexed_file = new IndexedFile($file_path, self::$sut);
@@ -78,7 +76,6 @@ final class DiffTest extends UnitTestCase {
     $diff->setLeft($indexed_file);
     $this->assertFalse($diff->isSameContent());
 
-    // Reset and set only right file.
     $diff = new Diff();
     $diff->setRight($indexed_file);
     $this->assertFalse($diff->isSameContent());
@@ -132,7 +129,6 @@ final class DiffTest extends UnitTestCase {
     $indexed_file1 = new IndexedFile($file_path1, self::$sut);
     $indexed_file2 = new IndexedFile($file_path2, self::$sut);
 
-    // Set left file to ignore content.
     $indexed_file1->setIgnoreContent(TRUE);
 
     $diff->setLeft($indexed_file1);
@@ -140,7 +136,6 @@ final class DiffTest extends UnitTestCase {
 
     $this->assertTrue($diff->isSameContent());
 
-    // Reset and set right file to ignore content.
     $diff = new Diff();
     $indexed_file1 = new IndexedFile($file_path1, self::$sut);
     $indexed_file2 = new IndexedFile($file_path2, self::$sut);
@@ -167,11 +162,9 @@ final class DiffTest extends UnitTestCase {
     $diff->setLeft($indexed_file1);
     $diff->setRight($indexed_file2);
 
-    // Test with default renderer.
     $rendered = $diff->render();
     $this->assertSame('test content', $rendered);
 
-    // Test with custom renderer.
     $custom_renderer = fn(Diff $diff, array $options = []): string => 'Custom rendered content';
 
     $rendered = $diff->render([], $custom_renderer);
@@ -184,7 +177,6 @@ final class DiffTest extends UnitTestCase {
     $file_path1 = self::$sut . DIRECTORY_SEPARATOR . 'test1.txt';
     $file_path2 = self::$sut . DIRECTORY_SEPARATOR . 'test2.txt';
 
-    // Test with same content.
     file_put_contents($file_path1, 'test content');
     file_put_contents($file_path2, 'test content');
 
@@ -197,7 +189,6 @@ final class DiffTest extends UnitTestCase {
     $result = self::callProtectedMethod(Diff::class, 'doRender', [$diff]);
     $this->assertSame('test content', $result);
 
-    // Test with different content.
     file_put_contents($file_path1, "line1\n");
     file_put_contents($file_path2, "line2\n");
 
@@ -241,7 +232,6 @@ final class DiffTest extends UnitTestCase {
     $file_path1 = self::$sut . DIRECTORY_SEPARATOR . 'test1.txt';
     $file_path2 = self::$sut . DIRECTORY_SEPARATOR . 'test2.txt';
 
-    // Create files with different sizes.
     file_put_contents($file_path1, 'short');
     file_put_contents($file_path2, 'much longer content');
 
@@ -251,7 +241,7 @@ final class DiffTest extends UnitTestCase {
     $diff->setLeft($indexed_file1);
     $diff->setRight($indexed_file2);
 
-    // Should return FALSE without reading content (optimization).
+    // A size mismatch returns FALSE without reading content (optimization).
     $this->assertFalse($diff->isSameContent(), 'Files with different sizes should not be same');
   }
 
@@ -261,7 +251,6 @@ final class DiffTest extends UnitTestCase {
     $file_path1 = self::$sut . DIRECTORY_SEPARATOR . 'test1.txt';
     $file_path2 = self::$sut . DIRECTORY_SEPARATOR . 'test2.txt';
 
-    // Create files with same size but different content.
     file_put_contents($file_path1, 'abcde');
     file_put_contents($file_path2, 'fghij');
 
@@ -271,7 +260,7 @@ final class DiffTest extends UnitTestCase {
     $diff->setLeft($indexed_file1);
     $diff->setRight($indexed_file2);
 
-    // Should return FALSE after checking hash.
+    // The comparison returns FALSE after checking the hash.
     $this->assertFalse($diff->isSameContent(), 'Files with same size but different content should not be same');
   }
 
@@ -285,7 +274,6 @@ final class DiffTest extends UnitTestCase {
     $target_path = self::$sut . DIRECTORY_SEPARATOR . 'target.txt';
     file_put_contents($target_path, 'target content');
 
-    // Create two symlinks pointing to the same target.
     $link_path1 = self::$sut . DIRECTORY_SEPARATOR . 'link1.txt';
     $link_path2 = self::$sut . DIRECTORY_SEPARATOR . 'link2.txt';
     symlink($target_path, $link_path1);
@@ -297,7 +285,6 @@ final class DiffTest extends UnitTestCase {
     $diff->setLeft($indexed_file1);
     $diff->setRight($indexed_file2);
 
-    // Should compare symlink targets correctly.
     $this->assertTrue($diff->isSameContent(), 'Symlinks with same targets should be same');
   }
 

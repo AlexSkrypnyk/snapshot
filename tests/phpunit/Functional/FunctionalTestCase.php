@@ -8,11 +8,6 @@ use AlexSkrypnyk\PhpunitHelpers\Traits\EnvTrait;
 use AlexSkrypnyk\PhpunitHelpers\Traits\ProcessTrait;
 use AlexSkrypnyk\Snapshot\Tests\UnitTestCase;
 
-/**
- * Base functional test case for snapshot package tests.
- *
- * Extends UnitTestCase and adds ProcessTrait for subprocess testing.
- */
 abstract class FunctionalTestCase extends UnitTestCase {
 
   use EnvTrait;

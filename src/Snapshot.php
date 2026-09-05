@@ -128,7 +128,6 @@ class Snapshot {
       File::dump($destination . DIRECTORY_SEPARATOR . '-' . basename((string) $file), '');
     }
 
-    // Files with content differences - save diff.
     foreach ($content_diffs as $file => $diff) {
       if ($diff instanceof Diff) {
         $rendered = $diff->render();
@@ -173,14 +172,12 @@ class Snapshot {
         File::copy($file->getPathname(), $destination . DIRECTORY_SEPARATOR . $relative_path);
       }
       else {
-        // Patch file - queue for patching.
         $patcher->addPatchFile($file);
       }
     }
 
     $patcher->patch();
 
-    // Apply content processor to all files in destination if provided.
     if ($content_processor !== NULL) {
       $files = File::scandir($destination);
       foreach ($files as $file_path) {

@@ -190,9 +190,8 @@ final class SnapshotTraitTest extends TestCase {
     mkdir($this->baselineDir, 0777, TRUE);
     file_put_contents($this->baselineDir . DIRECTORY_SEPARATOR . 'file1.txt', "line1\nline2\nline3\n");
 
-    // Create a patch file with a hunk mismatch (incomplete hunk)
     mkdir($this->diffDir, 0777, TRUE);
-    // Missing the rest of the hunk.
+    // The rest of the hunk is missing.
     $diff_content = "@@ -1,3 +1,3 @@\n line1\n-line2\n";
     file_put_contents($this->diffDir . DIRECTORY_SEPARATOR . 'file1.txt', $diff_content);
 
@@ -212,9 +211,7 @@ final class SnapshotTraitTest extends TestCase {
     mkdir($this->baselineDir, 0777, TRUE);
     file_put_contents($this->baselineDir . DIRECTORY_SEPARATOR . 'file1.txt', "line1\nline2\nline3\n");
 
-    // Create a patch file with unexpected EOF.
     mkdir($this->diffDir, 0777, TRUE);
-    // Missing the content completely.
     $diff_content = '@@ -1,3 +1,3 @@';
     file_put_contents($this->diffDir . DIRECTORY_SEPARATOR . 'file1.txt', $diff_content);
 
@@ -257,23 +254,18 @@ final class SnapshotTraitTest extends TestCase {
   }
 
   public function testAssertSnapshotMatchesBaselineWithCustomMessage(): void {
-    // Set up baseline directory.
     mkdir($this->baselineDir, 0777, TRUE);
     file_put_contents($this->baselineDir . DIRECTORY_SEPARATOR . 'file1.txt', 'Original content');
 
-    // Set up diff directory.
     mkdir($this->diffDir, 0777, TRUE);
     file_put_contents($this->diffDir . DIRECTORY_SEPARATOR . 'file1.txt', 'Original content');
 
-    // Set up actual directory.
     mkdir($this->actualDir, 0777, TRUE);
     file_put_contents($this->actualDir . DIRECTORY_SEPARATOR . 'file1.txt', 'Original content');
 
-    // Test successful assertion with custom message.
     $this->assertSnapshotMatchesBaseline($this->actualDir, $this->baselineDir, $this->diffDir, NULL, 'Custom success message');
     $this->addToAssertionCount(1);
 
-    // Test failed assertion with custom message (nonexistent baseline).
     $nonexistent_dir = $this->tmpDir . DIRECTORY_SEPARATOR . 'nonexistent';
     try {
       $this->assertSnapshotMatchesBaseline($this->actualDir, $nonexistent_dir, $this->diffDir, NULL, 'Custom failure message');

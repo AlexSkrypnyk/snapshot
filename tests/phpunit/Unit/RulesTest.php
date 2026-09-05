@@ -128,7 +128,6 @@ final class RulesTest extends UnitTestCase {
   }
 
   public function testParseMethodChaining(): void {
-    // Test chained parse calls.
     $rules = new Rules();
     $result = $rules->parse('!include-rule')
       ->parse('^ignore-content-rule')
@@ -157,7 +156,6 @@ final class RulesTest extends UnitTestCase {
   }
 
   public function testAddMethodChaining(): void {
-    // Test method chaining.
     $rules = new Rules();
     $result = $rules->addIgnoreContent('pattern1')
       ->addSkip('pattern2')
@@ -172,8 +170,8 @@ final class RulesTest extends UnitTestCase {
   }
 
   public function testFromFileReadException(): void {
-    // Since system permission changes might not work in all test environments,
-    // let's use a mock to simulate a file read exception.
+    // System permission changes might not work in all test environments,
+    // so a mock simulates the file read exception.
     $rules_class = new class() extends Rules {
 
       public static function fromFile(string $file): Rules {
@@ -188,7 +186,6 @@ final class RulesTest extends UnitTestCase {
   }
 
   public function testCustomRulesImport(): void {
-    // Create a test rules file with all types of patterns.
     $rules_file = sys_get_temp_dir() . DIRECTORY_SEPARATOR . uniqid('rules_test_', TRUE) . '.txt';
     $content = <<<EOT
 # This is a comment
@@ -201,17 +198,14 @@ EOT;
     file_put_contents($rules_file, $content);
 
     try {
-      // Test loading from file.
       $rules = Rules::fromFile($rules_file);
 
-      // Check all the rules were loaded correctly.
       $this->assertSame(['include-pattern', 'include-ignore-content-pattern'], $rules->getInclude());
       $this->assertSame(['ignore-content-pattern'], $rules->getIgnoreContent());
       $this->assertSame(['global-pattern'], $rules->getGlobal());
       $this->assertSame(['path/to/file.txt'], $rules->getSkip());
     }
     finally {
-      // Clean up.
       if (file_exists($rules_file)) {
         unlink($rules_file);
       }

@@ -159,7 +159,6 @@ final class IndexTest extends UnitTestCase {
 
     $index = new Index($dir);
 
-    // Transforming through the callback must not corrupt the cached index.
     $index->getFiles(fn(IndexedFile $file): string => 'transformed:' . $file->getFilename());
 
     $this->assertContainsOnlyInstancesOf(IndexedFile::class, $index->getFiles());
@@ -189,8 +188,6 @@ final class IndexTest extends UnitTestCase {
     $dir = File::dir($this->locationsFixtureDir('compare') . DIRECTORY_SEPARATOR . 'files_equal_advanced' . DIRECTORY_SEPARATOR . 'directory2');
 
     $before_match_content =
-        // Only include files containing the text "specific content"
-        // Skip files that don't contain the specific content.
         (fn(IndexedFile $file): bool => str_contains($file->getContent(), 'specific content'));
 
     $test_file = $dir . DIRECTORY_SEPARATOR . 'test_before_match.txt';
@@ -277,15 +274,13 @@ final class IndexTest extends UnitTestCase {
     $file1 = $test_dir . DIRECTORY_SEPARATOR . 'dir1' . DIRECTORY_SEPARATOR . 'file1.txt';
     file_put_contents($file1, 'Original file content');
 
-    // Create a symlink to the file.
     $symlink_file = $test_dir . DIRECTORY_SEPARATOR . 'symlink_file.txt';
     symlink($file1, $symlink_file);
 
-    // Create a symlink to the directory.
     $symlink_dir = $test_dir . DIRECTORY_SEPARATOR . 'symlink_dir';
     symlink($test_dir . DIRECTORY_SEPARATOR . 'dir1', $symlink_dir);
 
-    // Create a broken symlink to test handling of non-existent targets.
+    // A broken symlink covers handling of non-existent targets.
     $broken_symlink = $test_dir . DIRECTORY_SEPARATOR . 'broken_symlink';
     symlink($test_dir . DIRECTORY_SEPARATOR . 'nonexistent_file.txt', $broken_symlink);
 
@@ -298,22 +293,18 @@ final class IndexTest extends UnitTestCase {
 
       $this->assertArrayHasKey('symlink_dir', $files);
 
-      // Note: Whether a broken symlink is included depends on implementation
-      // details.
-      // So we don't test for its presence or absence here.
-      // The original file should be indexed through both the direct path and
-      // the symlink.
+      // Whether a broken symlink is included depends on implementation
+      // details, so neither its presence nor its absence is asserted here.
+      // The original file is indexed through both the direct path and the
+      // symlink.
       $this->assertArrayHasKey('dir1/file1.txt', $files);
 
-      // Verify that symlinked files have the correct content.
       $this->assertSame('Original file content', $files['dir1/file1.txt']->getContent());
 
-      // Check that symlinks are properly identified.
       $this->assertTrue($files['symlink_file.txt']->isLink());
       $this->assertTrue($files['symlink_dir']->isLink());
     }
     finally {
-      // Clean up.
       if (file_exists($symlink_file)) {
         unlink($symlink_file);
       }
@@ -354,7 +345,7 @@ final class IndexTest extends UnitTestCase {
     // Wildcard match.
     yield ['dir/file.txt', '*.txt', TRUE];
     yield ['dir/file.md', '*.txt', FALSE];
-    // Should not match nested paths.
+    // Nested paths do not match.
     yield ['dir/nested/file.txt', 'dir/*.txt', FALSE];
     // Pattern with a wildcard in the middle.
     yield ['dir/abc_file.txt', 'dir/abc_*.txt', TRUE];
@@ -368,11 +359,10 @@ final class IndexTest extends UnitTestCase {
   }
 
   public function testScanDirectorySkipLogic(): void {
-    // Create a test class that extends Index to override the iterator method.
     $test_class = new class($this->locationsTmp()) extends Index {
 
       protected function iterator(string $directory): \RecursiveIteratorIterator {
-        // Use SELF_FIRST to ensure directories are returned during iteration.
+        // SELF_FIRST makes the iterator return directories during iteration.
         return new \RecursiveIteratorIterator(
           new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS),
           \RecursiveIteratorIterator::SELF_FIRST
@@ -381,24 +371,20 @@ final class IndexTest extends UnitTestCase {
 
     };
 
-    // Create test directory structure.
     $test_dir = $this->locationsTmp() . DIRECTORY_SEPARATOR . 'test_dir_skip';
     File::mkdir($test_dir);
     File::mkdir($test_dir . DIRECTORY_SEPARATOR . 'sub_directory');
     file_put_contents($test_dir . DIRECTORY_SEPARATOR . 'test_file.txt', 'content');
 
     try {
-      // Override the directory property using reflection.
       $reflection = new \ReflectionClass($test_class);
       $property = $reflection->getProperty('directory');
       $property->setValue($test_class, $test_dir);
 
       $files = $test_class->getFiles();
 
-      // The file should be included.
       $this->assertArrayHasKey('test_file.txt', $files);
 
-      // The directory should not be included (gets skipped).
       $this->assertArrayNotHasKey('sub_directory', $files);
     }
     finally {

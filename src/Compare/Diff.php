@@ -89,19 +89,18 @@ class Diff implements DiffInterface {
       return TRUE;
     }
 
-    // File fingerprinting for regular files.
     // Skip for symlinks as metadata may not work reliably.
     if (!$this->left->isLink() && !$this->right->isLink()) {
       try {
         $left_size = $this->left->getSize();
         $right_size = $this->right->getSize();
 
-        // Optimization 1: Different sizes = definitely different content.
+        // Different sizes mean different content.
         if ($left_size !== $right_size) {
           return FALSE;
         }
 
-        // Optimization 2: Same inode = same file (hard link).
+        // The same inode means the same file (hard link).
         $left_inode = $this->left->getInode();
         $right_inode = $this->right->getInode();
         if ($left_inode === $right_inode && $left_inode !== FALSE) {

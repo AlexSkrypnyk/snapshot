@@ -79,7 +79,7 @@ final class IndexedFileTest extends UnitTestCase {
     $indexed_file = new IndexedFile($file_path, self::$sut, $preset_content);
 
     $this->assertSame($expected, $indexed_file->getContent());
-    // Call twice to test caching.
+    // The second call covers caching.
     $this->assertSame($expected, $indexed_file->getContent());
   }
 
@@ -145,7 +145,6 @@ final class IndexedFileTest extends UnitTestCase {
     $indexed_file->setContent($new_content);
 
     if ($new_content === NULL) {
-      // When NULL, content loads from file.
       $this->assertSame($file_content, $indexed_file->getContent());
       $this->assertSame(sha1($file_content), $indexed_file->getHash());
     }
@@ -302,23 +301,22 @@ final class IndexedFileTest extends UnitTestCase {
 
     $indexed_file = new IndexedFile($file_path, self::$sut);
 
-    // Getting hash should also load content in a single read for small files.
+    // For small files, getHash() loads the content in a single read.
     $this->assertSame(sha1($content), $indexed_file->getHash());
-    // Content should already be available without a second file read.
+    // The content is then available without a second file read.
     $this->assertSame($content, $indexed_file->getContent());
   }
 
   public function testLargeFileStreamingHash(): void {
     $file_path = self::$sut . DIRECTORY_SEPARATOR . 'large_streaming.txt';
-    // Create a file larger than 1MB to trigger streaming hash path.
+    // A file over 1MB triggers the streaming hash path.
     $content = str_repeat('x', 1048577);
     file_put_contents($file_path, $content);
 
     $indexed_file = new IndexedFile($file_path, self::$sut);
 
-    // Hash should be computed via streaming (hashFile).
+    // The hash is computed via streaming (hashFile).
     $this->assertSame(sha1($content), $indexed_file->getHash());
-    // Content should still be loadable on demand.
     $this->assertSame($content, $indexed_file->getContent());
   }
 
@@ -329,14 +327,12 @@ final class IndexedFileTest extends UnitTestCase {
 
     $indexed_file = new IndexedFile($file_path, self::$sut);
 
-    // After getHash(), content should remain NULL for large files (streaming).
+    // After getHash(), content remains NULL for large files (streaming).
     $indexed_file->getHash();
 
-    // Use reflection to check that content is NULL after hash-only access.
     $reflection = new \ReflectionProperty($indexed_file, 'content');
     $this->assertNull($reflection->getValue($indexed_file), 'Large file content should remain NULL after hash-only access');
 
-    // But getContent() should still return the content when explicitly called.
     $this->assertSame($content, $indexed_file->getContent());
   }
 

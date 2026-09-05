@@ -298,7 +298,6 @@ ABSENT,
 
     Snapshot::patch($baseline, $diff, self::$sut, $processor);
 
-    // Verify content was actually modified on disk.
     $files = File::scandir(self::$sut);
     $modified = FALSE;
     foreach ($files as $file_path) {
@@ -311,7 +310,6 @@ ABSENT,
   }
 
   public function testGetBaselinePath(): void {
-    // Create the baseline directory structure.
     $parent = self::$sut;
     $baseline_dir = $parent . DIRECTORY_SEPARATOR . Snapshot::BASELINE_DIR;
     $snapshot_dir = $parent . DIRECTORY_SEPARATOR . 'snapshot';
@@ -347,7 +345,7 @@ ABSENT,
     $rules = Rules::create();
     Snapshot::diff($baseline, $dst, self::$sut, $rules);
 
-    // No diff should be generated for equal directories.
+    // Equal directories generate no diff.
     $files = glob(self::$sut . '/*');
     $this->assertEmpty($files);
   }
@@ -374,12 +372,12 @@ ABSENT,
 
     $comparer = Snapshot::compare($dir1, $dir2);
 
-    // First call - should be empty (directories are identical).
+    // The directories are identical, so the first call returns empty results.
     $this->assertEmpty($comparer->getAbsentLeftDiffs());
     $this->assertEmpty($comparer->getAbsentRightDiffs());
     $this->assertEmpty($comparer->getContentDiffs());
 
-    // Second call - should return same cached results.
+    // The second call returns the same cached results.
     $this->assertEmpty($comparer->getAbsentLeftDiffs());
     $this->assertEmpty($comparer->getContentDiffs());
   }
@@ -395,16 +393,15 @@ ABSENT,
 
     $comparer = Snapshot::compare($dir1, $dir2);
 
-    // Populate cache.
+    // The first read populates the cache.
     $this->assertEmpty($comparer->getAbsentLeftDiffs());
 
-    // Add a new file to the left side - this should invalidate cache.
+    // Adding a file to the left side invalidates the cache.
     $new_file_path = $dir1 . DIRECTORY_SEPARATOR . 'f2.txt';
     file_put_contents($new_file_path, 'new content');
     $new_file = new IndexedFile($new_file_path, $dir1);
     $comparer->addLeftFile($new_file);
 
-    // Cache should be invalidated - absent right should now include f2.txt.
     $absent_right = $comparer->getAbsentRightDiffs();
     $this->assertArrayHasKey('f2.txt', $absent_right);
   }
@@ -435,7 +432,6 @@ ABSENT,
     $dst = self::$sut . DIRECTORY_SEPARATOR . 'dst';
     mkdir($src, 0777, TRUE);
 
-    // Create various file types.
     file_put_contents($src . DIRECTORY_SEPARATOR . 'regular.txt', 'regular content');
     mkdir($src . DIRECTORY_SEPARATOR . 'subdir', 0777, TRUE);
     file_put_contents($src . DIRECTORY_SEPARATOR . 'subdir' . DIRECTORY_SEPARATOR . 'nested.txt', 'nested content');
@@ -443,7 +439,6 @@ ABSENT,
 
     Snapshot::sync($src, $dst);
 
-    // Verify all files were copied correctly.
     $this->assertFileExists($dst . DIRECTORY_SEPARATOR . 'regular.txt');
     $this->assertSame('regular content', file_get_contents($dst . DIRECTORY_SEPARATOR . 'regular.txt'));
     $this->assertFileExists($dst . DIRECTORY_SEPARATOR . 'subdir' . DIRECTORY_SEPARATOR . 'nested.txt');
