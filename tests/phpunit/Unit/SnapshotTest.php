@@ -321,11 +321,19 @@ ABSENT,
     $this->assertSame($baseline_dir, $result);
   }
 
-  public function testIsBaseline(): void {
-    $this->assertTrue(Snapshot::isBaseline('/path/to/' . Snapshot::BASELINE_DIR . '/file.txt'));
-    $this->assertTrue(Snapshot::isBaseline('/path/' . Snapshot::BASELINE_DIR));
-    $this->assertFalse(Snapshot::isBaseline('/path/to/regular/directory'));
-    $this->assertFalse(Snapshot::isBaseline('/path/to/snapshot'));
+  #[DataProvider('dataProviderIsBaseline')]
+  public function testIsBaseline(string $path, bool $expected): void {
+    $this->assertSame($expected, Snapshot::isBaseline($path));
+  }
+
+  public static function dataProviderIsBaseline(): \Iterator {
+    yield 'baseline directory' => ['snapshots' . DIRECTORY_SEPARATOR . Snapshot::BASELINE_DIR, TRUE];
+    yield 'baseline directory with trailing separator' => ['snapshots' . DIRECTORY_SEPARATOR . Snapshot::BASELINE_DIR . DIRECTORY_SEPARATOR, TRUE];
+    yield 'bare baseline directory' => [Snapshot::BASELINE_DIR, TRUE];
+    yield 'file inside baseline directory' => ['snapshots' . DIRECTORY_SEPARATOR . Snapshot::BASELINE_DIR . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'App.php', FALSE];
+    yield 'sibling directory with baseline prefix' => ['snapshots' . DIRECTORY_SEPARATOR . Snapshot::BASELINE_DIR . '_backup', FALSE];
+    yield 'file inside sibling directory with baseline prefix' => ['snapshots' . DIRECTORY_SEPARATOR . Snapshot::BASELINE_DIR . '_old' . DIRECTORY_SEPARATOR . 'x', FALSE];
+    yield 'regular scenario directory' => ['snapshots' . DIRECTORY_SEPARATOR . 'scenario_one', FALSE];
   }
 
   public function testCompareWithRules(): void {

@@ -234,7 +234,7 @@ class Snapshot {
    *   TRUE if path is a baseline directory.
    */
   public static function isBaseline(string $path): bool {
-    return str_contains($path, DIRECTORY_SEPARATOR . self::BASELINE_DIR);
+    return basename($path) === self::BASELINE_DIR;
   }
 
 }
