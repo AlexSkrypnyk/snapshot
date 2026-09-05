@@ -284,9 +284,10 @@ final class IndexedFileTest extends UnitTestCase {
   }
 
   public function testLargeFileHashing(): void {
+    $threshold = $this->getLargeFileThreshold();
     $file_path = self::$sut . DIRECTORY_SEPARATOR . 'large.txt';
-    // Create a file larger than 8192 bytes to test chunked hashing.
-    $content = str_repeat('a', 10000);
+    // A size above LARGE_FILE_THRESHOLD selects the chunked hashFile() path.
+    $content = str_repeat('a', $threshold + 1);
     file_put_contents($file_path, $content);
 
     $indexed_file = new IndexedFile($file_path, self::$sut);
@@ -308,28 +309,30 @@ final class IndexedFileTest extends UnitTestCase {
   }
 
   public function testLargeFileStreamingHash(): void {
+    $threshold = $this->getLargeFileThreshold();
     $file_path = self::$sut . DIRECTORY_SEPARATOR . 'large_streaming.txt';
-    // A file over 1MB triggers the streaming hash path.
-    $content = str_repeat('x', 1048577);
+    // A size above LARGE_FILE_THRESHOLD selects the chunked hashFile() path.
+    $content = str_repeat('x', $threshold + 1);
     file_put_contents($file_path, $content);
 
     $indexed_file = new IndexedFile($file_path, self::$sut);
 
-    // The hash is computed via streaming (hashFile).
+    // hashFile() streams the file in chunks yet must equal a plain sha1().
     $this->assertSame(sha1($content), $indexed_file->getHash());
     $this->assertSame($content, $indexed_file->getContent());
   }
 
   public function testLargeFileHashOnlyDoesNotLoadContent(): void {
+    $threshold = $this->getLargeFileThreshold();
     $file_path = self::$sut . DIRECTORY_SEPARATOR . 'large_hash_only.txt';
-    $content = str_repeat('y', 1048577);
+    $content = str_repeat('y', $threshold + 1);
     file_put_contents($file_path, $content);
 
     $indexed_file = new IndexedFile($file_path, self::$sut);
 
-    // After getHash(), content remains NULL for large files (streaming).
-    $indexed_file->getHash();
+    $this->assertSame(sha1($content), $indexed_file->getHash());
 
+    // After getHash(), content remains NULL for large files (streaming).
     $reflection = new \ReflectionProperty($indexed_file, 'content');
     $this->assertNull($reflection->getValue($indexed_file), 'Large file content should remain NULL after hash-only access');
 
@@ -349,6 +352,16 @@ final class IndexedFileTest extends UnitTestCase {
 
     $indexed_file->setIgnoreContent(FALSE);
     $this->assertFalse($indexed_file->isIgnoreContent());
+  }
+
+  protected function getLargeFileThreshold(): int {
+    $value = (new \ReflectionClassConstant(IndexedFile::class, 'LARGE_FILE_THRESHOLD'))->getValue();
+
+    if (!is_int($value)) {
+      throw new \RuntimeException('LARGE_FILE_THRESHOLD is not an integer.');
+    }
+
+    return $value;
   }
 
 }
