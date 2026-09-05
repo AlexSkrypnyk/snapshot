@@ -132,7 +132,7 @@ final class SnapshotTraitTest extends TestCase {
     $subdir_path = $this->actualDir . DIRECTORY_SEPARATOR . 'subdir' . DIRECTORY_SEPARATOR;
     file_put_contents($subdir_path . 'file2.txt', 'Subdir content');
 
-    $this->assertSnapshotMatchesBaseline($this->actualDir, $this->baselineDir, $this->diffDir);
+    $this->assertSnapshotMatchesBaseline($this->baselineDir, $this->diffDir, $this->actualDir);
     $this->addToAssertionCount(1);
   }
 
@@ -159,7 +159,7 @@ final class SnapshotTraitTest extends TestCase {
     file_put_contents($subdir_path . 'file2.txt', 'Subdir content');
 
     try {
-      $this->assertSnapshotMatchesBaseline($this->actualDir, $this->baselineDir, $this->diffDir, $this->expectedDir);
+      $this->assertSnapshotMatchesBaseline($this->baselineDir, $this->diffDir, $this->actualDir, $this->expectedDir);
       $this->fail('Assertion should have failed for different content');
     }
     catch (AssertionFailedError $assertion_failed_error) {
@@ -172,7 +172,7 @@ final class SnapshotTraitTest extends TestCase {
     $nonexistent_dir = $this->tmpDir . DIRECTORY_SEPARATOR . 'nonexistent';
 
     try {
-      $this->assertSnapshotMatchesBaseline($this->actualDir, $nonexistent_dir, $this->diffDir);
+      $this->assertSnapshotMatchesBaseline($nonexistent_dir, $this->diffDir, $this->actualDir);
       $this->fail('Assertion should have failed for nonexistent baseline directory');
     }
     catch (AssertionFailedError $assertion_failed_error) {
@@ -194,7 +194,7 @@ final class SnapshotTraitTest extends TestCase {
     mkdir($this->actualDir, 0777, TRUE);
 
     try {
-      $this->assertSnapshotMatchesBaseline($this->actualDir, $this->baselineDir, $this->diffDir);
+      $this->assertSnapshotMatchesBaseline($this->baselineDir, $this->diffDir, $this->actualDir);
       $this->fail('Assertion should have failed for invalid patch');
     }
     catch (AssertionFailedError $assertion_failed_error) {
@@ -214,7 +214,7 @@ final class SnapshotTraitTest extends TestCase {
     mkdir($this->actualDir, 0777, TRUE);
 
     try {
-      $this->assertSnapshotMatchesBaseline($this->actualDir, $this->baselineDir, $this->diffDir);
+      $this->assertSnapshotMatchesBaseline($this->baselineDir, $this->diffDir, $this->actualDir);
       $this->fail('Assertion should have failed for hunk mismatch');
     }
     catch (AssertionFailedError $assertion_failed_error) {
@@ -234,7 +234,7 @@ final class SnapshotTraitTest extends TestCase {
     mkdir($this->actualDir, 0777, TRUE);
 
     try {
-      $this->assertSnapshotMatchesBaseline($this->actualDir, $this->baselineDir, $this->diffDir);
+      $this->assertSnapshotMatchesBaseline($this->baselineDir, $this->diffDir, $this->actualDir);
       $this->fail('Assertion should have failed for unexpected EOF');
     }
     catch (AssertionFailedError $assertion_failed_error) {
@@ -259,7 +259,7 @@ final class SnapshotTraitTest extends TestCase {
     file_put_contents($this->expectedDir . DIRECTORY_SEPARATOR . 'file1.txt', 'Original content');
     file_put_contents($this->expectedDir . DIRECTORY_SEPARATOR . Snapshot::IGNORECONTENT, "*.ignored\n*.log");
 
-    $this->assertSnapshotMatchesBaseline($this->actualDir, $this->baselineDir, $this->diffDir, $this->expectedDir);
+    $this->assertSnapshotMatchesBaseline($this->baselineDir, $this->diffDir, $this->actualDir, $this->expectedDir);
     $this->addToAssertionCount(1);
 
     $expected_ignore_content_path = $this->expectedDir . DIRECTORY_SEPARATOR . Snapshot::IGNORECONTENT;
@@ -279,12 +279,12 @@ final class SnapshotTraitTest extends TestCase {
     mkdir($this->actualDir, 0777, TRUE);
     file_put_contents($this->actualDir . DIRECTORY_SEPARATOR . 'file1.txt', 'Original content');
 
-    $this->assertSnapshotMatchesBaseline($this->actualDir, $this->baselineDir, $this->diffDir, NULL, 'Custom success message');
+    $this->assertSnapshotMatchesBaseline($this->baselineDir, $this->diffDir, $this->actualDir, NULL, 'Custom success message');
     $this->addToAssertionCount(1);
 
     $nonexistent_dir = $this->tmpDir . DIRECTORY_SEPARATOR . 'nonexistent';
     try {
-      $this->assertSnapshotMatchesBaseline($this->actualDir, $nonexistent_dir, $this->diffDir, NULL, 'Custom failure message');
+      $this->assertSnapshotMatchesBaseline($nonexistent_dir, $this->diffDir, $this->actualDir, NULL, 'Custom failure message');
       $this->fail('Assertion should have failed');
     }
     catch (AssertionFailedError $assertion_failed_error) {

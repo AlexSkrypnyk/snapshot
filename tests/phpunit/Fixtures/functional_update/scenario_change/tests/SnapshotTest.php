@@ -52,7 +52,7 @@ final class SnapshotTest extends TestCase {
     }
     else {
       $scenario_dir = $this->getSnapshotsDir() . '/' . $dataset;
-      $this->assertSnapshotMatchesBaseline($this->getActualDir(), $baseline_dir, $scenario_dir);
+      $this->assertSnapshotMatchesBaseline($baseline_dir, $scenario_dir, $this->getActualDir());
     }
   }
 

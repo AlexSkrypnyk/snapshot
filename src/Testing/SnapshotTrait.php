@@ -66,12 +66,12 @@ trait SnapshotTrait {
    * This method applies patch files to a baseline directory and then compares
    * the resulting directory with an actual directory to verify they match.
    *
-   * @param string $actual
-   *   Actual directory path to compare.
    * @param string $baseline
    *   Baseline directory path.
    * @param string $diffs
    *   Directory containing diff/patch files to apply to the baseline.
+   * @param string $actual
+   *   Actual directory path to compare.
    * @param string|null $expected
    *   Optional path where to create the expected directory. If NULL, a
    *   directory unique to this invocation is created under the system temp
@@ -79,7 +79,7 @@ trait SnapshotTrait {
    * @param string|null $message
    *   Optional custom failure message.
    */
-  public function assertSnapshotMatchesBaseline(string $actual, string $baseline, string $diffs, ?string $expected = NULL, ?string $message = NULL): void {
+  public function assertSnapshotMatchesBaseline(string $baseline, string $diffs, string $actual, ?string $expected = NULL, ?string $message = NULL): void {
     if (!is_dir($baseline)) {
       $this->fail($message ?: sprintf('The baseline directory does not exist: %s', $baseline));
     }

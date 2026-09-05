@@ -141,9 +141,9 @@ public function testScenarioA(): void {
     $generator->generate($output_dir, ['option' => 'A']);
 
     $this->assertSnapshotMatchesBaseline(
-        $output_dir,            // Actual output
         $baseline_dir,          // Common baseline
-        $scenario_a_diffs_dir   // Diffs specific to scenario A
+        $scenario_a_diffs_dir,  // Diffs specific to scenario A
+        $output_dir             // Actual output
     );
 }
 ```

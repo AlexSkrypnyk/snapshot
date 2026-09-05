@@ -238,7 +238,7 @@ class MyTest extends TestCase {
 
     // Compare actual against baseline + diffs
     public function testScenario(): void {
-        $this->assertSnapshotMatchesBaseline($actual, $baseline, $diffs);
+        $this->assertSnapshotMatchesBaseline($baseline, $diffs, $actual);
     }
 
     // Enable auto-update on failure (call in tearDown)
