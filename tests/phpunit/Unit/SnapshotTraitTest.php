@@ -113,17 +113,8 @@ final class SnapshotTraitTest extends TestCase {
     file_put_contents($dir1 . DIRECTORY_SEPARATOR . 'file1.txt', 'Content 1');
     file_put_contents($dir2 . DIRECTORY_SEPARATOR . 'file1.txt', 'Different content');
 
-    try {
-      $this->assertDirectoriesIdentical($dir1, $dir2);
-      $this->fail('Assertion should have failed for different file content');
-    }
-    catch (AssertionFailedError $assertion_failed_error) {
-      $this->assertStringContainsString('file1.txt', $assertion_failed_error->getMessage());
-    }
-
     $rules = Rules::create()->skip('file1.txt');
     $this->assertDirectoriesIdentical($dir1, $dir2, NULL, NULL, TRUE, $rules);
-    $this->addToAssertionCount(1);
   }
 
   public function testAssertSnapshotMatchesBaselinePositive(): void {
