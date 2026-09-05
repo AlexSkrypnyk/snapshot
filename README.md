@@ -493,8 +493,8 @@ Every renamed or reshaped public symbol:
 | `Index::__construct(..., $beforeMatchContent)` | `Index::__construct(..., $fileFilter)` |
 | `Index::getFiles($cb)` | `Index::getFiles($transformer)` |
 | `Comparer::getAbsentLeftDiffs/getAbsentRightDiffs/getContentDiffs($cb)` | the same methods taking `$transformer` |
-| `Comparer::addLeftFile/addRightFile(): void` | the same methods returning `static` |
-| `IndexedFile::setBasepath/setContent/setIgnoreContent(): void` | the same methods returning `static` |
+| `Comparer::addLeftFile/addRightFile(): void` | the same methods returning `static`, on `ComparerInterface` too |
+| `IndexedFile::setBasepath/setContent/setIgnoreContent(): void` | the same methods returning `static`, on `IndexedFileInterface` too |
 | `RuleSetInterface::getSkipPatterns()` | `RuleSetInterface::getSkip()` |
 | `RuleSetInterface::getIgnoreContentPatterns()` | `RuleSetInterface::getIgnoreContent()` |
 | `RuleSetInterface::toRules()` | removed; use `Rules::fromRuleSet($set)` or `$set->applyTo()` |
@@ -503,7 +503,7 @@ Every renamed or reshaped public symbol:
 | `?Rules` parameters and returns across the facade, builder, trait and `Index` | `?RulesInterface` |
 | `PatchException::$file_path/$line_number/$line_content` | `$filePath/$lineNumber/$lineContent`; the getters are unchanged |
 
-Additions that break nothing: `Rules::global()`, `SnapshotBuilder::addGlobal()`, `SnapshotBuilder::withFileFilter()`/`getFileFilter()`, and `RuleSetInterface::getGlobal()`/`getInclude()`/`getIncludeContent()` with their `GLOBAL_PATTERNS`, `INCLUDE_PATTERNS` and `INCLUDE_CONTENT_PATTERNS` constants.
+Additive for callers, breaking for direct implementers: `Rules::global()` (also on `RulesInterface`) and `RuleSetInterface::getGlobal()`/`getInclude()`/`getIncludeContent()` with their `GLOBAL_PATTERNS`, `INCLUDE_PATTERNS` and `INCLUDE_CONTENT_PATTERNS` constants. Classes extending `Rules` or `AbstractRuleSet` inherit them and need no change; classes implementing `RulesInterface` or `RuleSetInterface` directly must add the new methods. Purely additive: `SnapshotBuilder::addGlobal()` and `SnapshotBuilder::withFileFilter()`/`getFileFilter()`.
 
 ## 🤝 Contributing
 
