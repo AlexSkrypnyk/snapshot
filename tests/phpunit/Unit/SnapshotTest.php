@@ -460,19 +460,19 @@ ABSENT,
 
   public function testPatchWithRules(): void {
     $baseline = self::$sut . DIRECTORY_SEPARATOR . 'baseline';
-    $patches = self::$sut . DIRECTORY_SEPARATOR . 'patches';
+    $diffs = self::$sut . DIRECTORY_SEPARATOR . 'diffs';
     $destination = self::$sut . DIRECTORY_SEPARATOR . 'destination';
     mkdir($baseline, 0777, TRUE);
-    mkdir($patches, 0777, TRUE);
+    mkdir($diffs, 0777, TRUE);
 
     file_put_contents($baseline . DIRECTORY_SEPARATOR . 'keep.txt', 'keep content');
     file_put_contents($baseline . DIRECTORY_SEPARATOR . 'skip.txt', 'secret baseline content');
-    file_put_contents($patches . DIRECTORY_SEPARATOR . 'newfile.txt', 'new content');
-    file_put_contents($patches . DIRECTORY_SEPARATOR . 'skip.txt', 'secret patch content');
+    file_put_contents($diffs . DIRECTORY_SEPARATOR . 'newfile.txt', 'new content');
+    file_put_contents($diffs . DIRECTORY_SEPARATOR . 'skip.txt', 'secret diff content');
 
     $rules = Rules::create()->skip('skip.txt');
 
-    Snapshot::patch($baseline, $patches, $destination, $rules);
+    Snapshot::patch($baseline, $diffs, $destination, $rules);
 
     $this->assertFileExists($destination . DIRECTORY_SEPARATOR . 'keep.txt');
     $this->assertFileExists($destination . DIRECTORY_SEPARATOR . 'newfile.txt');

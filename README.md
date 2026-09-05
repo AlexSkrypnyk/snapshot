@@ -308,8 +308,8 @@ For configured operations with rules, a file filter or a content processor, use
 
 ```php
 use AlexSkrypnyk\Snapshot\Index\IndexedFile;
-use AlexSkrypnyk\Snapshot\SnapshotBuilder;
 use AlexSkrypnyk\Snapshot\Rules\Rules;
+use AlexSkrypnyk\Snapshot\SnapshotBuilder;
 
 // Create a reusable builder with configuration
 $builder = SnapshotBuilder::create()
@@ -375,13 +375,13 @@ class MyProjectRuleSet extends AbstractRuleSet {
 
     protected const SKIP_PATTERNS = ['dist/', '.cache/'];
 
-    protected const IGNORE_CONTENT_PATTERNS = ['build-manifest.json'];
+    protected const IGNORE_CONTENT_PATTERNS = ['reports/'];
 
     protected const GLOBAL_PATTERNS = ['*.log'];
 
     protected const INCLUDE_PATTERNS = ['dist/keep.txt'];
 
-    protected const INCLUDE_CONTENT_PATTERNS = ['build-manifest.json'];
+    protected const INCLUDE_CONTENT_PATTERNS = ['reports/summary.json'];
 
 }
 

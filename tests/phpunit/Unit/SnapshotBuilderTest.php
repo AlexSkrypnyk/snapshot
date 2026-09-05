@@ -205,16 +205,16 @@ final class SnapshotBuilderTest extends UnitTestCase {
 
   public function testPatchWithRulesHonoursSkip(): void {
     $baseline = self::$sut . DIRECTORY_SEPARATOR . 'baseline';
-    $patches = self::$sut . DIRECTORY_SEPARATOR . 'patches';
+    $diffs = self::$sut . DIRECTORY_SEPARATOR . 'diffs';
     $destination = self::$sut . DIRECTORY_SEPARATOR . 'destination';
     mkdir($baseline, 0777, TRUE);
-    mkdir($patches, 0777, TRUE);
+    mkdir($diffs, 0777, TRUE);
 
     file_put_contents($baseline . DIRECTORY_SEPARATOR . 'keep.txt', 'keep content');
     file_put_contents($baseline . DIRECTORY_SEPARATOR . 'skip.txt', 'secret content');
 
     $builder = SnapshotBuilder::create()->withRules(Rules::create()->skip('skip.txt'));
-    $result = $builder->patch($baseline, $patches, $destination);
+    $result = $builder->patch($baseline, $diffs, $destination);
 
     $this->assertSame($builder, $result);
     $this->assertFileExists($destination . DIRECTORY_SEPARATOR . 'keep.txt');
