@@ -71,8 +71,8 @@ trait SnapshotTrait {
    *   Directory containing diff/patch files to apply to the baseline.
    * @param string|null $expected
    *   Optional path where to create the expected directory. If NULL, a
-   *   uniquely named directory under the system temp directory is used,
-   *   unique per invocation so parallel PHPUnit processes do not collide.
+   *   directory unique to this invocation is created under the system temp
+   *   directory.
    * @param string|null $message
    *   Optional custom failure message.
    */

@@ -11,7 +11,7 @@ functional_update/
 ├── README.md
 │
 ├── no_change/                    # Scenario: everything matches
-│   ├── .gitignore                # Ignores .expected directory
+│   ├── .gitignore                # Expected dir is created per invocation under the system temp dir
 │   ├── phpunit.xml
 │   ├── composer.json
 │   ├── tests/
@@ -193,5 +193,5 @@ functional_update/
 
 ## Special Files
 
-- `.gitignore` - Prevents `.expected` temp directory from being committed
+- `.gitignore` - Expected dir is created per invocation under the system temp dir, outside the project
 - `.ignorecontent` - Skips `.gitkeep` during snapshot comparison
