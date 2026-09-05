@@ -12,7 +12,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(SnapshotTrait::class)]
-final class SnapshotAssertionsTraitTest extends TestCase {
+final class SnapshotTraitTest extends TestCase {
 
   use SnapshotTrait;
 
