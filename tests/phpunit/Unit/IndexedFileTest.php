@@ -317,7 +317,8 @@ final class IndexedFileTest extends UnitTestCase {
 
     $indexed_file = new IndexedFile($file_path, self::$sut);
 
-    // hashFile() streams the file in chunks yet must equal a plain sha1().
+    // hashFile() streams the file in chunks, so its digest must match a plain
+    // sha1() of the same content.
     $this->assertSame(sha1($content), $indexed_file->getHash());
     $this->assertSame($content, $indexed_file->getContent());
   }
@@ -325,6 +326,7 @@ final class IndexedFileTest extends UnitTestCase {
   public function testLargeFileHashOnlyDoesNotLoadContent(): void {
     $threshold = $this->getLargeFileThreshold();
     $file_path = self::$sut . DIRECTORY_SEPARATOR . 'large_hash_only.txt';
+    // A size above LARGE_FILE_THRESHOLD selects the chunked hashFile() path.
     $content = str_repeat('y', $threshold + 1);
     file_put_contents($file_path, $content);
 
