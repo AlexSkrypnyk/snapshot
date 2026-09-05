@@ -1034,10 +1034,12 @@ function is_tty(): bool {
  * Everything printed after the body reaches the restored screen, so summaries
  * survive in the scrollback.
  *
- * @param callable $body
+ * @template T
+ *
+ * @param callable(): T $body
  *   Code to run while the alternate screen is up.
  *
- * @return mixed
+ * @return T
  *   The value returned by the body.
  */
 function with_tui(callable $body): mixed {
