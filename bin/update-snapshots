@@ -162,7 +162,7 @@ function run_specified_datasets(array $config): void {
 
   // A scenario is compared against the baseline that another dataset in the
   // same list can rewrite, so datasets run one at a time.
-  $tasks = run_engine($datasets, $config, 1, 0, $total);
+  $tasks = with_tui(fn(): array => run_engine($datasets, $config, 1, 0, $total));
 
   print_debug_output($tasks, $config);
   print_summary(tally_tasks($tasks), $total);
@@ -185,58 +185,27 @@ function run_specified_datasets(array $config): void {
  */
 function run_all_datasets(array $config): void {
   $start_time = time();
-  $baseline_committed = FALSE;
 
   $datasets = discover_datasets($config);
   $total = count($datasets);
 
   verbose("Found %d unique datasets\n", $total);
 
-  $tasks = [];
-  $completed = 0;
-  $timed_out = FALSE;
-  $scenario_datasets = $datasets;
+  $result = with_tui(fn(): array => run_phases($config, $datasets));
 
-  // Both phases share one alternate screen, so the display is not torn down
-  // and rebuilt between them.
-  if (is_tty()) {
-    enter_tui();
-  }
-
-  try {
-    if ($datasets[0] === BASELINE_DATASET_NAME) {
-      // Scenarios are diffed against the baseline, so the baseline must be
-      // rewritten before any of them runs.
-      $tasks = run_engine([BASELINE_DATASET_NAME], $config, 1, 0, $total);
-      $completed = 1;
-
-      $baseline_committed = handle_baseline_result($config);
-
-      $timed_out = $tasks[0]['status'] === STATUS_TIMEOUT;
-      $scenario_datasets = $timed_out ? [] : array_slice($datasets, 1);
-    }
-
-    if (!empty($scenario_datasets)) {
-      verbose("Running %d scenarios (parallel: %d)\n", count($scenario_datasets), (int) $config['jobs']);
-      $tasks = array_merge($tasks, run_engine($scenario_datasets, $config, (int) $config['jobs'], $completed, $total));
-    }
-  }
-  finally {
-    finish_tui();
-  }
-
+  $tasks = $result['tasks'];
   $stats = tally_tasks($tasks);
 
   print_debug_output($tasks, $config);
   print_summary($stats, $total);
 
-  if ($timed_out) {
+  if ($result['timed_out']) {
     throw new \Exception('Test timed out');
   }
 
   // A no-op when the working tree is clean, so it is safe to call
   // unconditionally.
-  commit_snapshot_changes($config, $baseline_committed);
+  commit_snapshot_changes($config, $result['baseline_committed']);
 
   print_execution_time($start_time);
 
@@ -245,6 +214,50 @@ function run_all_datasets(array $config): void {
   if ($stats[STATUS_FAILED] > 0 || $stats[STATUS_TIMEOUT] > 0) {
     throw new \Exception('Some tests failed');
   }
+}
+
+/**
+ * Run the baseline dataset, then the remaining scenarios.
+ *
+ * @param array<string, mixed> $config
+ *   Configuration array.
+ * @param array<string> $datasets
+ *   Discovered dataset names, with the baseline first when it is present.
+ *
+ * @return array{tasks: array<int, array<string, mixed>>, baseline_committed: bool, timed_out: bool}
+ *   Completed tasks, whether the baseline was committed, and whether the
+ *   baseline run exhausted its retries.
+ */
+function run_phases(array $config, array $datasets): array {
+  $total = count($datasets);
+  $tasks = [];
+  $completed = 0;
+  $timed_out = FALSE;
+  $baseline_committed = FALSE;
+  $scenario_datasets = $datasets;
+
+  if ($datasets[0] === BASELINE_DATASET_NAME) {
+    // Scenarios are diffed against the baseline, so the baseline must be
+    // rewritten before any of them runs.
+    $tasks = run_engine([BASELINE_DATASET_NAME], $config, 1, 0, $total);
+    $completed = 1;
+
+    $baseline_committed = handle_baseline_result($config);
+
+    $timed_out = $tasks[0]['status'] === STATUS_TIMEOUT;
+    $scenario_datasets = $timed_out ? [] : array_slice($datasets, 1);
+  }
+
+  if (!empty($scenario_datasets)) {
+    verbose("Running %d scenarios (parallel: %d)\n", count($scenario_datasets), (int) $config['jobs']);
+    $tasks = array_merge($tasks, run_engine($scenario_datasets, $config, (int) $config['jobs'], $completed, $total));
+  }
+
+  return [
+    'tasks' => $tasks,
+    'baseline_committed' => $baseline_committed,
+    'timed_out' => $timed_out,
+  ];
 }
 
 /**
@@ -380,10 +393,11 @@ function commit_snapshot_changes(array $config, bool $baseline_committed): void 
 }
 
 /**
- * Count completed tasks per outcome.
+ * Count tasks per outcome.
  *
  * @param array<int, array<string, mixed>> $tasks
- *   Completed tasks.
+ *   Tasks in any state. Queued and running tasks hold no outcome yet and are
+ *   not counted.
  *
  * @return array{success: int, updated: int, failed: int, timeout: int}
  *   Number of datasets per outcome. The 'updated' count covers datasets whose
@@ -652,7 +666,7 @@ function run_engine(array $datasets, array $config, int $jobs, int $start_number
     $running = count(array_filter($tasks, fn(array $task): bool => $task['status'] === STATUS_RUNNING));
 
     foreach ($tasks as &$task) {
-      if ($running >= $jobs) {
+      if ($running >= $run['jobs']) {
         break;
       }
 
@@ -708,9 +722,12 @@ function run_engine(array $datasets, array $config, int $jobs, int $start_number
  *   Updated task array with running process.
  */
 function start_task(array $task, array $config): array {
+  // PHPUnit selects a single named dataset with a 'method@dataset' filter.
+  $filter = (string) $config['test_name'] . '@' . (string) $task['dataset'];
+
   $cmd = build_phpunit_command(
     $config,
-    ['--no-coverage', '--filter=' . escapeshellarg(dataset_filter($config, (string) $task['dataset']))],
+    ['--no-coverage', '--filter=' . escapeshellarg($filter)],
     ['UPDATE_SNAPSHOTS' => '1'],
     (int) $config['timeout']
   );
@@ -855,21 +872,6 @@ function build_phpunit_command(array $config, array $arguments, array $env = [],
   }
 
   return sprintf('%s %s/vendor/bin/phpunit %s', implode(' ', $prefix), $config['root'], implode(' ', $arguments));
-}
-
-/**
- * Build the PHPUnit filter selecting a single dataset.
- *
- * @param array<string, mixed> $config
- *   Configuration array.
- * @param string $dataset
- *   Dataset name.
- *
- * @return string
- *   Filter matching the test method and the named dataset.
- */
-function dataset_filter(array $config, string $dataset): string {
-  return $config['test_name'] . '@' . $dataset;
 }
 
 /**
@@ -1024,6 +1026,33 @@ function kill_all_tasks(): void {
  */
 function is_tty(): bool {
   return function_exists('posix_isatty') && posix_isatty(STDOUT);
+}
+
+/**
+ * Run a body inside a single TUI session when the output is a terminal.
+ *
+ * Everything printed after the body reaches the restored screen, so summaries
+ * survive in the scrollback.
+ *
+ * @param callable $body
+ *   Code to run while the alternate screen is up.
+ *
+ * @return mixed
+ *   The value returned by the body.
+ */
+function with_tui(callable $body): mixed {
+  if (!is_tty()) {
+    return $body();
+  }
+
+  enter_tui();
+
+  try {
+    return $body();
+  }
+  finally {
+    finish_tui();
+  }
 }
 
 /**
