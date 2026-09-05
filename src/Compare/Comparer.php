@@ -188,7 +188,7 @@ class Comparer implements ComparerInterface {
    * {@inheritdoc}
    */
   public function getContentDiffs(?callable $transformer = NULL): array {
-    return $this->filterCached('content', fn(Diff $diff): bool => $diff->existsLeft() && $diff->existsRight() && !$diff->isSameContent(), $transformer);
+    return $this->filterCached('content', static fn(Diff $diff): bool => $diff->existsLeft() && $diff->existsRight() && !$diff->isSameContent(), $transformer);
   }
 
   /**

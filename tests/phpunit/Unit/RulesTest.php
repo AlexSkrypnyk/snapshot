@@ -204,13 +204,13 @@ final class RulesTest extends UnitTestCase {
   public function testCustomRulesImport(): void {
     $rules_file = self::$sut . DIRECTORY_SEPARATOR . 'custom.ignorecontent';
     $content = <<<RULES
-# This is a comment
-!include-pattern
-!^include-ignore-content-pattern
-^ignore-content-pattern
-global-pattern
-path/to/file.txt
-RULES;
+      # This is a comment
+      !include-pattern
+      !^include-ignore-content-pattern
+      ^ignore-content-pattern
+      global-pattern
+      path/to/file.txt
+      RULES;
     file_put_contents($rules_file, $content);
 
     try {

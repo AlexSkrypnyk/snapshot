@@ -485,7 +485,8 @@ final class IndexTest extends UnitTestCase {
       $this->assertTrue($this->assertIndexedFile($files, 'dir/sibling.txt')->isIgnoreContent());
 
       // addSkip('skipped.txt') + addInclude('skipped.txt'): the file is
-      // indexed, but its content is still ignored.
+      // indexed. A plain include does not override
+      // addIgnoreContent('skipped.txt'), so the content stays ignored.
       $this->assertTrue($this->assertIndexedFile($files, 'skipped.txt')->isIgnoreContent());
     }
     finally {

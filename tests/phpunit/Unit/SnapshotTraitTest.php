@@ -13,7 +13,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Covers the trait in the standalone configuration the README documents.
+ * Covers the trait used on its own, outside the package's test base class.
  *
  * The class extends PHPUnit's TestCase rather than the package's UnitTestCase,
  * so the trait runs without the locations and fixtures that base class sets up.

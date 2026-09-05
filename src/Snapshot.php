@@ -50,7 +50,7 @@ class Snapshot {
    * Prefix marking a deleted file inside a diff directory.
    *
    * A diff directory records the deletion of a baseline file with an empty
-   * marker file named '-<basename>' placed where the file would otherwise be.
+   * marker file that carries this prefix before the deleted file's name.
    */
   public const DELETION_MARKER = '-';
 

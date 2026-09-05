@@ -24,9 +24,6 @@ class SnapshotBench {
 
   /**
    * Setup for identical directory comparison benchmark.
-   *
-   * Every setup below starts from this directory pair, so the sizes it builds
-   * are the sizes the other benchmarks measure against.
    */
   public function setUpIdentical(): void {
     $this->directoryInitialize();

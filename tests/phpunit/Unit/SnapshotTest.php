@@ -18,11 +18,11 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 
 // @phpcs:disable Squiz.Arrays.ArrayDeclaration.KeySpecified
-#[CoversClass(Snapshot::class)]
-#[CoversClass(Syncer::class)]
-#[CoversClass(Patcher::class)]
 #[CoversClass(Comparer::class)]
 #[CoversClass(Diff::class)]
+#[CoversClass(Patcher::class)]
+#[CoversClass(Snapshot::class)]
+#[CoversClass(Syncer::class)]
 final class SnapshotTest extends UnitTestCase {
 
   #[DataProvider('dataProviderCompare')]
@@ -110,7 +110,7 @@ final class SnapshotTest extends UnitTestCase {
   }
 
   #[DataProvider('dataProviderCompareRender')]
-  public function testCompareRender(array $expected): void {
+  public function testCompareRender(array $expected, array $unexpected = []): void {
     $dir1 = File::dir($this->locationsFixtureDir('compare') . DIRECTORY_SEPARATOR . 'directory1');
     $dir2 = File::dir($this->locationsFixtureDir('compare') . DIRECTORY_SEPARATOR . 'directory2');
 
@@ -128,11 +128,32 @@ final class SnapshotTest extends UnitTestCase {
     foreach ($expected as $expected_line) {
       $this->assertStringContainsString($expected_line, $content);
     }
+
+    foreach ($unexpected as $unexpected_line) {
+      $this->assertStringNotContainsString($unexpected_line, $content);
+    }
   }
 
   public static function dataProviderCompareRender(): \Iterator {
     yield 'files_equal' => [
       [],
+    ];
+    yield 'files_content_only' => [
+      [
+        'Differences between directories',
+        'Files that differ in content:',
+        'f2.txt' => <<<DIFF_WRAP
+          --- DIFF START ---
+          @@ -1 +1 @@
+          -f2l1
+          +f2l1-changed
+          --- DIFF END ---
+          DIFF_WRAP,
+      ],
+      [
+        'Files absent in [left]:',
+        'Files absent in [right]:',
+      ],
     ];
     yield 'files_not_equal' => [
       [
