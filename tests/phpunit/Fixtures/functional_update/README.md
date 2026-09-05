@@ -180,6 +180,19 @@ functional_update/
 4. The `failing` dataset fails for a non-snapshot reason → no `[SNAPSHOT]` completion marker is emitted
 5. Assert: script exits non-zero, no commit is created
 
+### slow
+
+**Test**: `testSignalStopsSpawnedProcesses`
+
+**Purpose**: Verify a signal stops the script and every PHPUnit process it spawned.
+
+**Flow**:
+1. Copy `slow/` to `$sut/test_project/`
+2. Run `update-snapshots testSnapshot tests/snapshots` (all datasets)
+3. The only dataset writes `running.marker` and then sleeps, so its PHPUnit process is still alive when the script is signalled
+4. Send `SIGINT` or `SIGTERM` to the script
+5. Assert: script reports the interruption and exits `130` (SIGINT) or `143` (SIGTERM), and no spawned PHPUnit process survives
+
 ## File Contents
 
 | File                                       | Content                         |

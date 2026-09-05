@@ -50,8 +50,19 @@ define('STATUS_TIMEOUT', 'timeout');
 // Exit code reported by 'timeout' when a run exceeds its time limit.
 define('EXIT_CODE_TIMEOUT', 124);
 
-// Exit code reported for a process terminated by SIGINT.
+// Exit codes reported for a process stopped by SIGINT and by SIGTERM.
 define('EXIT_CODE_INTERRUPTED', 130);
+define('EXIT_CODE_TERMINATED', 143);
+
+// Signal numbers used to stop spawned processes. They are spelled out because
+// the pcntl extension that defines SIGTERM and SIGKILL is optional.
+define('SIGNAL_TERM', 15);
+define('SIGNAL_KILL', 9);
+
+// Time given to a spawned process to exit after SIGTERM before it is killed,
+// as a number of steps and the length of each step in microseconds.
+define('KILL_GRACE_STEPS', 20);
+define('KILL_GRACE_INTERVAL', 100000);
 
 // ----------------------------------------------------------------------------
 
@@ -114,14 +125,26 @@ function validate_config(array $config): void {
  */
 function setup_signal_handlers(): void {
   if (function_exists('pcntl_signal')) {
-    $handler = function (): void {
-      exit_tui();
-      verbose("\nInterrupted by user\n");
-      exit(EXIT_CODE_INTERRUPTED);
-    };
-    pcntl_signal(SIGINT, $handler);
-    pcntl_signal(SIGTERM, $handler);
+    pcntl_signal(SIGINT, function (): void {
+      stop_run(EXIT_CODE_INTERRUPTED);
+    });
+    pcntl_signal(SIGTERM, function (): void {
+      stop_run(EXIT_CODE_TERMINATED);
+    });
   }
+}
+
+/**
+ * Stop the run and exit.
+ *
+ * @param int $code
+ *   Exit code to report.
+ */
+function stop_run(int $code): void {
+  exit_tui();
+  verbose("\nInterrupted - stopping running tests\n");
+  kill_all_tasks();
+  exit($code);
 }
 
 /**
@@ -635,6 +658,10 @@ function run_engine(array $datasets, array $config, int $jobs, int $start_number
     }
     unset($task);
 
+    // Refresh the registry before the next signal is dispatched, so the
+    // handler sees every process spawned in this pass.
+    live_tasks($tasks);
+
     render_progress($tasks, $run);
 
     $pending = array_filter($tasks, fn(array $task): bool => $task['status'] === STATUS_QUEUED || $task['status'] === STATUS_RUNNING);
@@ -645,6 +672,8 @@ function run_engine(array $datasets, array $config, int $jobs, int $start_number
 
     usleep(50000);
   }
+
+  live_tasks([]);
 
   if ($run['is_tty']) {
     // @codeCoverageIgnoreStart
@@ -754,8 +783,7 @@ function poll_task(array $task, array $config): array {
 
   // An interrupted child means the whole run is being interrupted.
   if ($exit_code === EXIT_CODE_INTERRUPTED) {
-    exit_tui();
-    exit(EXIT_CODE_INTERRUPTED);
+    stop_run(EXIT_CODE_INTERRUPTED);
   }
 
   if ($exit_code === EXIT_CODE_TIMEOUT) {
@@ -903,6 +931,78 @@ function print_debug_output(array $task, array $config): void {
   }
 
   verbose("\n--- DEBUG: %s ---\n%s\n--- END DEBUG ---\n", (string) $task['dataset'], $output);
+}
+
+/**
+ * Access the registry of tasks that may hold a live child process.
+ *
+ * The signal handler runs outside the engine and needs the current task list
+ * to reach the spawned processes.
+ *
+ * @param array<int, array<string, mixed>>|null $tasks
+ *   Tasks to store, or NULL to read the registry.
+ *
+ * @return array<int, array<string, mixed>>
+ *   Currently registered tasks.
+ */
+function live_tasks(?array $tasks = NULL): array {
+  static $registry = [];
+
+  if ($tasks !== NULL) {
+    $registry = $tasks;
+  }
+
+  return $registry;
+}
+
+/**
+ * Terminate every live child process.
+ *
+ * A spawned PHPUnit process runs with UPDATE_SNAPSHOTS=1 and keeps rewriting
+ * snapshot files, so it must not outlive the script.
+ */
+function kill_all_tasks(): void {
+  $tasks = array_filter(live_tasks(), fn(array $task): bool => is_resource($task['process']));
+
+  if (empty($tasks)) {
+    return;
+  }
+
+  foreach ($tasks as $task) {
+    proc_terminate($task['process'], SIGNAL_TERM);
+  }
+
+  for ($step = 0; $step < KILL_GRACE_STEPS; $step++) {
+    $alive = array_filter($tasks, fn(array $task): bool => is_resource($task['process']) && proc_get_status($task['process'])['running']);
+
+    if (empty($alive)) {
+      break;
+    }
+
+    usleep(KILL_GRACE_INTERVAL);
+  }
+
+  foreach ($tasks as $task) {
+    if (!is_resource($task['process'])) {
+      continue;
+    }
+
+    $status = proc_get_status($task['process']);
+
+    if ($status['running']) {
+      proc_terminate($task['process'], SIGNAL_KILL);
+    }
+
+    foreach ($task['pipes'] as $pipe) {
+      if (is_resource($pipe)) {
+        fclose($pipe);
+      }
+    }
+
+    proc_close($task['process']);
+  }
+
+  live_tasks([]);
 }
 
 /**

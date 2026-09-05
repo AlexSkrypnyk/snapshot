@@ -196,6 +196,7 @@ The tool:
 - Handles timeouts with configurable retries
 - Auto-commits baseline and snapshot changes
 - Shows a live TUI progress display with scrolling when running in a terminal
+- Terminates every PHPUnit process it spawned when it receives `SIGINT` or `SIGTERM`
 
 Options:
 - `--root=<path>` - Project root directory (default: current directory)

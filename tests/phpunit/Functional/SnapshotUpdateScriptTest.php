@@ -7,7 +7,9 @@ namespace AlexSkrypnyk\Snapshot\Tests\Functional;
 use AlexSkrypnyk\File\File;
 use AlexSkrypnyk\Snapshot\Snapshot;
 use PHPUnit\Framework\Attributes\CoversNothing;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Exception;
+use Symfony\Component\Process\Process;
 
 /**
  * Functional tests for the update-snapshots CLI script.
@@ -547,6 +549,145 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
 
     $last_commit_message = $this->getLastCommitMessage();
     $this->assertStringContainsString('Updated', $last_commit_message);
+  }
+
+  /**
+   * Test that a signal stops the script and every process it spawned.
+   *
+   * Scenario: slow
+   * - The only dataset sleeps, so its PHPUnit process is still running when
+   *   the script is signalled.
+   * - Expected: the script reports the interruption, exits with the code for
+   *   the signal, and leaves no spawned PHPUnit process behind.
+   */
+  #[DataProvider('dataProviderSignalStopsSpawnedProcesses')]
+  public function testSignalStopsSpawnedProcesses(int $signal, int $expected_code): void {
+    $this->setupTestProject('slow');
+
+    // The project directory is unique per test, so a command line containing
+    // it belongs to this run and to no other. Only dataset runs are passed
+    // '--no-coverage', which keeps dataset discovery out of the match.
+    $marker = $this->projectDir . '/vendor/bin/phpunit --no-coverage';
+
+    $process = new Process([
+      PHP_BINARY,
+      $this->scriptPath,
+      '--root=' . $this->projectDir,
+      '--test-dir=tests',
+      '--timeout=120',
+      'testSnapshot',
+      'tests/snapshots',
+    ]);
+    $process->setTimeout(120);
+    $process->start();
+
+    try {
+      // The dataset writes this file just before it sleeps. Waiting for it
+      // puts the signal after PHPUnit has written its startup output, so the
+      // pipes the script closes on exit cannot be what ends the spawned run.
+      $this->assertTrue(
+        $this->waitForFile($this->projectDir . '/running.marker'),
+        'Dataset did not start running before the signal was sent'
+      );
+      $this->assertNotEmpty($this->findProcesses($marker), 'No PHPUnit process was running when the signal was sent');
+
+      $process->signal($signal);
+
+      $deadline = microtime(TRUE) + 30;
+      while ($process->isRunning() && microtime(TRUE) < $deadline) {
+        usleep(50000);
+      }
+
+      $this->assertFalse($process->isRunning(), 'Script did not exit after the signal');
+      $this->assertSame($expected_code, $process->getExitCode(), 'Script did not report the exit code of the signal');
+      $this->assertStringContainsString('Interrupted', $process->getOutput(), 'Script did not report the interruption');
+      $this->assertSame([], $this->waitForProcessesGone($marker), 'Spawned PHPUnit processes outlived the script');
+    }
+    finally {
+      $process->stop(0);
+      exec(sprintf('pkill -f %s 2>/dev/null', escapeshellarg($marker)));
+    }
+  }
+
+  /**
+   * Data provider for signal handling.
+   *
+   * @return \Iterator<string, array{int, int}>
+   *   Signal number and the exit code the script must report for it.
+   */
+  public static function dataProviderSignalStopsSpawnedProcesses(): \Iterator {
+    yield 'SIGINT' => [2, 130];
+    yield 'SIGTERM' => [15, 143];
+  }
+
+  /**
+   * Wait for a file to appear.
+   *
+   * @param string $path
+   *   Path to the file.
+   *
+   * @return bool
+   *   TRUE if the file appeared before the wait ended.
+   */
+  protected function waitForFile(string $path): bool {
+    $deadline = microtime(TRUE) + 30;
+
+    do {
+      clearstatcache(TRUE, $path);
+
+      if (file_exists($path)) {
+        return TRUE;
+      }
+
+      usleep(50000);
+    } while (microtime(TRUE) < $deadline);
+
+    return FALSE;
+  }
+
+  /**
+   * Wait until no process matches a command line fragment.
+   *
+   * The wait is far shorter than the fixture's sleep, so a process that only
+   * ends when its own test finishes still counts as a survivor.
+   *
+   * @param string $marker
+   *   Command line fragment identifying the processes.
+   *
+   * @return array<string>
+   *   Process IDs matching the fragment when the wait ended.
+   */
+  protected function waitForProcessesGone(string $marker): array {
+    $deadline = microtime(TRUE) + 10;
+
+    do {
+      $pids = $this->findProcesses($marker);
+
+      if ($pids === []) {
+        return $pids;
+      }
+
+      usleep(50000);
+    } while (microtime(TRUE) < $deadline);
+
+    return $pids;
+  }
+
+  /**
+   * Find processes whose command line contains a fragment.
+   *
+   * @param string $marker
+   *   Command line fragment identifying the processes.
+   *
+   * @return array<string>
+   *   Process IDs matching the fragment.
+   */
+  protected function findProcesses(string $marker): array {
+    $output = [];
+    $code = 0;
+    exec(sprintf('pgrep -f %s 2>/dev/null', escapeshellarg($marker)), $output, $code);
+
+    return array_values(array_filter(array_map(trim(...), $output), fn(string $pid): bool => $pid !== ''));
   }
 
   /**
