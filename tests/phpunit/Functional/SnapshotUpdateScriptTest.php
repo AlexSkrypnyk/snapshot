@@ -13,10 +13,12 @@ use PHPUnit\Framework\Exception;
  * Functional tests for the update-snapshots CLI script.
  *
  * Tests the following scenarios:
- * 1. no_change      - Baseline passes, scenario passes → 0 commits
+ * 1. no_change - Baseline passes, scenario passes → 0 commits
  * 2. baseline_change - Baseline fails, scenario passes → 1 commit
  * 3. scenario_change - Single dataset mode (no commit, but files updated)
- * 4. both_change    - Baseline fails, scenario fails → 1 commit (amended)
+ * 4. both_change - Baseline fails, scenario fails → 1 commit (amended)
+ * 5. genuine_failure - Non-snapshot failure → non-zero exit, no commit
+ * 6. scenario_only_change - Stale scenario diff updates in parallel run
  */
 #[CoversNothing]
 final class SnapshotUpdateScriptTest extends FunctionalTestCase {
@@ -236,7 +238,7 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
   /**
    * Test multiple datasets: specified datasets are all processed.
    *
-   * Scenario: scenario_change
+   * Scenario: both_change
    * - Run baseline AND scenario1 datasets
    * - Expected: Both datasets processed, files updated, no commit.
    */
@@ -551,7 +553,8 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
    * Set up a test project by copying a complete scenario fixture.
    *
    * @param string $scenario
-   *   Scenario name (no_change, baseline_change, scenario_change, both_change).
+   *   Name of a fixture scenario directory under
+   *   tests/phpunit/Fixtures/functional_update.
    */
   protected function setupTestProject(string $scenario): void {
     $scenario_dir = $this->fixturesDir . DIRECTORY_SEPARATOR . $scenario;
