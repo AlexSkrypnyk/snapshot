@@ -14,8 +14,11 @@ interface IndexedFileInterface {
    *
    * @param string $basepath
    *   The base path to set.
+   *
+   * @return $this
+   *   Return self for chaining.
    */
-  public function setBasepath(string $basepath): void;
+  public function setBasepath(string $basepath): static;
 
   /**
    * Gets the base path.
@@ -70,16 +73,22 @@ interface IndexedFileInterface {
    *
    * @param bool $ignore
    *   Whether to ignore the content.
+   *
+   * @return $this
+   *   Return self for chaining.
    */
-  public function setIgnoreContent(bool $ignore = TRUE): void;
+  public function setIgnoreContent(bool $ignore = TRUE): static;
 
   /**
    * Sets the file content.
    *
    * @param string|null $content
    *   The content to set, or NULL to load lazily.
+   *
+   * @return $this
+   *   Return self for chaining.
    */
-  public function setContent(?string $content): void;
+  public function setContent(?string $content): static;
 
   /**
    * Gets the full pathname.

@@ -90,21 +90,25 @@ class Comparer implements ComparerInterface {
   /**
    * {@inheritdoc}
    */
-  public function addLeftFile(IndexedFileInterface $file): void {
+  public function addLeftFile(IndexedFileInterface $file): static {
     $path = $file->getPathnameFromBasepath();
     $this->diffs[$path] ??= new Diff();
     $this->diffs[$path]->setLeft($file);
     $this->cache = [];
+
+    return $this;
   }
 
   /**
    * {@inheritdoc}
    */
-  public function addRightFile(IndexedFileInterface $file): void {
+  public function addRightFile(IndexedFileInterface $file): static {
     $path = $file->getPathnameFromBasepath();
     $this->diffs[$path] ??= new Diff();
     $this->diffs[$path]->setRight($file);
     $this->cache = [];
+
+    return $this;
   }
 
   /**

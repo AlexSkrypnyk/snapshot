@@ -10,6 +10,8 @@ use AlexSkrypnyk\Snapshot\Exception\SnapshotException;
 
 /**
  * Handles file matching rules and patterns.
+ *
+ * @phpstan-consistent-constructor
  */
 class Rules implements RulesInterface {
 
@@ -51,11 +53,11 @@ class Rules implements RulesInterface {
   /**
    * Creates a new Rules instance.
    *
-   * @return self
+   * @return static
    *   A new Rules instance.
    */
-  public static function create(): self {
-    return new self();
+  public static function create(): static {
+    return new static();
   }
 
   /**
@@ -64,11 +66,11 @@ class Rules implements RulesInterface {
    * @param \AlexSkrypnyk\Snapshot\Rules\RuleSetInterface $rule_set
    *   The rule set to apply.
    *
-   * @return self
+   * @return static
    *   A new Rules instance with the rule set applied.
    */
-  public static function fromRuleSet(RuleSetInterface $rule_set): self {
-    $rules = new self();
+  public static function fromRuleSet(RuleSetInterface $rule_set): static {
+    $rules = new static();
     $rule_set->applyTo($rules);
     return $rules;
   }
@@ -76,21 +78,25 @@ class Rules implements RulesInterface {
   /**
    * Creates a Rules instance with common PHP project patterns.
    *
-   * @return self
+   * @return static
    *   A new Rules instance configured for PHP projects.
    */
-  public static function phpProject(): self {
-    return self::fromRuleSet(new PhpProjectRuleSet());
+  public static function phpProject(): static {
+    $rules = new static();
+    (new PhpProjectRuleSet())->applyTo($rules);
+    return $rules;
   }
 
   /**
    * Creates a Rules instance with common Node.js project patterns.
    *
-   * @return self
+   * @return static
    *   A new Rules instance configured for Node.js projects.
    */
-  public static function nodeProject(): self {
-    return self::fromRuleSet(new NodeProjectRuleSet());
+  public static function nodeProject(): static {
+    $rules = new static();
+    (new NodeProjectRuleSet())->applyTo($rules);
+    return $rules;
   }
 
   /**
@@ -99,13 +105,13 @@ class Rules implements RulesInterface {
    * @param string $file
    *   The path to the rules file.
    *
-   * @return self
+   * @return static
    *   A new Rules instance.
    *
    * @throws \AlexSkrypnyk\Snapshot\Exception\SnapshotException
    *   If the file does not exist or cannot be read.
    */
-  public static function fromFile(string $file): self {
+  public static function fromFile(string $file): static {
     if (!File::exists($file)) {
       throw new SnapshotException(sprintf('File %s does not exist.', $file));
     }
@@ -118,7 +124,7 @@ class Rules implements RulesInterface {
       throw new RulesException(sprintf('Failed to read the %s file.', $file), $exception->getCode(), $exception);
     }
     // @codeCoverageIgnoreEnd
-    return (new self())->parse($content);
+    return (new static())->parse($content);
   }
 
   /**

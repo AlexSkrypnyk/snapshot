@@ -24,16 +24,22 @@ interface ComparerInterface extends RenderableInterface {
    *
    * @param \AlexSkrypnyk\Snapshot\Index\IndexedFileInterface $file
    *   The file to add.
+   *
+   * @return $this
+   *   Return self for chaining.
    */
-  public function addLeftFile(IndexedFileInterface $file): void;
+  public function addLeftFile(IndexedFileInterface $file): static;
 
   /**
    * Adds a file from the right (destination) directory to the diff collection.
    *
    * @param \AlexSkrypnyk\Snapshot\Index\IndexedFileInterface $file
    *   The file to add.
+   *
+   * @return $this
+   *   Return self for chaining.
    */
-  public function addRightFile(IndexedFileInterface $file): void;
+  public function addRightFile(IndexedFileInterface $file): static;
 
   /**
    * Get an array of absent left diffs.

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace AlexSkrypnyk\Snapshot\Tests\Unit;
 
+use AlexSkrypnyk\Snapshot\Rules\AbstractRuleSet;
 use AlexSkrypnyk\Snapshot\Rules\NodeProjectRuleSet;
 use AlexSkrypnyk\Snapshot\Rules\PhpProjectRuleSet;
 use AlexSkrypnyk\Snapshot\Rules\Rules;
@@ -12,6 +13,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 
 #[CoversClass(Rules::class)]
+#[CoversClass(AbstractRuleSet::class)]
 #[CoversClass(PhpProjectRuleSet::class)]
 #[CoversClass(NodeProjectRuleSet::class)]
 final class RulesTest extends UnitTestCase {
@@ -188,7 +190,7 @@ final class RulesTest extends UnitTestCase {
     // so a mock simulates the file read exception.
     $rules_class = new class() extends Rules {
 
-      public static function fromFile(string $file): Rules {
+      public static function fromFile(string $file): static {
         throw new \Exception(sprintf('Failed to read the %s file.', $file));
       }
 
@@ -311,18 +313,24 @@ EOT;
   public function testPhpProjectRuleSetPatterns(): void {
     $rule_set = new PhpProjectRuleSet();
 
-    $this->assertContains('vendor/', $rule_set->getSkipPatterns());
-    $this->assertContains('.phpunit.cache/', $rule_set->getSkipPatterns());
-    $this->assertContains('composer.lock', $rule_set->getIgnoreContentPatterns());
+    $this->assertContains('vendor/', $rule_set->getSkip());
+    $this->assertContains('.phpunit.cache/', $rule_set->getSkip());
+    $this->assertContains('composer.lock', $rule_set->getIgnoreContent());
+    $this->assertSame([], $rule_set->getGlobal());
+    $this->assertSame([], $rule_set->getInclude());
+    $this->assertSame([], $rule_set->getIncludeContent());
   }
 
   public function testNodeProjectRuleSetPatterns(): void {
     $rule_set = new NodeProjectRuleSet();
 
-    $this->assertContains('node_modules/', $rule_set->getSkipPatterns());
-    $this->assertContains('.npm/', $rule_set->getSkipPatterns());
-    $this->assertContains('package-lock.json', $rule_set->getIgnoreContentPatterns());
-    $this->assertContains('yarn.lock', $rule_set->getIgnoreContentPatterns());
+    $this->assertContains('node_modules/', $rule_set->getSkip());
+    $this->assertContains('.npm/', $rule_set->getSkip());
+    $this->assertContains('package-lock.json', $rule_set->getIgnoreContent());
+    $this->assertContains('yarn.lock', $rule_set->getIgnoreContent());
+    $this->assertSame([], $rule_set->getGlobal());
+    $this->assertSame([], $rule_set->getInclude());
+    $this->assertSame([], $rule_set->getIncludeContent());
   }
 
   public function testRuleSetApplyTo(): void {
@@ -337,13 +345,61 @@ EOT;
     $this->assertContains('vendor/', $result->getSkip());
   }
 
-  public function testRuleSetToRules(): void {
-    $rule_set = new PhpProjectRuleSet();
-    $rules = $rule_set->toRules();
+  public function testRuleSetApplyToWithoutRulesCreatesRules(): void {
+    $rules = (new PhpProjectRuleSet())->applyTo();
 
     $this->assertInstanceOf(Rules::class, $rules);
     $this->assertContains('vendor/', $rules->getSkip());
     $this->assertContains('composer.lock', $rules->getIgnoreContent());
   }
+
+  public function testRuleSetAppliesAllRuleKinds(): void {
+    $rules = (new AllKindsRuleSet())->applyTo();
+
+    $this->assertSame(['skipped/'], $rules->getSkip());
+    $this->assertSame(['ignored.lock'], $rules->getIgnoreContent());
+    $this->assertSame(['*.tmp'], $rules->getGlobal());
+    $this->assertSame(['skipped/keep.txt'], $rules->getInclude());
+    $this->assertSame(['ignored.lock'], $rules->getIncludeContent());
+  }
+
+  public function testFactoriesReturnSubclass(): void {
+    $file = $this->locationsTmp() . DIRECTORY_SEPARATOR . 'subclass.ignorecontent';
+    file_put_contents($file, "vendor/\n");
+
+    try {
+      $this->assertInstanceOf(CustomRules::class, CustomRules::create());
+      $this->assertInstanceOf(CustomRules::class, CustomRules::phpProject());
+      $this->assertInstanceOf(CustomRules::class, CustomRules::nodeProject());
+      $this->assertInstanceOf(CustomRules::class, CustomRules::fromRuleSet(new PhpProjectRuleSet()));
+      $this->assertInstanceOf(CustomRules::class, CustomRules::fromFile($file));
+    }
+    finally {
+      unlink($file);
+    }
+  }
+
+}
+
+/**
+ * Rules subclass used to assert that the factories honour late static binding.
+ */
+class CustomRules extends Rules {
+}
+
+/**
+ * Rule set covering every rule kind that applyTo() forwards.
+ */
+class AllKindsRuleSet extends AbstractRuleSet {
+
+  protected const SKIP_PATTERNS = ['skipped/'];
+
+  protected const IGNORE_CONTENT_PATTERNS = ['ignored.lock'];
+
+  protected const GLOBAL_PATTERNS = ['*.tmp'];
+
+  protected const INCLUDE_PATTERNS = ['skipped/keep.txt'];
+
+  protected const INCLUDE_CONTENT_PATTERNS = ['ignored.lock'];
 
 }

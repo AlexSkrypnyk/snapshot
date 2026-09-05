@@ -377,10 +377,19 @@ class MyProjectRuleSet extends AbstractRuleSet {
 
     protected const IGNORE_CONTENT_PATTERNS = ['build-manifest.json'];
 
+    protected const GLOBAL_PATTERNS = ['*.log'];
+
+    protected const INCLUDE_PATTERNS = ['dist/keep.txt'];
+
+    protected const INCLUDE_CONTENT_PATTERNS = ['build-manifest.json'];
+
 }
 
 $rules = Rules::fromRuleSet(new MyProjectRuleSet());
 ```
+
+Each constant maps to the matching `Rules` pattern list, and a set can define
+only the constants it needs - the rest default to empty.
 
 ### Version Normalization
 

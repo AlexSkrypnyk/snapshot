@@ -23,6 +23,8 @@ use AlexSkrypnyk\Snapshot\Rules\Rules;
  * $builder->sync($src, $dest);
  * $comparer = $builder->compare($dir1, $dir2);
  * @endcode
+ *
+ * @phpstan-consistent-constructor
  */
 class SnapshotBuilder {
 
@@ -48,11 +50,11 @@ class SnapshotBuilder {
   /**
    * Creates a new configurable SnapshotBuilder instance.
    *
-   * @return self
+   * @return static
    *   A new SnapshotBuilder instance.
    */
-  public static function create(): self {
-    return new self();
+  public static function create(): static {
+    return new static();
   }
 
   /**

@@ -69,9 +69,11 @@ class IndexedFile extends \SplFileInfo implements IndexedFileInterface {
   /**
    * {@inheritdoc}
    */
-  public function setBasepath(string $basepath): void {
+  public function setBasepath(string $basepath): static {
     $this->basepath = rtrim($basepath, DIRECTORY_SEPARATOR);
     $this->relativePathname = NULL;
+
+    return $this;
   }
 
   /**
@@ -133,14 +135,14 @@ class IndexedFile extends \SplFileInfo implements IndexedFileInterface {
   /**
    * {@inheritdoc}
    */
-  public function setIgnoreContent(bool $ignore = TRUE): void {
-    $this->setContent($ignore ? static::CONTENT_IGNORED_MARKER : NULL);
+  public function setIgnoreContent(bool $ignore = TRUE): static {
+    return $this->setContent($ignore ? static::CONTENT_IGNORED_MARKER : NULL);
   }
 
   /**
    * {@inheritdoc}
    */
-  public function setContent(?string $content): void {
+  public function setContent(?string $content): static {
     if ($content !== NULL) {
       $this->content = $content;
       $this->hash = $this->hash($this->content);
@@ -152,6 +154,8 @@ class IndexedFile extends \SplFileInfo implements IndexedFileInterface {
       $this->content = NULL;
       $this->hash = NULL;
     }
+
+    return $this;
   }
 
   /**
