@@ -61,6 +61,14 @@ final class SnapshotBuilderTest extends UnitTestCase {
     $this->assertSame(['important.log'], $rules->getInclude());
   }
 
+  public function testAddIncludeContent(): void {
+    $builder = SnapshotBuilder::create()->addIncludeContent('important.log');
+
+    $rules = $builder->getRules();
+    $this->assertInstanceOf(Rules::class, $rules);
+    $this->assertSame(['important.log'], $rules->getIncludeContent());
+  }
+
   public function testFluentMethodChaining(): void {
     $builder = SnapshotBuilder::create()
       ->withRules(Rules::phpProject())

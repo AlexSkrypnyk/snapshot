@@ -128,7 +128,7 @@ class SnapshotBuilder {
   }
 
   /**
-   * Add include-content patterns to the rules.
+   * Add include content patterns to the rules.
    *
    * Creates rules if not set.
    *

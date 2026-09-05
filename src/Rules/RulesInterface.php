@@ -138,7 +138,7 @@ interface RulesInterface {
   public function include(string ...$patterns): static;
 
   /**
-   * Fluent method to explicitly compare content for multiple patterns.
+   * Fluent method to include content of multiple patterns.
    *
    * @param string ...$patterns
    *   Patterns to compare content for.
