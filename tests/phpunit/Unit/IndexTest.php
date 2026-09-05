@@ -26,7 +26,7 @@ final class IndexTest extends UnitTestCase {
     $index = new Index($dir, $rules, $before_match_content);
     $this->callProtectedMethod($index, 'scan');
 
-    $this->assertEquals($expected, array_keys($index->getFiles()));
+    $this->assertSame($expected, array_keys($index->getFiles()));
   }
 
   public static function dataProviderIndexScan(): \Iterator {

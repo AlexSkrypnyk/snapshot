@@ -195,7 +195,7 @@ final class DiffTest extends UnitTestCase {
     $diff->setRight($file_info2);
 
     $result = self::callProtectedMethod(Diff::class, 'doRender', [$diff]);
-    $this->assertEquals('test content', $result);
+    $this->assertSame('test content', $result);
 
     // Test with different content.
     file_put_contents($file_path1, "line1\n");
@@ -208,7 +208,7 @@ final class DiffTest extends UnitTestCase {
     $diff->setRight($file_info2);
 
     $result = self::callProtectedMethod(Diff::class, 'doRender', [$diff]);
-    assert(is_string($result));
+    $this->assertIsString($result);
     $this->assertStringContainsString('@@ -1 +1 @@', $result);
     $this->assertStringContainsString('-line1', $result);
     $this->assertStringContainsString('+line2', $result);

@@ -38,7 +38,7 @@ final class SnapshotAssertionsTraitTest extends TestCase {
 
   protected function tearDown(): void {
     if (is_dir($this->tmpDir)) {
-      File::remove($this->tmpDir);
+      File::rmdir($this->tmpDir);
     }
   }
 

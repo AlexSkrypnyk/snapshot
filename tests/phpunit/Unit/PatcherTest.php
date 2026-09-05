@@ -63,7 +63,7 @@ final class PatcherTest extends UnitTestCase {
     $patcher = new Patcher(self::$sut, self::$sut);
     $result = $patcher->addPatchFile($file_info);
 
-    $this->assertInstanceOf(Patcher::class, $result);
+    $this->assertSame($patcher, $result);
   }
 
   public function testAddPatchFileInvalid(): void {
@@ -90,11 +90,11 @@ final class PatcherTest extends UnitTestCase {
 
     $diff_string = "@@ -1,1 +1,1 @@\n-old line\n+new line\n";
     $result1 = $patcher->addDiff($diff_string, 'test.txt');
-    $this->assertInstanceOf(Patcher::class, $result1);
+    $this->assertSame($patcher, $result1);
 
     $diff_array = ['@@ -1,1 +1,1 @@', '-old line', '+new line'];
     $result2 = $patcher->addDiff($diff_array, 'test2.txt');
-    $this->assertInstanceOf(Patcher::class, $result2);
+    $this->assertSame($patcher, $result2);
   }
 
   public function testSplitLines(): void {
@@ -103,18 +103,18 @@ final class PatcherTest extends UnitTestCase {
     $result = self::callProtectedMethod(Patcher::class, 'splitLines', [$content]);
 
     $expected = ['line1', 'line2', 'line3', 'line4'];
-    $this->assertEquals($expected, $result);
+    $this->assertSame($expected, $result);
   }
 
   public function testSplitLinesEdgeCases(): void {
     $result1 = self::callProtectedMethod(Patcher::class, 'splitLines', ['']);
-    $this->assertEquals([''], $result1);
+    $this->assertSame([''], $result1);
 
     $result2 = self::callProtectedMethod(Patcher::class, 'splitLines', ['single line']);
-    $this->assertEquals(['single line'], $result2);
+    $this->assertSame(['single line'], $result2);
 
     $result3 = self::callProtectedMethod(Patcher::class, 'splitLines', ["\n\n\n"]);
-    $this->assertEquals(['', '', '', ''], $result3);
+    $this->assertSame(['', '', '', ''], $result3);
   }
 
   public function testFilePatch(): void {
@@ -158,7 +158,7 @@ final class PatcherTest extends UnitTestCase {
       'dst_idx' => 1,
       'dst_size' => 3,
     ];
-    $this->assertEquals($expected, $result);
+    $this->assertSame($expected, $result);
     $this->assertSame(' line1', current($lines));
   }
 
@@ -293,7 +293,7 @@ final class PatcherTest extends UnitTestCase {
     $dst_file = $dest_dir . DIRECTORY_SEPARATOR . 'test.txt';
 
     $this->expectException(PatchException::class);
-    $this->expectExceptionMessageMatches('/Source file verification failed/');
+    $this->expectExceptionMessage('Source file verification failed');
 
     self::callProtectedMethod($patcher, 'applyHunk', [
       &$diff,
@@ -329,7 +329,7 @@ final class PatcherTest extends UnitTestCase {
     $dst_file = $dest_dir . DIRECTORY_SEPARATOR . 'test.txt';
 
     $this->expectException(PatchException::class);
-    $this->expectExceptionMessageMatches('/Hunk mismatch/');
+    $this->expectExceptionMessage('Hunk mismatch');
 
     self::callProtectedMethod($patcher, 'applyHunk', [
       &$diff,
@@ -352,7 +352,7 @@ final class PatcherTest extends UnitTestCase {
 
     $result = self::callProtectedMethod($patcher, 'updateDestinations', []);
 
-    $this->assertEquals(2, $result);
+    $this->assertSame(2, $result);
     $this->assertFileExists($dest_file1);
     $this->assertFileExists($dest_file2);
     $this->assertSame("line1\nline2", file_get_contents($dest_file1));

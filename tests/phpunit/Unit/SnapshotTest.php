@@ -39,9 +39,9 @@ final class SnapshotTest extends UnitTestCase {
       'dir2' => $diff->getRight()->getContent(),
     ]);
 
-    $this->assertEquals($expected_diffs['absent_dir1'] ?? [], array_keys($absent_dir1));
-    $this->assertEquals($expected_diffs['absent_dir2'] ?? [], array_keys($absent_dir2));
-    $this->assertEquals($expected_diffs['content'] ?? [], $content);
+    $this->assertSame($expected_diffs['absent_dir1'] ?? [], array_keys($absent_dir1));
+    $this->assertSame($expected_diffs['absent_dir2'] ?? [], array_keys($absent_dir2));
+    $this->assertSame($expected_diffs['content'] ?? [], $content);
   }
 
   public static function dataProviderCompare(): \Iterator {
