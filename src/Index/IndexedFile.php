@@ -188,8 +188,6 @@ class IndexedFile extends \SplFileInfo implements IndexedFileInterface {
   /**
    * Creates a hash for the given content.
    *
-   * Uses SHA-1 instead of MD5 for better performance.
-   *
    * @param string $content
    *   The content to hash.
    *

@@ -1,6 +1,6 @@
 <p align="center">
   <a href="" rel="noopener">
-  <img width=200px height=200px src="logo.png" alt="Snapshot logo"/>
+  <img width=200px height=200px src="logo.png" alt="Snapshot logo"></a>
 </p>
 
 <h1 align="center">Directory snapshot, diff, and patch system useful for test fixtures</h1>
@@ -19,16 +19,18 @@
 
 ---
 
-## Features
+## ✨ Features
 
 - **Directory comparison** - Compare two directories for identical structure and content
 - **Baseline + diff architecture** - Store a baseline once, then only diffs per test scenario
 - **Unified diff format** - Human-readable patch files that can be reviewed in PRs
 - **Auto-update snapshots** - Automatically update snapshots when tests fail
+- **Batch update CLI** - Regenerate many snapshots at once, in parallel, with timeouts and retries
+- **Version normalization** - Replace volatile versions, hashes and timestamps before snapshots are written
 - **Flexible ignore rules** - Skip files, directories, or ignore content differences
 - **PHPUnit integration** - Simple trait with intuitive assertions
 
-## Use Cases
+## 🎯 Use Cases
 
 This library is designed for testing systems that generate file output:
 
@@ -44,7 +46,7 @@ For example, if you maintain a project template with customizable options (like
 choosing a database driver or enabling optional features), you can use this
 library to test each combination of options produces the correct files.
 
-## Concepts
+## 🧩 Concepts
 
 ### Baseline
 
@@ -102,11 +104,11 @@ Snapshot directories can also contain:
 - **Deletion markers** - Files prefixed with `-` (e.g., `-README.md`) indicate
   the file should not exist in this scenario
 
-## Installation
+## 📦 Installation
 
     composer require --dev alexskrypnyk/snapshot
 
-## Usage
+## 🚀 Usage
 
 ### Basic Directory Comparison
 
@@ -185,7 +187,7 @@ vendor/bin/update-snapshots testMySnapshot tests/snapshots baseline scenario1
 vendor/bin/update-snapshots --jobs=8 testMySnapshot tests/snapshots
 
 # Specify project root (useful when running from subdirectory)
-vendor/bin/update-snapshots --root=/path/to/project testMySnapshot tests/snapshots
+vendor/bin/update-snapshots --root=../.. testMySnapshot tests/snapshots
 ```
 
 The tool:
@@ -203,6 +205,10 @@ Options:
 - `--jobs=<count>` - Number of parallel jobs for scenarios (default: 4)
 - `--debug` - Show PHPUnit output for failed tests
 
+#### Exit Codes
+
+Updating a snapshot is the expected outcome, so the tool exits `0` when it updates one. It exits non-zero only when a dataset genuinely cannot be updated - a failure that is not a snapshot mismatch, or a run that keeps timing out. A single PHPUnit run still exits non-zero after updating a snapshot, because the assertion fails before `tearDown()` rewrites the files; the tool reclassifies those runs as updated.
+
 #### Parallel Execution
 
 When updating all datasets, the baseline is always run first (since other
@@ -219,18 +225,26 @@ Create a `.ignorecontent` file in your baseline directory to control which files
 are compared and how.
 
 ```
-# Skip files entirely - they won't be compared at all
+# Skip by file name, anywhere in the tree
 *.log
-cache/
+.DS_Store
+
+# Skip by path, relative to this directory
 node_modules/
+build/cache/
 
-# Include specific files (override a previous skip rule)
-!important.log
+# Include a file that a path rule would otherwise skip
+!build/cache/manifest.json
 
-# Ignore content differences - verify file exists, but allow any content
+# Ignore content differences - verify the file exists, but allow any content
 ^composer.lock
 ^package-lock.json
 ```
+
+A pattern is matched in one of two ways, depending on whether it contains a `/`:
+
+- **Without a `/`** the pattern is matched against the file name alone, so `*.log` skips every `.log` file at any depth. Name patterns are applied before everything else, and a `!` rule does not override them.
+- **With a `/`** the pattern is matched against the path relative to the directory being indexed, so `build/cache/` only skips that one directory. A `!` rule does override a path rule.
 
 #### Why Ignore Content?
 
@@ -248,10 +262,12 @@ Using `^filename` ensures the file exists without failing on content differences
 
 | Pattern | Effect |
 |---------|--------|
-| `*.log` | Skip all files matching the glob pattern |
-| `cache/` | Skip the entire directory and its contents |
-| `!important.log` | Include this file even if a previous rule would skip it |
-| `^composer.lock` | Check that file exists, but don't compare its content |
+| `*.log` | Skip every file whose name matches the glob, at any depth |
+| `cache/` | Skip the directory and everything under it |
+| `cache/*` | Skip the files directly in the directory, but not its subdirectories |
+| `!cache/keep.txt` | Include this file even though a path rule would skip it |
+| `^composer.lock` | Check that the file exists, but do not compare its content |
+| `^cache/` | Check that files under the directory exist, but do not compare their content |
 
 ### Programmatic API
 
@@ -290,6 +306,7 @@ $builder = SnapshotBuilder::create()
     ->withRules(Rules::phpProject())
     ->addSkip('custom/')
     ->addIgnoreContent('custom.lock')
+    ->addInclude('custom/keep.txt')
     ->withContentProcessor(fn($content) => trim($content));
 
 // Use the builder for multiple operations
@@ -316,10 +333,31 @@ $rules = Rules::nodeProject(); // Skips node_modules/, ignores lock files
 $rules = Rules::create()
     ->skip('vendor/', 'node_modules/', '.git/')
     ->ignoreContent('composer.lock', 'package-lock.json')
-    ->include('important.log');
+    ->include('vendor/autoload.php');
+
+// Or load them from an existing .ignorecontent file
+$rules = Rules::fromFile($baseline . '/.ignorecontent');
 
 // Use rules with Snapshot operations
 $comparer = Snapshot::compare($baseline, $actual, $rules);
+```
+
+The presets are built from rule sets. Extend `AbstractRuleSet` to define your
+own reusable set and turn it into rules with `Rules::fromRuleSet()`:
+
+```php
+use AlexSkrypnyk\Snapshot\Rules\AbstractRuleSet;
+use AlexSkrypnyk\Snapshot\Rules\Rules;
+
+class MyProjectRuleSet extends AbstractRuleSet {
+
+    protected const SKIP_PATTERNS = ['dist/', '.cache/'];
+
+    protected const IGNORE_CONTENT_PATTERNS = ['build-manifest.json'];
+
+}
+
+$rules = Rules::fromRuleSet(new MyProjectRuleSet());
 ```
 
 ### Version Normalization
@@ -353,10 +391,12 @@ Override `snapshotUpdateBefore()` to customize the replacement behavior:
 ```php
 protected function snapshotUpdateBefore(string $actual): void {
     // Use default patterns but add custom ones
+    $build = Replacement::create('build', '/BUILD-\d+/', '__BUILD__');
+
     File::getReplacer()
         ->addVersionReplacements()
         ->setMaxReplacements(0)
-        ->addReplacement(Replacement::create('custom', '/BUILD-\d+/', '__BUILD__'))
+        ->addReplacement($build)
         ->replaceInDir($actual);
 }
 ```
@@ -382,9 +422,12 @@ $replacer = File::getReplacer()->addVersionReplacements();
 $replacer->replaceInDir($directory);
 
 // Or create custom replacer
+$version = Replacement::create('version', '/v\d+\.\d+\.\d+/', '__VERSION__');
+$date = Replacement::create('date', '/\d{4}-\d{2}-\d{2}/', '__DATE__');
+
 $replacer = File::getReplacer()
-    ->addReplacement(Replacement::create('version', '/v\d+\.\d+\.\d+/', '__VERSION__'))
-    ->addReplacement(Replacement::create('date', '/\d{4}-\d{2}-\d{2}/', '__DATE__'));
+    ->addReplacement($version)
+    ->addReplacement($date);
 
 // Apply to string content
 $content = 'Version: v1.2.3';
@@ -394,25 +437,15 @@ $replacer->replace($content);  // $content is now 'Version: __VERSION__'
 $replacer->replaceInDir($directory);
 ```
 
-## Maintenance
+## 🤝 Contributing
 
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for local development setup, the
+linting and testing commands, and how to run the performance benchmarks.
 
-    composer install
-    composer lint
-    composer test
+## 🔄 Updating
 
-### Performance Benchmarks
-
-Run benchmarks to measure performance of core operations:
-
-    # Run benchmarks with baseline comparison
-    composer benchmark
-
-    # Create or update baseline
-    composer benchmark-baseline
-
-    # Quick test (verify benchmarks work)
-    ./vendor/bin/phpbench run benchmarks/SnapshotBench.php --iterations=1 --revs=1
+To pull the latest infrastructure from the template into this project, ask
+Claude Code to "update scaffold" - see [`AGENTS.md`](AGENTS.md) for details.
 
 ---
 _This repository was created using the [Scaffold](https://getscaffold.dev/) project template_

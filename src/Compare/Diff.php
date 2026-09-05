@@ -114,10 +114,7 @@ class Diff implements DiffInterface {
       // @codeCoverageIgnoreEnd
     }
 
-    // Final check: Content hash comparison.
-    $is_same_hash = $this->left->getHash() === $this->right->getHash();
-
-    return $is_same_hash;
+    return $this->left->getHash() === $this->right->getHash();
   }
 
   /**

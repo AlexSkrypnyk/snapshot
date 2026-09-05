@@ -193,6 +193,7 @@ class Comparer implements ComparerInterface {
         $render .= sprintf("  %s\n", $file);
       }
     }
+
     if (!empty($content_diffs)) {
       $render .= "Files that differ in content:\n";
 

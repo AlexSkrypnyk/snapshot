@@ -191,7 +191,6 @@ final class SnapshotBuilderTest extends UnitTestCase {
 
     copy($expected . DIRECTORY_SEPARATOR . Snapshot::IGNORECONTENT, self::$sut . DIRECTORY_SEPARATOR . Snapshot::IGNORECONTENT);
 
-    // Test that void operations can be chained.
     $builder = SnapshotBuilder::create()
       ->addSkip('custom/')
       ->sync($src, self::$sut);

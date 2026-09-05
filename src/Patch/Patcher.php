@@ -9,10 +9,10 @@ use AlexSkrypnyk\Snapshot\Exception\PatchException;
 use AlexSkrypnyk\Snapshot\Index\IndexedFileInterface;
 
 /**
- * Class Patcher.
+ * Applies unified diffs to files.
  *
- * A limited implementation of the patch command that applies unified diffs
- * to files. Does not handle file removals or renames.
+ * A limited implementation of the patch command. Does not handle file
+ * removals or renames.
  */
 class Patcher implements PatcherInterface {
 
@@ -154,7 +154,6 @@ class Patcher implements PatcherInterface {
     $src_idx--;
     $dst_idx--;
 
-    // Load the source and destination lines if they are not already loaded.
     $this->srcLines[$src] ??= static::splitLines(File::read($src));
     // Use source lines as destination lines if the destination file does not
     // exist.
@@ -210,13 +209,11 @@ class Patcher implements PatcherInterface {
       throw new PatchException('Hunk mismatch', $src, key($lines));
     }
 
-    // Verify source lines match the expected ones before applying.
     $src_hunk_slice = array_slice($this->srcLines[$src], $src_idx, count($src_hunk));
     if ($src_hunk_slice !== $src_hunk) {
       throw new PatchException('Source file verification failed', $src, key($lines));
     }
 
-    // Replace lines in destination lines with the lines from the hunk.
     array_splice($this->dstLines[$dst], $dst_idx, count($src_hunk), $dst_hunk);
   }
 
@@ -239,9 +236,6 @@ class Patcher implements PatcherInterface {
   /**
    * Splits a string into lines.
    *
-   * Optimized to use string replacement + explode instead of preg_split
-   * for performance improvement.
-   *
    * @param string $content
    *   The content to split.
    *
@@ -249,7 +243,6 @@ class Patcher implements PatcherInterface {
    *   Array of lines.
    */
   protected static function splitLines(string $content): array {
-    // Normalize line endings to \n, then use fast explode.
     $normalized = str_replace(["\r\n", "\r"], "\n", $content);
     return explode("\n", $normalized);
   }
