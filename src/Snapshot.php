@@ -54,8 +54,8 @@ class Snapshot {
    * @param \AlexSkrypnyk\Snapshot\Rules\RulesInterface|null $rules
    *   Optional comparison rules.
    * @param callable|null $file_filter
-   *   Optional callback receiving each indexed file; returning FALSE excludes
-   *   the file from the index.
+   *   Optional callback receiving each candidate file as an IndexedFile;
+   *   returning FALSE excludes the file from the index.
    *
    * @return \AlexSkrypnyk\Snapshot\Index\Index
    *   The directory index.
@@ -74,8 +74,8 @@ class Snapshot {
    * @param \AlexSkrypnyk\Snapshot\Rules\RulesInterface|null $rules
    *   Optional comparison rules.
    * @param callable|null $file_filter
-   *   Optional callback receiving each indexed file; returning FALSE excludes
-   *   the file from both indexes.
+   *   Optional callback receiving each candidate file as an IndexedFile;
+   *   returning FALSE excludes the file from both indexes.
    *
    * @return \AlexSkrypnyk\Snapshot\Compare\Comparer
    *   Comparison result object.
@@ -101,8 +101,8 @@ class Snapshot {
    * @param \AlexSkrypnyk\Snapshot\Rules\RulesInterface|null $rules
    *   Optional comparison rules.
    * @param callable|null $file_filter
-   *   Optional callback receiving each indexed file; returning FALSE excludes
-   *   the file from both indexes.
+   *   Optional callback receiving each candidate file as an IndexedFile;
+   *   returning FALSE excludes the file from both indexes.
    */
   public static function diff(string $baseline, string $actual, string $output, ?RulesInterface $rules = NULL, ?callable $file_filter = NULL): void {
     File::mkdir($output);
@@ -222,8 +222,8 @@ class Snapshot {
    * @param \AlexSkrypnyk\Snapshot\Rules\RulesInterface|null $rules
    *   Optional comparison rules.
    * @param callable|null $file_filter
-   *   Optional callback receiving each indexed file; returning FALSE excludes
-   *   the file from the sync.
+   *   Optional callback receiving each candidate file as an IndexedFile;
+   *   returning FALSE excludes the file from the sync.
    */
   public static function sync(string $source, string $destination, int $permissions = 0755, bool $copy_empty_dirs = FALSE, ?RulesInterface $rules = NULL, ?callable $file_filter = NULL): void {
     $index = self::scan($source, $rules, $file_filter);

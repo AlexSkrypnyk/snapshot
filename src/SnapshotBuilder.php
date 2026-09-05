@@ -91,8 +91,8 @@ class SnapshotBuilder {
    * Set the file filter callback used by the indexing operations.
    *
    * @param callable $file_filter
-   *   Callback receiving the IndexedFile of each indexed file; returning FALSE
-   *   excludes the file from the index.
+   *   Callback receiving each candidate file as an IndexedFile; returning
+   *   FALSE excludes the file from the index.
    *
    * @return $this
    *   Return self for chaining.

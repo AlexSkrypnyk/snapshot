@@ -46,8 +46,8 @@ trait SnapshotTrait {
    * @param \AlexSkrypnyk\Snapshot\Rules\RulesInterface|null $rules
    *   Optional comparison rules.
    * @param callable|null $file_filter
-   *   Optional callback receiving each indexed file; returning FALSE excludes
-   *   the file from both indexes.
+   *   Optional callback receiving each candidate file as an IndexedFile;
+   *   returning FALSE excludes the file from both indexes.
    * @param bool $show_diff
    *   Whether to include diff output in failure messages.
    * @param string|null $message

@@ -353,9 +353,11 @@ $rules = Rules::nodeProject(); // Skips node_modules/, ignores lock files
 // Or create custom rules with fluent API
 $rules = Rules::create()
     ->skip('vendor/', 'node_modules/', '.git/')
-    ->ignoreContent('composer.lock', 'package-lock.json')
+    ->ignoreContent('composer.lock', 'package-lock.json', 'reports/')
+    // Keeps this one file even though vendor/ is skipped
     ->include('vendor/autoload.php')
-    ->includeContent('build-manifest.json');
+    // Compares this one file's content even though reports/ is content-ignored
+    ->includeContent('reports/summary.json');
 
 // Or load them from an existing .ignorecontent file
 $rules = Rules::fromFile($baseline . '/.ignorecontent');
