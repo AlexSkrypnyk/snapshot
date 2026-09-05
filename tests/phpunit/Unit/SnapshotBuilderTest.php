@@ -185,6 +185,40 @@ final class SnapshotBuilderTest extends UnitTestCase {
     $this->assertTrue($processor_called, 'Content processor should be called');
   }
 
+  public function testPatchWithRulesHonoursSkip(): void {
+    $baseline = self::$sut . DIRECTORY_SEPARATOR . 'baseline';
+    $patches = self::$sut . DIRECTORY_SEPARATOR . 'patches';
+    $destination = self::$sut . DIRECTORY_SEPARATOR . 'destination';
+    mkdir($baseline, 0777, TRUE);
+    mkdir($patches, 0777, TRUE);
+
+    file_put_contents($baseline . DIRECTORY_SEPARATOR . 'keep.txt', 'keep content');
+    file_put_contents($baseline . DIRECTORY_SEPARATOR . 'skip.txt', 'secret content');
+
+    $builder = SnapshotBuilder::create()->withRules(Rules::create()->skip('skip.txt'));
+    $result = $builder->patch($baseline, $patches, $destination);
+
+    $this->assertSame($builder, $result);
+    $this->assertFileExists($destination . DIRECTORY_SEPARATOR . 'keep.txt');
+    $this->assertFileDoesNotExist($destination . DIRECTORY_SEPARATOR . 'skip.txt');
+  }
+
+  public function testSyncWithRulesHonoursSkip(): void {
+    $src = self::$sut . DIRECTORY_SEPARATOR . 'src';
+    $dst = self::$sut . DIRECTORY_SEPARATOR . 'dst';
+    mkdir($src, 0777, TRUE);
+
+    file_put_contents($src . DIRECTORY_SEPARATOR . 'keep.txt', 'keep content');
+    file_put_contents($src . DIRECTORY_SEPARATOR . 'skip.txt', 'secret content');
+
+    $builder = SnapshotBuilder::create()->withRules(Rules::create()->skip('skip.txt'));
+    $result = $builder->sync($src, $dst);
+
+    $this->assertSame($builder, $result);
+    $this->assertFileExists($dst . DIRECTORY_SEPARATOR . 'keep.txt');
+    $this->assertFileDoesNotExist($dst . DIRECTORY_SEPARATOR . 'skip.txt');
+  }
+
   public function testFluentOperationChaining(): void {
     $src = File::dir($this->locationsFixtureDir('compare') . DIRECTORY_SEPARATOR . 'files_equal' . DIRECTORY_SEPARATOR . 'directory2');
     $expected = File::dir($this->locationsFixtureDir('compare') . DIRECTORY_SEPARATOR . 'files_equal' . DIRECTORY_SEPARATOR . 'directory1');

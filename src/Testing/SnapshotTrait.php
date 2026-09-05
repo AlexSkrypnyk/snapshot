@@ -6,6 +6,7 @@ namespace AlexSkrypnyk\Snapshot\Testing;
 
 use AlexSkrypnyk\File\File;
 use AlexSkrypnyk\Snapshot\Exception\PatchException;
+use AlexSkrypnyk\Snapshot\Rules\Rules;
 use AlexSkrypnyk\Snapshot\Snapshot;
 use PHPUnit\Framework\TestStatus\Error;
 use PHPUnit\Framework\TestStatus\Failure;
@@ -48,9 +49,11 @@ trait SnapshotTrait {
    *   Optional callback to process file content before comparison.
    * @param bool $show_diff
    *   Whether to include diff output in failure messages.
+   * @param \AlexSkrypnyk\Snapshot\Rules\Rules|null $rules
+   *   Optional comparison rules.
    */
-  public function assertDirectoriesIdentical(string $dir1, string $dir2, ?string $message = NULL, ?callable $match_content = NULL, bool $show_diff = TRUE): void {
-    $text = Snapshot::compare($dir1, $dir2, NULL, $match_content)->render(['show_diff' => $show_diff]);
+  public function assertDirectoriesIdentical(string $dir1, string $dir2, ?string $message = NULL, ?callable $match_content = NULL, bool $show_diff = TRUE, ?Rules $rules = NULL): void {
+    $text = Snapshot::compare($dir1, $dir2, $rules, $match_content)->render(['show_diff' => $show_diff]);
     if (!empty($text)) {
       $this->fail($message ? $message . PHP_EOL . $text : $text);
     }

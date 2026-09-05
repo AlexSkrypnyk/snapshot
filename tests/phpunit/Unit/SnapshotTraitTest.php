@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AlexSkrypnyk\Snapshot\Tests\Unit;
 
 use AlexSkrypnyk\File\File;
+use AlexSkrypnyk\Snapshot\Rules\Rules;
 use AlexSkrypnyk\Snapshot\Snapshot;
 use AlexSkrypnyk\Snapshot\Testing\SnapshotTrait;
 use PHPUnit\Framework\AssertionFailedError;
@@ -100,6 +101,29 @@ final class SnapshotTraitTest extends TestCase {
       $this->assertStringContainsString('file2.txt', $assertion_failed_error->getMessage());
       $this->assertStringContainsString('file3.txt', $assertion_failed_error->getMessage());
     }
+  }
+
+  public function testAssertDirectoriesIdenticalWithRulesIgnoresSkippedDifference(): void {
+    $dir1 = $this->tmpDir . DIRECTORY_SEPARATOR . 'dir1';
+    $dir2 = $this->tmpDir . DIRECTORY_SEPARATOR . 'dir2';
+
+    mkdir($dir1, 0777, TRUE);
+    mkdir($dir2, 0777, TRUE);
+
+    file_put_contents($dir1 . DIRECTORY_SEPARATOR . 'file1.txt', 'Content 1');
+    file_put_contents($dir2 . DIRECTORY_SEPARATOR . 'file1.txt', 'Different content');
+
+    try {
+      $this->assertDirectoriesIdentical($dir1, $dir2);
+      $this->fail('Assertion should have failed for different file content');
+    }
+    catch (AssertionFailedError $assertion_failed_error) {
+      $this->assertStringContainsString('file1.txt', $assertion_failed_error->getMessage());
+    }
+
+    $rules = Rules::create()->skip('file1.txt');
+    $this->assertDirectoriesIdentical($dir1, $dir2, NULL, NULL, TRUE, $rules);
+    $this->addToAssertionCount(1);
   }
 
   public function testAssertSnapshotMatchesBaselinePositive(): void {
