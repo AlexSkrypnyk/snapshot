@@ -7,7 +7,6 @@ namespace AlexSkrypnyk\Snapshot;
 use AlexSkrypnyk\Snapshot\Compare\Comparer;
 use AlexSkrypnyk\Snapshot\Index\Index;
 use AlexSkrypnyk\Snapshot\Rules\Rules;
-use AlexSkrypnyk\Snapshot\Sync\Syncer;
 
 /**
  * Configurable snapshot builder for repeated operations.
@@ -208,7 +207,7 @@ class SnapshotBuilder {
    *   Return self for chaining.
    */
   public function patch(string $baseline, string $patches, string $destination): static {
-    Snapshot::patch($baseline, $patches, $destination, $this->contentProcessor);
+    Snapshot::patch($baseline, $patches, $destination, $this->rules, $this->contentProcessor);
     return $this;
   }
 
@@ -228,8 +227,7 @@ class SnapshotBuilder {
    *   Return self for chaining.
    */
   public function sync(string $source, string $destination, int $permissions = 0755, bool $copy_empty_dirs = FALSE): static {
-    $index = new Index($source, $this->rules, $this->contentProcessor);
-    (new Syncer($index))->sync($destination, $permissions, $copy_empty_dirs);
+    Snapshot::sync($source, $destination, $permissions, $copy_empty_dirs, $this->rules, $this->contentProcessor);
     return $this;
   }
 

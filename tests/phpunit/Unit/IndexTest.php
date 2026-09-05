@@ -7,6 +7,7 @@ namespace AlexSkrypnyk\Snapshot\Tests\Unit;
 use AlexSkrypnyk\File\File;
 use AlexSkrypnyk\Snapshot\Index\Index;
 use AlexSkrypnyk\Snapshot\Index\IndexedFile;
+use AlexSkrypnyk\Snapshot\Index\IndexedFileInterface;
 use AlexSkrypnyk\Snapshot\Rules\Rules;
 use AlexSkrypnyk\Snapshot\Snapshot;
 use AlexSkrypnyk\Snapshot\Tests\UnitTestCase;
@@ -289,20 +290,20 @@ final class IndexTest extends UnitTestCase {
 
       $files = $index->getFiles();
 
-      $this->assertArrayHasKey('symlink_file.txt', $files);
+      $symlink_file_entry = $this->assertIndexedFile($files, 'symlink_file.txt');
 
-      $this->assertArrayHasKey('symlink_dir', $files);
+      $symlink_dir_entry = $this->assertIndexedFile($files, 'symlink_dir');
 
       // Whether a broken symlink is included depends on implementation
       // details, so neither its presence nor its absence is asserted here.
       // The original file is indexed through both the direct path and the
       // symlink.
-      $this->assertArrayHasKey('dir1/file1.txt', $files);
+      $dir1_file1_entry = $this->assertIndexedFile($files, 'dir1/file1.txt');
 
-      $this->assertSame('Original file content', $files['dir1/file1.txt']->getContent());
+      $this->assertSame('Original file content', $dir1_file1_entry->getContent());
 
-      $this->assertTrue($files['symlink_file.txt']->isLink());
-      $this->assertTrue($files['symlink_dir']->isLink());
+      $this->assertTrue($symlink_file_entry->isLink());
+      $this->assertTrue($symlink_dir_entry->isLink());
     }
     finally {
       if (file_exists($symlink_file)) {
@@ -390,6 +391,17 @@ final class IndexTest extends UnitTestCase {
     finally {
       File::rmdir($test_dir);
     }
+  }
+
+  protected function assertIndexedFile(array $files, string $key): IndexedFileInterface {
+    $this->assertArrayHasKey($key, $files);
+
+    $file = $files[$key];
+    if (!$file instanceof IndexedFileInterface) {
+      $this->fail(sprintf('Expected %s to be indexed as a file.', $key));
+    }
+
+    return $file;
   }
 
   public static function locationsTmp(): string {

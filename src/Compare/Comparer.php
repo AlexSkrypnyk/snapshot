@@ -54,14 +54,29 @@ class Comparer implements ComparerInterface {
     // that addLeftFile()/addRightFile() would recompute, so they are reused
     // as the diff keys.
     foreach ($left_files as $path => $left_file) {
+      // getFiles() allows a transform callback to return non-file values;
+      // skip anything that is not a file since none is passed here.
+      if (!$left_file instanceof IndexedFileInterface) {
+        // @codeCoverageIgnoreStart
+        continue;
+        // @codeCoverageIgnoreEnd
+      }
+
       ($this->diffs[$path] ??= new Diff())->setLeft($left_file);
-      if (isset($right_files[$path])) {
+
+      if (isset($right_files[$path]) && $right_files[$path] instanceof IndexedFileInterface) {
         $this->diffs[$path]->setRight($right_files[$path]);
         unset($right_files[$path]);
       }
     }
 
     foreach ($right_files as $path => $right_file) {
+      if (!$right_file instanceof IndexedFileInterface) {
+        // @codeCoverageIgnoreStart
+        continue;
+        // @codeCoverageIgnoreEnd
+      }
+
       ($this->diffs[$path] ??= new Diff())->setRight($right_file);
     }
 

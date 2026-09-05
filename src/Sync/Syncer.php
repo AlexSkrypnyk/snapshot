@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AlexSkrypnyk\Snapshot\Sync;
 
 use AlexSkrypnyk\File\File;
+use AlexSkrypnyk\Snapshot\Index\IndexedFileInterface;
 use AlexSkrypnyk\Snapshot\Index\IndexInterface;
 
 /**
@@ -30,6 +31,14 @@ class Syncer implements SyncerInterface {
     File::mkdir($dst, $permissions);
 
     foreach ($this->srcIndex->getFiles() as $file) {
+      // getFiles() allows a transform callback to return non-file values;
+      // skip anything that is not a file since none is passed here.
+      if (!$file instanceof IndexedFileInterface) {
+        // @codeCoverageIgnoreStart
+        continue;
+        // @codeCoverageIgnoreEnd
+      }
+
       $absolute_src_path = $file->getPathname();
       $absolute_dst_path = $dst . DIRECTORY_SEPARATOR . $file->getPathnameFromBasepath();
       if ($file->isIgnoreContent()) {

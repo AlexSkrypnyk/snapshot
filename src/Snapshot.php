@@ -8,6 +8,7 @@ use AlexSkrypnyk\File\File;
 use AlexSkrypnyk\Snapshot\Compare\Comparer;
 use AlexSkrypnyk\Snapshot\Compare\Diff;
 use AlexSkrypnyk\Snapshot\Index\Index;
+use AlexSkrypnyk\Snapshot\Index\IndexedFileInterface;
 use AlexSkrypnyk\Snapshot\Patch\Patcher;
 use AlexSkrypnyk\Snapshot\Rules\Rules;
 use AlexSkrypnyk\Snapshot\Sync\Syncer;
@@ -147,18 +148,28 @@ class Snapshot {
    *   Directory containing patch/diff files.
    * @param string $destination
    *   Destination directory for patched output.
+   * @param \AlexSkrypnyk\Snapshot\Rules\Rules|null $rules
+   *   Optional rules applied to the baseline sync and the patches scan.
    * @param callable|null $content_processor
    *   Optional callback to process content after patching.
    */
-  public static function patch(string $baseline, string $patches, string $destination, ?callable $content_processor = NULL): void {
+  public static function patch(string $baseline, string $patches, string $destination, ?Rules $rules = NULL, ?callable $content_processor = NULL): void {
     File::mkdir($destination);
 
-    self::sync($baseline, $destination);
+    self::sync($baseline, $destination, 0755, FALSE, $rules);
 
     $patcher = new Patcher($baseline, $destination);
 
-    $patch_index = self::scan($patches);
+    $patch_index = self::scan($patches, $rules);
     foreach ($patch_index->getFiles() as $file) {
+      // getFiles() allows a transform callback to return non-file values;
+      // skip anything that is not a file since none is passed here.
+      if (!$file instanceof IndexedFileInterface) {
+        // @codeCoverageIgnoreStart
+        continue;
+        // @codeCoverageIgnoreEnd
+      }
+
       $basename = $file->getBasename();
       $relative_path = $file->getPathnameFromBasepath();
 
@@ -205,9 +216,13 @@ class Snapshot {
    *   Directory permissions.
    * @param bool $copy_empty_dirs
    *   Whether to copy empty directories.
+   * @param \AlexSkrypnyk\Snapshot\Rules\Rules|null $rules
+   *   Optional comparison rules.
+   * @param callable|null $content_processor
+   *   Optional callback to process file content.
    */
-  public static function sync(string $source, string $destination, int $permissions = 0755, bool $copy_empty_dirs = FALSE): void {
-    $index = self::scan($source);
+  public static function sync(string $source, string $destination, int $permissions = 0755, bool $copy_empty_dirs = FALSE, ?Rules $rules = NULL, ?callable $content_processor = NULL): void {
+    $index = self::scan($source, $rules, $content_processor);
     (new Syncer($index))->sync($destination, $permissions, $copy_empty_dirs);
   }
 
@@ -234,7 +249,7 @@ class Snapshot {
    *   TRUE if path is a baseline directory.
    */
   public static function isBaseline(string $path): bool {
-    return str_contains($path, DIRECTORY_SEPARATOR . self::BASELINE_DIR);
+    return basename($path) === self::BASELINE_DIR;
   }
 
 }

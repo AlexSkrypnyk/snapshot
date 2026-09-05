@@ -285,7 +285,7 @@ ABSENT,
       return $content;
     };
 
-    Snapshot::patch($baseline, $diff, self::$sut, $processor);
+    Snapshot::patch($baseline, $diff, self::$sut, NULL, $processor);
 
     $this->assertTrue($processor_called, 'Content processor should be called');
   }
@@ -296,7 +296,7 @@ ABSENT,
 
     $processor = fn(string $content): string => str_replace('f1l1', 'REPLACED', $content);
 
-    Snapshot::patch($baseline, $diff, self::$sut, $processor);
+    Snapshot::patch($baseline, $diff, self::$sut, NULL, $processor);
 
     $files = File::scandir(self::$sut);
     $modified = FALSE;
@@ -321,11 +321,19 @@ ABSENT,
     $this->assertSame($baseline_dir, $result);
   }
 
-  public function testIsBaseline(): void {
-    $this->assertTrue(Snapshot::isBaseline('/path/to/' . Snapshot::BASELINE_DIR . '/file.txt'));
-    $this->assertTrue(Snapshot::isBaseline('/path/' . Snapshot::BASELINE_DIR));
-    $this->assertFalse(Snapshot::isBaseline('/path/to/regular/directory'));
-    $this->assertFalse(Snapshot::isBaseline('/path/to/snapshot'));
+  #[DataProvider('dataProviderIsBaseline')]
+  public function testIsBaseline(string $path, bool $expected): void {
+    $this->assertSame($expected, Snapshot::isBaseline($path));
+  }
+
+  public static function dataProviderIsBaseline(): \Iterator {
+    yield 'baseline directory' => ['snapshots' . DIRECTORY_SEPARATOR . Snapshot::BASELINE_DIR, TRUE];
+    yield 'baseline directory with trailing separator' => ['snapshots' . DIRECTORY_SEPARATOR . Snapshot::BASELINE_DIR . DIRECTORY_SEPARATOR, TRUE];
+    yield 'bare baseline directory' => [Snapshot::BASELINE_DIR, TRUE];
+    yield 'file inside baseline directory' => ['snapshots' . DIRECTORY_SEPARATOR . Snapshot::BASELINE_DIR . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'App.php', FALSE];
+    yield 'sibling directory with baseline prefix' => ['snapshots' . DIRECTORY_SEPARATOR . Snapshot::BASELINE_DIR . '_backup', FALSE];
+    yield 'file inside sibling directory with baseline prefix' => ['snapshots' . DIRECTORY_SEPARATOR . Snapshot::BASELINE_DIR . '_old' . DIRECTORY_SEPARATOR . 'x', FALSE];
+    yield 'regular scenario directory' => ['snapshots' . DIRECTORY_SEPARATOR . 'scenario_one', FALSE];
   }
 
   public function testCompareWithRules(): void {
@@ -444,6 +452,46 @@ ABSENT,
     $this->assertFileExists($dst . DIRECTORY_SEPARATOR . 'subdir' . DIRECTORY_SEPARATOR . 'nested.txt');
     $this->assertSame('nested content', file_get_contents($dst . DIRECTORY_SEPARATOR . 'subdir' . DIRECTORY_SEPARATOR . 'nested.txt'));
     $this->assertTrue(is_link($dst . DIRECTORY_SEPARATOR . 'link.txt'));
+  }
+
+  public function testPatchWithRules(): void {
+    $baseline = self::$sut . DIRECTORY_SEPARATOR . 'baseline';
+    $patches = self::$sut . DIRECTORY_SEPARATOR . 'patches';
+    $destination = self::$sut . DIRECTORY_SEPARATOR . 'destination';
+    mkdir($baseline, 0777, TRUE);
+    mkdir($patches, 0777, TRUE);
+
+    file_put_contents($baseline . DIRECTORY_SEPARATOR . 'keep.txt', 'keep content');
+    file_put_contents($baseline . DIRECTORY_SEPARATOR . 'skip.txt', 'secret baseline content');
+    file_put_contents($patches . DIRECTORY_SEPARATOR . 'newfile.txt', 'new content');
+    file_put_contents($patches . DIRECTORY_SEPARATOR . 'skip.txt', 'secret patch content');
+
+    $rules = Rules::create()->skip('skip.txt');
+
+    Snapshot::patch($baseline, $patches, $destination, $rules);
+
+    $this->assertFileExists($destination . DIRECTORY_SEPARATOR . 'keep.txt');
+    $this->assertFileExists($destination . DIRECTORY_SEPARATOR . 'newfile.txt');
+    $this->assertFileDoesNotExist($destination . DIRECTORY_SEPARATOR . 'skip.txt');
+  }
+
+  public function testSyncWithRulesAndProcessor(): void {
+    $src = self::$sut . DIRECTORY_SEPARATOR . 'src';
+    $dst = self::$sut . DIRECTORY_SEPARATOR . 'dst';
+    mkdir($src, 0777, TRUE);
+
+    file_put_contents($src . DIRECTORY_SEPARATOR . 'keep.txt', 'keep content');
+    file_put_contents($src . DIRECTORY_SEPARATOR . 'skip.txt', 'secret content');
+    file_put_contents($src . DIRECTORY_SEPARATOR . 'excluded.txt', 'exclude-me content');
+
+    $rules = Rules::create()->skip('skip.txt');
+    $processor = fn(IndexedFile $file): bool => !str_contains($file->getContent(), 'exclude-me');
+
+    Snapshot::sync($src, $dst, 0755, FALSE, $rules, $processor);
+
+    $this->assertFileExists($dst . DIRECTORY_SEPARATOR . 'keep.txt');
+    $this->assertFileDoesNotExist($dst . DIRECTORY_SEPARATOR . 'skip.txt');
+    $this->assertFileDoesNotExist($dst . DIRECTORY_SEPARATOR . 'excluded.txt');
   }
 
 }
