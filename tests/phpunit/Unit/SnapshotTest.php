@@ -109,6 +109,16 @@ final class SnapshotTest extends UnitTestCase {
     ];
   }
 
+  /**
+   * Test the rendered comparison of a fixture directory pair.
+   *
+   * @param array $expected
+   *   Strings that must appear in the render. An empty array expects no
+   *   render at all.
+   * @param array $unexpected
+   *   Strings that must not appear in the render, pinning the branch that
+   *   renders nothing for an empty absent-file list.
+   */
   #[DataProvider('dataProviderCompareRender')]
   public function testCompareRender(array $expected, array $unexpected = []): void {
     $dir1 = File::dir($this->locationsFixtureDir('compare') . DIRECTORY_SEPARATOR . 'directory1');

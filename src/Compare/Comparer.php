@@ -14,11 +14,17 @@ class Comparer implements ComparerInterface {
 
   /**
    * Identifies the left (source) side of a comparison.
+   *
+   * The value appears in the rendered report and in filter cache keys, so
+   * changing it changes observable output.
    */
   protected const SIDE_LEFT = 'left';
 
   /**
    * Identifies the right (destination) side of a comparison.
+   *
+   * The value appears in the rendered report and in filter cache keys, so
+   * changing it changes observable output.
    */
   protected const SIDE_RIGHT = 'right';
 
@@ -72,10 +78,10 @@ class Comparer implements ComparerInterface {
         // @codeCoverageIgnoreEnd
       }
 
-      $this->upsertDiff($path, static::SIDE_LEFT, $left_file);
+      $this->upsertDiff($path, self::SIDE_LEFT, $left_file);
 
       if (isset($right_files[$path]) && $right_files[$path] instanceof IndexedFileInterface) {
-        $this->upsertDiff($path, static::SIDE_RIGHT, $right_files[$path]);
+        $this->upsertDiff($path, self::SIDE_RIGHT, $right_files[$path]);
         unset($right_files[$path]);
       }
     }
@@ -87,7 +93,7 @@ class Comparer implements ComparerInterface {
         // @codeCoverageIgnoreEnd
       }
 
-      $this->upsertDiff($path, static::SIDE_RIGHT, $right_file);
+      $this->upsertDiff($path, self::SIDE_RIGHT, $right_file);
     }
 
     // Filter results derive from $this->diffs; reset the cache once after the
@@ -101,14 +107,14 @@ class Comparer implements ComparerInterface {
    * {@inheritdoc}
    */
   public function addLeftFile(IndexedFileInterface $file): static {
-    return $this->addFile($file, static::SIDE_LEFT);
+    return $this->addFile($file, self::SIDE_LEFT);
   }
 
   /**
    * {@inheritdoc}
    */
   public function addRightFile(IndexedFileInterface $file): static {
-    return $this->addFile($file, static::SIDE_RIGHT);
+    return $this->addFile($file, self::SIDE_RIGHT);
   }
 
   /**
@@ -117,10 +123,12 @@ class Comparer implements ComparerInterface {
    * @param \AlexSkrypnyk\Snapshot\Index\IndexedFileInterface $file
    *   The file to add.
    * @param string $side
-   *   The side to add the file to: static::SIDE_LEFT or static::SIDE_RIGHT.
+   *   The side to add the file to: self::SIDE_LEFT or self::SIDE_RIGHT.
    *
    * @return $this
    *   Return self for chaining.
+   *
+   * @phpstan-param self::SIDE_* $side
    */
   protected function addFile(IndexedFileInterface $file, string $side): static {
     $this->upsertDiff($file->getPathnameFromBasepath(), $side, $file);
@@ -135,51 +143,53 @@ class Comparer implements ComparerInterface {
    * @param string $path
    *   The diff key: the pathname relative to the base directory.
    * @param string $side
-   *   The side to set: static::SIDE_LEFT or static::SIDE_RIGHT.
+   *   The side to set: self::SIDE_LEFT or self::SIDE_RIGHT.
    * @param \AlexSkrypnyk\Snapshot\Index\IndexedFileInterface $file
    *   The file to set on that side.
+   *
+   * @phpstan-param self::SIDE_* $side
    */
   protected function upsertDiff(string $path, string $side, IndexedFileInterface $file): void {
     $diff = $this->diffs[$path] ??= new Diff();
 
-    if ($side === static::SIDE_LEFT) {
-      $diff->setLeft($file);
-
-      return;
-    }
-
-    $diff->setRight($file);
+    match ($side) {
+      self::SIDE_LEFT => $diff->setLeft($file),
+      self::SIDE_RIGHT => $diff->setRight($file),
+    };
   }
 
   /**
    * {@inheritdoc}
    */
   public function getAbsentLeftDiffs(?callable $transformer = NULL): array {
-    return $this->getAbsentDiffs(static::SIDE_LEFT, $transformer);
+    return $this->getAbsentDiffs(self::SIDE_LEFT, $transformer);
   }
 
   /**
    * {@inheritdoc}
    */
   public function getAbsentRightDiffs(?callable $transformer = NULL): array {
-    return $this->getAbsentDiffs(static::SIDE_RIGHT, $transformer);
+    return $this->getAbsentDiffs(self::SIDE_RIGHT, $transformer);
   }
 
   /**
    * Gets the diffs whose file is absent from the given side.
    *
    * @param string $side
-   *   The side to test: static::SIDE_LEFT or static::SIDE_RIGHT.
+   *   The side to test: self::SIDE_LEFT or self::SIDE_RIGHT.
    * @param callable|null $transformer
    *   Optional transformation callback applied to each filtered diff.
    *
    * @return array<string, Diff|mixed>
    *   Filtered (and optionally transformed) array of diffs.
+   *
+   * @phpstan-param self::SIDE_* $side
    */
   protected function getAbsentDiffs(string $side, ?callable $transformer = NULL): array {
-    $filter = $side === static::SIDE_LEFT
-      ? static fn(Diff $diff): bool => !$diff->existsLeft()
-      : static fn(Diff $diff): bool => !$diff->existsRight();
+    $filter = match ($side) {
+      self::SIDE_LEFT => static fn(Diff $diff): bool => !$diff->existsLeft(),
+      self::SIDE_RIGHT => static fn(Diff $diff): bool => !$diff->existsRight(),
+    };
 
     return $this->filterCached('absent_' . $side, $filter, $transformer);
   }
@@ -258,8 +268,8 @@ class Comparer implements ComparerInterface {
 
     $render = sprintf("Differences between directories \n[left] %s\nand\n[right] %s\n", $left->getDirectory(), $right->getDirectory());
 
-    $render .= static::renderAbsent(static::SIDE_LEFT, $absent_left);
-    $render .= static::renderAbsent(static::SIDE_RIGHT, $absent_right);
+    $render .= static::renderAbsent(self::SIDE_LEFT, $absent_left);
+    $render .= static::renderAbsent(self::SIDE_RIGHT, $absent_right);
 
     if (!empty($content_diffs)) {
       $render .= "Files that differ in content:\n";
@@ -284,8 +294,8 @@ class Comparer implements ComparerInterface {
    * Renders the list of paths absent from one side.
    *
    * @param string $side
-   *   The side the files are absent from: static::SIDE_LEFT or
-   *   static::SIDE_RIGHT.
+   *   The side the files are absent from: self::SIDE_LEFT or
+   *   self::SIDE_RIGHT.
    * @param array<string, Diff|mixed> $diffs
    *   Diffs absent from that side, keyed by path.
    *
