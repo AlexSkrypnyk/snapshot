@@ -47,6 +47,14 @@ class Snapshot {
   public const IGNORECONTENT = '.ignorecontent';
 
   /**
+   * Prefix marking a deleted file inside a diff directory.
+   *
+   * A diff directory records the deletion of a baseline file with an empty
+   * marker file named '-<basename>' placed where the file would otherwise be.
+   */
+  public const DELETION_MARKER = '-';
+
+  /**
    * Scan a directory and create an index.
    *
    * @param string $directory
@@ -129,7 +137,7 @@ class Snapshot {
     foreach (array_keys($absent_right) as $file) {
       $destination = $output . DIRECTORY_SEPARATOR . dirname((string) $file);
       File::mkdir($destination);
-      File::dump($destination . DIRECTORY_SEPARATOR . '-' . basename((string) $file), '');
+      File::dump($destination . DIRECTORY_SEPARATOR . self::DELETION_MARKER . basename((string) $file), '');
     }
 
     foreach ($content_diffs as $file => $diff) {
@@ -176,9 +184,9 @@ class Snapshot {
       $basename = $file->getBasename();
       $relative_path = $file->getPathnameFromBasepath();
 
-      if (str_starts_with($basename, '-')) {
+      if (str_starts_with($basename, self::DELETION_MARKER)) {
         // Deletion marker - remove file from destination.
-        $target = $destination . DIRECTORY_SEPARATOR . $file->getPathFromBasepath() . DIRECTORY_SEPARATOR . substr($basename, 1);
+        $target = $destination . DIRECTORY_SEPARATOR . $file->getPathFromBasepath() . DIRECTORY_SEPARATOR . substr($basename, strlen(self::DELETION_MARKER));
         File::remove($target);
       }
       elseif (!Patcher::isPatchFile($file->getPathname())) {

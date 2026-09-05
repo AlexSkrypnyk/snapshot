@@ -98,9 +98,7 @@ trait SnapshotTrait {
     }
 
     // Do not override .ignorecontent file from the baseline directory.
-    if (file_exists($baseline . DIRECTORY_SEPARATOR . Snapshot::IGNORECONTENT)) {
-      File::copy($baseline . DIRECTORY_SEPARATOR . Snapshot::IGNORECONTENT, $expected . DIRECTORY_SEPARATOR . Snapshot::IGNORECONTENT);
-    }
+    $this->snapshotCopyIgnoreContent($baseline, $expected);
 
     $this->assertDirectoriesIdentical($expected, $actual, message: $message);
   }
@@ -182,14 +180,13 @@ trait SnapshotTrait {
   protected function snapshotUpdateBaseline(string $baseline, string $actual, string $tmp): void {
     fwrite(STDERR, PHP_EOL . '[SNAPSHOT] Updating baseline' . PHP_EOL);
 
-    $ignorecontent = Snapshot::IGNORECONTENT;
-    File::copyIfExists($baseline . '/' . $ignorecontent, $actual . '/' . $ignorecontent);
-    File::copyIfExists($baseline . '/' . $ignorecontent, $tmp . '/' . $ignorecontent);
+    $this->snapshotCopyIgnoreContent($baseline, $actual);
+    $this->snapshotCopyIgnoreContent($baseline, $tmp);
 
     File::rmdir($baseline);
     Snapshot::sync($actual, $baseline);
 
-    File::copyIfExists($tmp . '/' . $ignorecontent, $baseline . '/' . $ignorecontent);
+    $this->snapshotCopyIgnoreContent($tmp, $baseline);
 
     fwrite(STDERR, '[SNAPSHOT] Baseline updated' . PHP_EOL);
   }
@@ -211,15 +208,39 @@ trait SnapshotTrait {
   protected function snapshotUpdateDiffs(string $baseline, string $snapshots, string $actual, string $tmp): void {
     fwrite(STDERR, PHP_EOL . '[SNAPSHOT] Updating diffs' . PHP_EOL);
 
-    $ignorecontent = Snapshot::IGNORECONTENT;
-    File::copyIfExists($snapshots . '/' . $ignorecontent, $tmp . '/' . $ignorecontent);
+    $this->snapshotCopyIgnoreContent($snapshots, $tmp);
 
     File::rmdir($snapshots);
     Snapshot::diff($baseline, $actual, $snapshots);
 
-    File::copyIfExists($tmp . '/' . $ignorecontent, $snapshots . '/' . $ignorecontent);
+    $this->snapshotCopyIgnoreContent($tmp, $snapshots);
 
     fwrite(STDERR, '[SNAPSHOT] Diffs updated' . PHP_EOL);
+  }
+
+  /**
+   * Copies the ignore rules file between directories when the source has one.
+   *
+   * @param string $source
+   *   Directory to copy the file from.
+   * @param string $destination
+   *   Directory to copy the file to.
+   */
+  protected function snapshotCopyIgnoreContent(string $source, string $destination): void {
+    File::copyIfExists($this->snapshotIgnoreContentPath($source), $this->snapshotIgnoreContentPath($destination));
+  }
+
+  /**
+   * Builds the path to the ignore rules file within a directory.
+   *
+   * @param string $directory
+   *   The directory holding the file.
+   *
+   * @return string
+   *   Path to the ignore rules file.
+   */
+  protected function snapshotIgnoreContentPath(string $directory): string {
+    return $directory . DIRECTORY_SEPARATOR . Snapshot::IGNORECONTENT;
   }
 
   /**
