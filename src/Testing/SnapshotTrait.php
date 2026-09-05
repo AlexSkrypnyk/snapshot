@@ -112,7 +112,7 @@ trait SnapshotTrait {
    * @param string|null $tmp
    *   Optional temp directory.
    *
-   * @codeCoverageIgnoreStart
+   * @codeCoverageIgnore
    */
   protected function snapshotUpdateOnFailure(string $snapshots, string $actual, ?string $tmp = NULL): void {
     if (!$this->snapshotShouldUpdate($snapshots)) {
@@ -141,7 +141,7 @@ trait SnapshotTrait {
    * @return bool
    *   TRUE if snapshot update should run.
    *
-   * @codeCoverageIgnoreStart
+   * @codeCoverageIgnore
    */
   protected function snapshotShouldUpdate(string $snapshots): bool {
     if (!getenv(static::$snapshotUpdateEnvVar)) {
@@ -172,7 +172,7 @@ trait SnapshotTrait {
    * @param string $tmp
    *   Path to the temp directory.
    *
-   * @codeCoverageIgnoreStart
+   * @codeCoverageIgnore
    */
   protected function snapshotUpdateBaseline(string $baseline, string $actual, string $tmp): void {
     fwrite(STDERR, PHP_EOL . '[SNAPSHOT] Updating baseline' . PHP_EOL);
@@ -201,7 +201,7 @@ trait SnapshotTrait {
    * @param string $tmp
    *   Path to the temp directory.
    *
-   * @codeCoverageIgnoreEnd
+   * @codeCoverageIgnore
    */
   protected function snapshotUpdateDiffs(string $baseline, string $snapshots, string $actual, string $tmp): void {
     fwrite(STDERR, PHP_EOL . '[SNAPSHOT] Updating diffs' . PHP_EOL);
@@ -229,7 +229,7 @@ trait SnapshotTrait {
    * @param string $actual
    *   Path to the actual output directory.
    *
-   * @codeCoverageIgnoreStart
+   * @codeCoverageIgnore
    */
   protected function snapshotUpdateBefore(string $actual): void {
     File::getReplacer()->addVersionReplacements()->replaceInDir($actual);
