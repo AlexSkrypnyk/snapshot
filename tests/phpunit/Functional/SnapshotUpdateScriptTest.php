@@ -552,6 +552,36 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
   }
 
   /**
+   * Test that a dataset retried after a timeout reports its attempt count.
+   *
+   * Scenario: slow
+   * - The dataset sleeps far longer than the timeout, so every attempt is
+   *   killed and the dataset is retried until the retry budget is spent.
+   * - Expected: the result line names the attempt the dataset ended on, and
+   *   the exhausted dataset is reported as failed.
+   */
+  public function testTimeoutRetriesReportAttemptCount(): void {
+    $this->setupTestProject('slow');
+
+    $this->processRun('php', [
+      $this->scriptPath,
+      '--root=' . $this->projectDir,
+      '--test-dir=tests',
+      '--timeout=1',
+      '--retries=2',
+      'testSnapshot',
+      'tests/snapshots',
+      'slow',
+    ]);
+
+    $this->assertProcessFailed();
+    $this->assertProcessOutputContains('Running 1 specified dataset(s)');
+    $this->assertProcessOutputContains('(attempt 2/2)');
+    $this->assertProcessOutputContains('Timed out: 1');
+    $this->assertProcessOutputContains('Failed datasets: slow');
+  }
+
+  /**
    * Test that a signal stops the script and every process it spawned.
    *
    * Scenario: slow

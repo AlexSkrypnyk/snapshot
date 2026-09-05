@@ -163,6 +163,7 @@ function run_specified_datasets(array $config): void {
   // same list can rewrite, so datasets run one at a time.
   $tasks = run_engine($datasets, $config, 1, 0, $total);
 
+  print_debug_output($tasks, $config);
   print_summary(tally_tasks($tasks), $total);
 
   $failed = array_map(
@@ -192,33 +193,45 @@ function run_all_datasets(array $config): void {
 
   $tasks = [];
   $completed = 0;
+  $timed_out = FALSE;
   $scenario_datasets = $datasets;
 
-  if ($datasets[0] === BASELINE_DATASET_NAME) {
-    // Scenarios are diffed against the baseline, so the baseline must be
-    // rewritten before any of them runs.
-    $tasks = run_engine([BASELINE_DATASET_NAME], $config, 1, 0, $total);
-    $completed = 1;
-
-    $baseline_committed = handle_baseline_result($config);
-
-    if ($tasks[0]['status'] === STATUS_TIMEOUT) {
-      print_summary(tally_tasks($tasks), $total);
-
-      throw new \Exception('Test timed out');
-    }
-
-    $scenario_datasets = array_slice($datasets, 1);
+  // Both phases share one alternate screen, so the display is not torn down
+  // and rebuilt between them.
+  if (is_tty()) {
+    enter_tui();
   }
 
-  if (!empty($scenario_datasets)) {
-    verbose("Running %d scenarios (parallel: %d)\n", count($scenario_datasets), (int) $config['jobs']);
-    $tasks = array_merge($tasks, run_engine($scenario_datasets, $config, (int) $config['jobs'], $completed, $total));
+  try {
+    if ($datasets[0] === BASELINE_DATASET_NAME) {
+      // Scenarios are diffed against the baseline, so the baseline must be
+      // rewritten before any of them runs.
+      $tasks = run_engine([BASELINE_DATASET_NAME], $config, 1, 0, $total);
+      $completed = 1;
+
+      $baseline_committed = handle_baseline_result($config);
+
+      $timed_out = $tasks[0]['status'] === STATUS_TIMEOUT;
+      $scenario_datasets = $timed_out ? [] : array_slice($datasets, 1);
+    }
+
+    if (!empty($scenario_datasets)) {
+      verbose("Running %d scenarios (parallel: %d)\n", count($scenario_datasets), (int) $config['jobs']);
+      $tasks = array_merge($tasks, run_engine($scenario_datasets, $config, (int) $config['jobs'], $completed, $total));
+    }
+  }
+  finally {
+    finish_tui();
   }
 
   $stats = tally_tasks($tasks);
 
+  print_debug_output($tasks, $config);
   print_summary($stats, $total);
+
+  if ($timed_out) {
+    throw new \Exception('Test timed out');
+  }
 
   // A no-op when the working tree is clean, so it is safe to call
   // unconditionally.
@@ -579,7 +592,9 @@ EOF;
 /**
  * Run datasets, keeping up to a given number of PHPUnit processes alive.
  *
- * A sequential run is the same engine with a concurrency of one.
+ * A sequential run is the same engine with a concurrency of one. Progress is
+ * drawn into the alternate screen when the caller has entered TUI mode, and
+ * printed as one line per dataset otherwise.
  *
  * @param array<string> $datasets
  *   Dataset names to run.
@@ -620,19 +635,16 @@ function run_engine(array $datasets, array $config, int $jobs, int $start_number
   $run = [
     'jobs' => $jobs,
     'total' => $total,
-    'is_tty' => function_exists('posix_isatty') && posix_isatty(STDOUT),
+    'retries' => (int) $config['retries'],
+    'tui' => is_tui_active(),
     'scroll_offset' => 0,
     'start_time' => microtime(TRUE),
   ];
 
-  if ($run['is_tty']) {
-    enter_tui();
-  }
-
   while (TRUE) {
     dispatch_signals();
 
-    if ($run['is_tty']) {
+    if ($run['tui']) {
       $run['scroll_offset'] = read_keyboard_input($run['scroll_offset'], count($tasks));
     }
 
@@ -677,19 +689,6 @@ function run_engine(array $datasets, array $config, int $jobs, int $start_number
   }
 
   live_tasks([]);
-
-  if ($run['is_tty']) {
-    // @codeCoverageIgnoreStart
-    // Hold the final frame so the results stay readable before the alternate
-    // screen is restored.
-    sleep(2);
-    exit_tui();
-    // @codeCoverageIgnoreEnd
-  }
-
-  foreach ($tasks as $task) {
-    print_debug_output($task, $config);
-  }
 
   return $tasks;
 }
@@ -915,25 +914,31 @@ function has_update_marker(array $output): bool {
 }
 
 /**
- * Print captured output of a dataset that did not pass cleanly.
+ * Print captured output of every dataset that did not pass cleanly.
  *
- * @param array<string, mixed> $task
- *   Completed task.
+ * @param array<int, array<string, mixed>> $tasks
+ *   Completed tasks.
  * @param array<string, mixed> $config
  *   Configuration array.
  */
-function print_debug_output(array $task, array $config): void {
-  if (empty($config['debug']) || $task['status'] === STATUS_SUCCESS) {
+function print_debug_output(array $tasks, array $config): void {
+  if (empty($config['debug'])) {
     return;
   }
 
-  $output = implode('', $task['stdout']) . implode('', $task['stderr']);
+  foreach ($tasks as $task) {
+    if ($task['status'] === STATUS_SUCCESS) {
+      continue;
+    }
 
-  if ($output === '') {
-    return;
+    $output = implode('', $task['stdout']) . implode('', $task['stderr']);
+
+    if ($output === '') {
+      continue;
+    }
+
+    verbose("\n--- DEBUG: %s ---\n%s\n--- END DEBUG ---\n", (string) $task['dataset'], $output);
   }
-
-  verbose("\n--- DEBUG: %s ---\n%s\n--- END DEBUG ---\n", (string) $task['dataset'], $output);
 }
 
 /**
@@ -1009,6 +1014,16 @@ function kill_all_tasks(): void {
 }
 
 /**
+ * Check whether standard output is attached to a terminal.
+ *
+ * @return bool
+ *   TRUE if the output can carry a TUI.
+ */
+function is_tty(): bool {
+  return function_exists('posix_isatty') && posix_isatty(STDOUT);
+}
+
+/**
  * Track whether TUI mode is active.
  *
  * @param bool|null $set
@@ -1053,6 +1068,22 @@ function exit_tui(): void {
   print "\033[?1049l";
   system('stty sane');
   is_tui_active(FALSE);
+  // @codeCoverageIgnoreEnd
+}
+
+/**
+ * Leave TUI mode after holding the final frame.
+ */
+function finish_tui(): void {
+  // @codeCoverageIgnoreStart
+  if (!is_tui_active()) {
+    return;
+  }
+
+  // Hold the final frame so the results stay readable before the alternate
+  // screen is restored.
+  sleep(2);
+  exit_tui();
   // @codeCoverageIgnoreEnd
 }
 
@@ -1119,7 +1150,7 @@ function get_viewport_height(): int {
  *   Display state of the current engine run.
  */
 function render_progress(array $tasks, array $run): void {
-  if (!$run['is_tty']) {
+  if (!$run['tui']) {
     render_progress_plain($tasks, $run);
 
     return;
@@ -1149,7 +1180,7 @@ function render_progress_plain(array $tasks, array $run): void {
 
   foreach ($tasks as $task) {
     $prefix = sprintf('  [%' . $pad . 'd/%d] %s ', $task['number'], $run['total'], $task['dataset']);
-    verbose("%s%s %ss\n", $prefix, status_label((string) $task['status']), $task['elapsed']);
+    verbose("%s%s %ss%s\n", $prefix, status_label((string) $task['status']), $task['elapsed'], attempt_suffix($task, $run));
   }
 }
 
@@ -1194,7 +1225,7 @@ function render_progress_tui(array $tasks, array $run): void {
         break;
 
       default:
-        printf("\033[K%s\033[%dm%s\033[0m %ss\n", $prefix, status_color((string) $task['status']), status_label((string) $task['status']), $task['elapsed']);
+        printf("\033[K%s\033[%dm%s\033[0m %ss%s\n", $prefix, status_color((string) $task['status']), status_label((string) $task['status']), $task['elapsed'], attempt_suffix($task, $run));
         break;
     }
   }
@@ -1218,6 +1249,28 @@ function render_progress_tui(array $tasks, array $run): void {
     print "\033[K\n";
   }
   // @codeCoverageIgnoreEnd
+}
+
+/**
+ * Get the display suffix reporting how many attempts a dataset took.
+ *
+ * A dataset that timed out and was retried is otherwise indistinguishable
+ * from one that passed on its first run.
+ *
+ * @param array<string, mixed> $task
+ *   Completed task.
+ * @param array<string, mixed> $run
+ *   Display state of the current engine run.
+ *
+ * @return string
+ *   Suffix naming the attempt, or an empty string after a single attempt.
+ */
+function attempt_suffix(array $task, array $run): string {
+  if ($task['attempt'] < 2) {
+    return '';
+  }
+
+  return sprintf(' (attempt %d/%d)', $task['attempt'], $run['retries']);
 }
 
 /**
