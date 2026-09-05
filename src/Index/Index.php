@@ -91,6 +91,7 @@ class Index implements IndexInterface {
     $include_patterns = array_unique($this->rules->getInclude());
     $skip_patterns = array_unique($this->rules->getSkip());
     $ignore_content_patterns = array_unique($this->rules->getIgnoreContent());
+    $include_content_patterns = array_unique($this->rules->getIncludeContent());
 
     foreach ($this->iterator($this->directory) as $resource) {
       if (!$resource instanceof \SplFileInfo) {
@@ -128,9 +129,9 @@ class Index implements IndexInterface {
         continue;
       }
 
-      $is_ignore_content = FALSE;
-      if (!$is_included && $this->matchesAnyPattern($relative_path, $ignore_content_patterns)) {
-        $is_ignore_content = TRUE;
+      $is_ignore_content = $this->matchesAnyPattern($relative_path, $ignore_content_patterns);
+      if ($is_ignore_content && !empty($include_content_patterns)) {
+        $is_ignore_content = !$this->matchesAnyPattern($relative_path, $include_content_patterns);
       }
 
       if ($is_ignore_content) {

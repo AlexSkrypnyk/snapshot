@@ -249,6 +249,8 @@ A pattern is matched in one of two ways, depending on whether it contains a `/`:
 
 A `!` rule overrides either kind: it is matched against both the file name and the relative path, so `!important.log` keeps that file even though `*.log` would otherwise skip it.
 
+A `!^` rule overrides content ignoring instead: `!^composer.lock` keeps comparing that file's content even though `^composer.lock` would otherwise leave it unchecked.
+
 #### Why Ignore Content?
 
 Some files should exist but have unpredictable or environment-specific content:
@@ -271,6 +273,7 @@ Using `^filename` ensures the file exists without failing on content differences
 | `!cache/keep.txt` | Include this file even though another rule would otherwise skip it |
 | `^composer.lock` | Check that the file exists, but do not compare its content |
 | `^cache/` | Check that files under the directory exist, but do not compare their content |
+| `!^composer.lock` | Compare this file's content even though a `^` rule would otherwise ignore it |
 
 ### Programmatic API
 

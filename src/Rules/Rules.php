@@ -42,6 +42,13 @@ class Rules implements RulesInterface {
   protected array $includePatterns = [];
 
   /**
+   * Patterns for files where content should be explicitly compared.
+   *
+   * @var array<int, string>
+   */
+  protected array $includeContentPatterns = [];
+
+  /**
    * Creates a new Rules instance.
    *
    * @return self
@@ -145,6 +152,13 @@ class Rules implements RulesInterface {
   /**
    * {@inheritdoc}
    */
+  public function getIncludeContent(): array {
+    return $this->includeContentPatterns;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function addIgnoreContent(string $pattern): static {
     $this->ignoreContentPatterns[] = $pattern;
     return $this;
@@ -177,6 +191,14 @@ class Rules implements RulesInterface {
   /**
    * {@inheritdoc}
    */
+  public function addIncludeContent(string $pattern): static {
+    $this->includeContentPatterns[] = $pattern;
+    return $this;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function skip(string ...$patterns): static {
     foreach ($patterns as $pattern) {
       $this->addSkip($pattern);
@@ -200,6 +222,16 @@ class Rules implements RulesInterface {
   public function include(string ...$patterns): static {
     foreach ($patterns as $pattern) {
       $this->addInclude($pattern);
+    }
+    return $this;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function includeContent(string ...$patterns): static {
+    foreach ($patterns as $pattern) {
+      $this->addIncludeContent($pattern);
     }
     return $this;
   }
@@ -237,9 +269,17 @@ class Rules implements RulesInterface {
         continue;
       }
       if ($line[0] === '!') {
-        $pattern = ($line[1] ?? '') === '^' ? substr($line, 2) : substr($line, 1);
-        if ($pattern !== '') {
-          $this->includePatterns[] = $pattern;
+        if (($line[1] ?? '') === '^') {
+          $pattern = substr($line, 2);
+          if ($pattern !== '') {
+            $this->includeContentPatterns[] = $pattern;
+          }
+        }
+        else {
+          $pattern = substr($line, 1);
+          if ($pattern !== '') {
+            $this->includePatterns[] = $pattern;
+          }
         }
       }
       elseif ($line[0] === '^') {

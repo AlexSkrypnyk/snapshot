@@ -431,6 +431,46 @@ final class IndexTest extends UnitTestCase {
     }
   }
 
+  public function testIncludeContentPatternsOverrideIgnoreContentPatterns(): void {
+    $test_dir = $this->locationsTmp() . DIRECTORY_SEPARATOR . 'test_include_content_overrides';
+    File::mkdir($test_dir);
+    File::mkdir($test_dir . DIRECTORY_SEPARATOR . 'dir');
+    file_put_contents($test_dir . DIRECTORY_SEPARATOR . 'file.txt', 'content');
+    file_put_contents($test_dir . DIRECTORY_SEPARATOR . 'skipped.txt', 'content');
+    file_put_contents($test_dir . DIRECTORY_SEPARATOR . 'dir' . DIRECTORY_SEPARATOR . 'keep.txt', 'content');
+    file_put_contents($test_dir . DIRECTORY_SEPARATOR . 'dir' . DIRECTORY_SEPARATOR . 'sibling.txt', 'content');
+
+    try {
+      $rules = (new Rules())
+        ->addIgnoreContent('file.txt')
+        ->addIgnoreContent('dir/')
+        ->addIgnoreContent('skipped.txt')
+        ->addSkip('skipped.txt')
+        ->addIncludeContent('file.txt')
+        ->addIncludeContent('dir/keep.txt')
+        ->addInclude('skipped.txt');
+
+      $files = (new Index($test_dir, $rules))->getFiles();
+
+      // '^file.txt' + '!^file.txt': content is compared, not ignored.
+      $this->assertArrayHasKey('file.txt', $files);
+      $this->assertFalse($files['file.txt']->isIgnoreContent());
+
+      // '^dir/' + '!^dir/keep.txt': the named file's content is compared, the sibling's is not.
+      $this->assertArrayHasKey('dir/keep.txt', $files);
+      $this->assertFalse($files['dir/keep.txt']->isIgnoreContent());
+      $this->assertArrayHasKey('dir/sibling.txt', $files);
+      $this->assertTrue($files['dir/sibling.txt']->isIgnoreContent());
+
+      // Skip + plain '!skipped.txt': the file is indexed, but its content is still ignored.
+      $this->assertArrayHasKey('skipped.txt', $files);
+      $this->assertTrue($files['skipped.txt']->isIgnoreContent());
+    }
+    finally {
+      File::rmdir($test_dir);
+    }
+  }
+
   protected function assertIndexedFile(array $files, string $key): IndexedFileInterface {
     $this->assertArrayHasKey($key, $files);
 
