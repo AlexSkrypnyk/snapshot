@@ -18,7 +18,7 @@ use PHPUnit\Framework\Exception;
  * 3. scenario_change - Single dataset mode (no commit, but files updated)
  * 4. both_change - Baseline fails, scenario fails → 1 commit (amended)
  * 5. genuine_failure - Non-snapshot failure → non-zero exit, no commit
- * 6. scenario_only_change - Stale scenario diff updates in parallel run
+ * 6. scenario_only_change - Stale scenario diff updates in parallel run.
  */
 #[CoversNothing]
 final class SnapshotUpdateScriptTest extends FunctionalTestCase {
