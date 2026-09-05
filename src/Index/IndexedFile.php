@@ -142,7 +142,7 @@ class IndexedFile extends \SplFileInfo implements IndexedFileInterface {
    * {@inheritdoc}
    */
   public function setContent(?string $content): void {
-    if (!is_null($content)) {
+    if ($content !== NULL) {
       $this->content = $content;
       $this->hash = $this->hash($this->content);
       $this->contentLoaded = TRUE;

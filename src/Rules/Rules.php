@@ -87,6 +87,34 @@ class Rules implements RulesInterface {
   }
 
   /**
+   * Creates a Rules instance from a file.
+   *
+   * @param string $file
+   *   The path to the rules file.
+   *
+   * @return self
+   *   A new Rules instance.
+   *
+   * @throws \AlexSkrypnyk\Snapshot\Exception\SnapshotException
+   *   If the file does not exist or cannot be read.
+   */
+  public static function fromFile(string $file): self {
+    if (!File::exists($file)) {
+      throw new SnapshotException(sprintf('File %s does not exist.', $file));
+    }
+
+    try {
+      $content = File::read($file);
+    }
+    // @codeCoverageIgnoreStart
+    catch (\Exception $exception) {
+      throw new RulesException(sprintf('Failed to read the %s file.', $file), $exception->getCode(), $exception);
+    }
+    // @codeCoverageIgnoreEnd
+    return (new self())->parse($content);
+  }
+
+  /**
    * {@inheritdoc}
    */
   public function getIgnoreContent(): array {
@@ -226,34 +254,6 @@ class Rules implements RulesInterface {
     }
 
     return $this;
-  }
-
-  /**
-   * Creates a Rules instance from a file.
-   *
-   * @param string $file
-   *   The path to the rules file.
-   *
-   * @return self
-   *   A new Rules instance.
-   *
-   * @throws \AlexSkrypnyk\Snapshot\Exception\SnapshotException
-   *   If the file does not exist or cannot be read.
-   */
-  public static function fromFile(string $file): self {
-    if (!File::exists($file)) {
-      throw new SnapshotException(sprintf('File %s does not exist.', $file));
-    }
-
-    try {
-      $content = File::read($file);
-    }
-    // @codeCoverageIgnoreStart
-    catch (\Exception $exception) {
-      throw new RulesException(sprintf('Failed to read the %s file.', $file), $exception->getCode(), $exception);
-    }
-    // @codeCoverageIgnoreEnd
-    return (new self())->parse($content);
   }
 
   /**

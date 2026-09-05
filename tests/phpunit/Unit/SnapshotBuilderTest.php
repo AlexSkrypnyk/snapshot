@@ -66,7 +66,7 @@ final class SnapshotBuilderTest extends UnitTestCase {
       ->withRules(Rules::phpProject())
       ->addSkip('custom/')
       ->addIgnoreContent('custom.lock')
-      ->withContentProcessor(fn($c) => $c);
+      ->withContentProcessor(fn(string $content): string => $content);
 
     $rules = $builder->getRules();
     $this->assertInstanceOf(Rules::class, $rules);
@@ -117,7 +117,7 @@ final class SnapshotBuilderTest extends UnitTestCase {
   }
 
   public function testDiff(): void {
-    $baseline = File::dir($this->locationsFixtureDir('diff') . DIRECTORY_SEPARATOR . 'files_equal' . DIRECTORY_SEPARATOR . '/../baseline');
+    $baseline = File::dir($this->locationsFixtureDir('diff') . DIRECTORY_SEPARATOR . 'files_equal' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'baseline');
     $dst = File::dir($this->locationsFixtureDir('diff') . DIRECTORY_SEPARATOR . 'files_equal' . DIRECTORY_SEPARATOR . 'result');
 
     $builder = SnapshotBuilder::create();

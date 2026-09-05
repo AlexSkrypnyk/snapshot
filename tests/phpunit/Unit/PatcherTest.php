@@ -54,11 +54,7 @@ final class PatcherTest extends UnitTestCase {
     $patch_file_path = self::$sut . DIRECTORY_SEPARATOR . 'test.patch';
     file_put_contents($patch_file_path, $patch_content);
 
-    $file_info = new IndexedFile(
-      $patch_file_path,
-      '',
-      ''
-    );
+    $file_info = new IndexedFile($patch_file_path, '', '');
 
     $patcher = new Patcher(self::$sut, self::$sut);
     $result = $patcher->addPatchFile($file_info);
@@ -71,11 +67,7 @@ final class PatcherTest extends UnitTestCase {
     $file_path = self::$sut . DIRECTORY_SEPARATOR . 'not_a_patch.txt';
     file_put_contents($file_path, $content);
 
-    $file_info = new IndexedFile(
-      $file_path,
-      '',
-      ''
-    );
+    $file_info = new IndexedFile($file_path, '', '');
 
     $patcher = new Patcher(self::$sut, self::$sut);
 
@@ -466,12 +458,7 @@ final class PatcherTest extends UnitTestCase {
     $line_number = 42;
     $line_content = 'Test line content';
 
-    $exception = new PatchException(
-      $message,
-      $file_path,
-      $line_number,
-      $line_content
-    );
+    $exception = new PatchException($message, $file_path, $line_number, $line_content);
 
     // Test getters.
     $this->assertSame($file_path, $exception->getFilePath());

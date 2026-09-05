@@ -19,7 +19,7 @@ final class RulesTest extends UnitTestCase {
   #[DataProvider('dataProviderRulesFromFile')]
   public function testRulesFromFile(?string $content, array $expected): void {
     $file = self::$sut . DIRECTORY_SEPARATOR . 'test.txt';
-    if (!is_null($content)) {
+    if ($content !== NULL) {
       file_put_contents($file, $content);
     }
     else {

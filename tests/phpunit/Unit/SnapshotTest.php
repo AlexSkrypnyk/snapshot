@@ -119,7 +119,7 @@ final class SnapshotTest extends UnitTestCase {
       return;
     }
 
-    if (is_null($content)) {
+    if ($content === NULL) {
       $this->fail('Expected content, but got NULL.');
     }
 
@@ -214,7 +214,7 @@ ABSENT,
 
   #[DataProvider('dataProviderDiff')]
   public function testDiff(): void {
-    $baseline = File::dir($this->locationsFixtureDir() . DIRECTORY_SEPARATOR . '/../baseline');
+    $baseline = File::dir($this->locationsFixtureDir() . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'baseline');
     $dst = File::dir($this->locationsFixtureDir() . DIRECTORY_SEPARATOR . 'result');
 
     Snapshot::diff($baseline, $dst, self::$sut);
@@ -252,7 +252,7 @@ ABSENT,
 
   #[DataProvider('dataProviderPatch')]
   public function testPatch(): void {
-    $baseline = File::dir($this->locationsFixtureDir('diff') . DIRECTORY_SEPARATOR . '/../baseline');
+    $baseline = File::dir($this->locationsFixtureDir('diff') . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'baseline');
     $diff = File::dir($this->locationsFixtureDir('diff') . DIRECTORY_SEPARATOR . 'diff');
 
     Snapshot::patch($baseline, $diff, self::$sut);
@@ -294,7 +294,7 @@ ABSENT,
     $baseline = File::dir($this->locationsFixtureDir('diff') . DIRECTORY_SEPARATOR . 'baseline');
     $diff = File::dir($this->locationsFixtureDir('diff') . DIRECTORY_SEPARATOR . 'files_equal' . DIRECTORY_SEPARATOR . 'diff');
 
-    $processor = (fn(string $content): string => str_replace('f1l1', 'REPLACED', $content));
+    $processor = fn(string $content): string => str_replace('f1l1', 'REPLACED', $content);
 
     Snapshot::patch($baseline, $diff, self::$sut, $processor);
 
@@ -315,8 +315,8 @@ ABSENT,
     $parent = self::$sut;
     $baseline_dir = $parent . DIRECTORY_SEPARATOR . Snapshot::BASELINE_DIR;
     $snapshot_dir = $parent . DIRECTORY_SEPARATOR . 'snapshot';
-    mkdir($baseline_dir, 0755, TRUE);
-    mkdir($snapshot_dir, 0755, TRUE);
+    mkdir($baseline_dir, 0777, TRUE);
+    mkdir($snapshot_dir, 0777, TRUE);
 
     $result = Snapshot::getBaselinePath($snapshot_dir);
 
@@ -341,7 +341,7 @@ ABSENT,
   }
 
   public function testDiffWithRules(): void {
-    $baseline = File::dir($this->locationsFixtureDir('diff') . DIRECTORY_SEPARATOR . 'files_equal' . DIRECTORY_SEPARATOR . '/../baseline');
+    $baseline = File::dir($this->locationsFixtureDir('diff') . DIRECTORY_SEPARATOR . 'files_equal' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'baseline');
     $dst = File::dir($this->locationsFixtureDir('diff') . DIRECTORY_SEPARATOR . 'files_equal' . DIRECTORY_SEPARATOR . 'result');
 
     $rules = Rules::create();
@@ -366,8 +366,8 @@ ABSENT,
   public function testComparerCacheInvalidation(): void {
     $dir1 = self::$sut . DIRECTORY_SEPARATOR . 'dir1';
     $dir2 = self::$sut . DIRECTORY_SEPARATOR . 'dir2';
-    mkdir($dir1);
-    mkdir($dir2);
+    mkdir($dir1, 0777, TRUE);
+    mkdir($dir2, 0777, TRUE);
 
     file_put_contents($dir1 . DIRECTORY_SEPARATOR . 'f1.txt', 'content1');
     file_put_contents($dir2 . DIRECTORY_SEPARATOR . 'f1.txt', 'content1');
@@ -387,8 +387,8 @@ ABSENT,
   public function testComparerCacheInvalidatedOnAddFile(): void {
     $dir1 = self::$sut . DIRECTORY_SEPARATOR . 'dir1';
     $dir2 = self::$sut . DIRECTORY_SEPARATOR . 'dir2';
-    mkdir($dir1);
-    mkdir($dir2);
+    mkdir($dir1, 0777, TRUE);
+    mkdir($dir2, 0777, TRUE);
 
     file_put_contents($dir1 . DIRECTORY_SEPARATOR . 'f1.txt', 'content1');
     file_put_contents($dir2 . DIRECTORY_SEPARATOR . 'f1.txt', 'content1');
@@ -412,7 +412,7 @@ ABSENT,
   public function testSyncRespectsContentIgnored(): void {
     $src = self::$sut . DIRECTORY_SEPARATOR . 'src';
     $dst = self::$sut . DIRECTORY_SEPARATOR . 'dst';
-    mkdir($src);
+    mkdir($src, 0777, TRUE);
 
     file_put_contents($src . DIRECTORY_SEPARATOR . 'regular.txt', 'regular content');
     file_put_contents($src . DIRECTORY_SEPARATOR . 'ignored.txt', 'actual secret content');
@@ -427,13 +427,17 @@ ABSENT,
   }
 
   public function testSyncUsesFileCopy(): void {
+    if (!function_exists('symlink')) {
+      $this->markTestSkipped('Symlinks are not supported on this system.');
+    }
+
     $src = self::$sut . DIRECTORY_SEPARATOR . 'src';
     $dst = self::$sut . DIRECTORY_SEPARATOR . 'dst';
-    mkdir($src);
+    mkdir($src, 0777, TRUE);
 
     // Create various file types.
     file_put_contents($src . DIRECTORY_SEPARATOR . 'regular.txt', 'regular content');
-    mkdir($src . DIRECTORY_SEPARATOR . 'subdir');
+    mkdir($src . DIRECTORY_SEPARATOR . 'subdir', 0777, TRUE);
     file_put_contents($src . DIRECTORY_SEPARATOR . 'subdir' . DIRECTORY_SEPARATOR . 'nested.txt', 'nested content');
     symlink($src . DIRECTORY_SEPARATOR . 'regular.txt', $src . DIRECTORY_SEPARATOR . 'link.txt');
 

@@ -45,7 +45,7 @@ class Index implements IndexInterface {
    * {@inheritdoc}
    */
   public function getFiles(?callable $cb = NULL): array {
-    if (is_null($this->files)) {
+    if ($this->files === NULL) {
       $this->scan();
     }
 

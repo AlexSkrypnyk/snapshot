@@ -172,7 +172,7 @@ final class DiffTest extends UnitTestCase {
     $this->assertSame('test content', $rendered);
 
     // Test with custom renderer.
-    $custom_renderer = (fn(Diff $diff, array $options = []): string => 'Custom rendered content');
+    $custom_renderer = fn(Diff $diff, array $options = []): string => 'Custom rendered content';
 
     $rendered = $diff->render([], $custom_renderer);
     $this->assertSame('Custom rendered content', $rendered);
@@ -276,6 +276,10 @@ final class DiffTest extends UnitTestCase {
   }
 
   public function testIsSameContentWithSymlinks(): void {
+    if (!function_exists('symlink')) {
+      $this->markTestSkipped('Symlinks are not supported on this system.');
+    }
+
     $diff = new Diff();
 
     $target_path = self::$sut . DIRECTORY_SEPARATOR . 'target.txt';
@@ -298,13 +302,17 @@ final class DiffTest extends UnitTestCase {
   }
 
   public function testIsSameContentSkipsSizeCheckForSymlinks(): void {
+    if (!function_exists('symlink')) {
+      $this->markTestSkipped('Symlinks are not supported on this system.');
+    }
+
     $diff = new Diff();
 
     // Create symlinks to directories (getSize() would fail).
     $dir1 = self::$sut . DIRECTORY_SEPARATOR . 'dir1';
     $dir2 = self::$sut . DIRECTORY_SEPARATOR . 'dir2';
-    mkdir($dir1);
-    mkdir($dir2);
+    mkdir($dir1, 0777, TRUE);
+    mkdir($dir2, 0777, TRUE);
 
     $link_path1 = self::$sut . DIRECTORY_SEPARATOR . 'link1';
     $link_path2 = self::$sut . DIRECTORY_SEPARATOR . 'link2';
