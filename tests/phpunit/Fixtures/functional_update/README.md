@@ -11,7 +11,7 @@ functional_update/
 ├── README.md
 │
 ├── no_change/                    # Scenario: everything matches
-│   ├── .gitignore                # Expected dir is created per invocation under the system temp dir
+│   ├── .gitignore                # Fixture project's git ignore rules
 │   ├── phpunit.xml
 │   ├── composer.json
 │   ├── tests/
@@ -193,5 +193,5 @@ functional_update/
 
 ## Special Files
 
-- `.gitignore` - Expected dir is created per invocation under the system temp dir, outside the project
+- `.gitignore` - Ignore rules for the fixture project's git repo; its `.expected` entry is inert because the expected directory is created per invocation under the system temp dir, outside the project
 - `.ignorecontent` - Skips `.gitkeep` during snapshot comparison
