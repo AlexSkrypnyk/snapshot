@@ -664,6 +664,10 @@ function run_engine(array $datasets, array $config, int $jobs, int $start_number
     }
     unset($task);
 
+    // The poll loop can end the script when a child reports an interrupt, so
+    // processes are registered before it runs and again once it returns.
+    live_tasks($tasks);
+
     foreach ($tasks as &$task) {
       if ($task['status'] !== STATUS_RUNNING) {
         continue;
@@ -673,8 +677,6 @@ function run_engine(array $datasets, array $config, int $jobs, int $start_number
     }
     unset($task);
 
-    // Refresh the registry before the next signal is dispatched, so the
-    // handler sees every process spawned in this pass.
     live_tasks($tasks);
 
     render_progress($tasks, $run);
