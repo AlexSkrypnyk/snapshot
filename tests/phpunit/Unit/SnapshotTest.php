@@ -418,6 +418,23 @@ ABSENT,
     $this->assertArrayHasKey('f2.txt', $absent_right);
   }
 
+  public function testComparerAddFileMutatorsReturnSelf(): void {
+    $dir1 = self::$sut . DIRECTORY_SEPARATOR . 'dir1';
+    $dir2 = self::$sut . DIRECTORY_SEPARATOR . 'dir2';
+    mkdir($dir1, 0777, TRUE);
+    mkdir($dir2, 0777, TRUE);
+
+    file_put_contents($dir1 . DIRECTORY_SEPARATOR . 'f1.txt', 'content1');
+    file_put_contents($dir2 . DIRECTORY_SEPARATOR . 'f1.txt', 'content1');
+
+    $comparer = Snapshot::compare($dir1, $dir2);
+    $left_file = new IndexedFile($dir1 . DIRECTORY_SEPARATOR . 'f1.txt', $dir1);
+    $right_file = new IndexedFile($dir2 . DIRECTORY_SEPARATOR . 'f1.txt', $dir2);
+
+    $this->assertSame($comparer, $comparer->addLeftFile($left_file));
+    $this->assertSame($comparer, $comparer->addRightFile($right_file));
+  }
+
   public function testSyncRespectsContentIgnored(): void {
     $src = self::$sut . DIRECTORY_SEPARATOR . 'src';
     $dst = self::$sut . DIRECTORY_SEPARATOR . 'dst';

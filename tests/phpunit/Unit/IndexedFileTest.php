@@ -279,6 +279,17 @@ final class IndexedFileTest extends UnitTestCase {
     $indexed_file->getPathnameFromBasepath();
   }
 
+  public function testMutatorsReturnSelf(): void {
+    $file_path = self::$sut . DIRECTORY_SEPARATOR . 'test.txt';
+    file_put_contents($file_path, 'test content');
+
+    $indexed_file = new IndexedFile($file_path, self::$sut);
+
+    $this->assertSame($indexed_file, $indexed_file->setBasepath(self::$sut));
+    $this->assertSame($indexed_file, $indexed_file->setContent('new content'));
+    $this->assertSame($indexed_file, $indexed_file->setIgnoreContent());
+  }
+
   public function testContentIgnoredMarkerConstant(): void {
     $this->assertSame('content_ignored', IndexedFile::CONTENT_IGNORED_MARKER);
   }
