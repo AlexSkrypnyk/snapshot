@@ -764,23 +764,7 @@ function run_datasets_parallel(array $datasets, int $start_number, int $total, a
     }
   }
 
-  $stats = ['succeeded' => 0, 'updated' => 0, 'failed' => 0, 'timedout' => 0];
-  foreach ($tasks as $task) {
-    if ($task['status'] === 'success') {
-      $stats['succeeded']++;
-    }
-    elseif ($task['status'] === 'updated') {
-      $stats['updated']++;
-    }
-    elseif ($task['status'] === 'timeout') {
-      $stats['timedout']++;
-    }
-    else {
-      $stats['failed']++;
-    }
-  }
-
-  return $stats;
+  return ['succeeded' => $succeeded, 'updated' => $updated, 'failed' => $failed, 'timedout' => $timedout];
 }
 
 /**
@@ -1120,34 +1104,6 @@ function render_progress(array $tasks, int $total, bool $is_tty, int $jobs, int 
     print "\033[K\n";
   }
   // @codeCoverageIgnoreEnd
-}
-
-/**
- * Kill all running processes in task list.
- *
- * @param array<int, array<string, mixed>> $tasks
- *   All tasks.
- */
-function kill_all_tasks(array &$tasks): void {
-  foreach ($tasks as &$task) {
-    if ($task['status'] === 'running' && is_resource($task['process'])) {
-      $status = proc_get_status($task['process']);
-      if ($status['running'] && $status['pid'] > 0) {
-        posix_kill($status['pid'], SIGTERM);
-      }
-      if (is_resource($task['pipes'][1])) {
-        fclose($task['pipes'][1]);
-      }
-      if (is_resource($task['pipes'][2])) {
-        fclose($task['pipes'][2]);
-      }
-      proc_close($task['process']);
-      $task['status'] = 'failed';
-      $task['process'] = NULL;
-      $task['pipes'] = [];
-    }
-  }
-  unset($task);
 }
 
 /**
