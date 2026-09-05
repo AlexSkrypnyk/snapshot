@@ -12,13 +12,16 @@ class PatchException extends SnapshotException {
   /**
    * Constructs a PatchException.
    *
+   * The promoted parameters declare properties, so they carry the camelCase
+   * property names rather than the snake_case argument names.
+   *
    * @param string $message
    *   The exception message.
-   * @param string|null $file_path
+   * @param string|null $filePath
    *   The file path, if applicable.
-   * @param int|string|null $line_number
+   * @param int|string|null $lineNumber
    *   The line number, if applicable.
-   * @param string|null $line_content
+   * @param string|null $lineContent
    *   The line content, if applicable.
    * @param int $code
    *   The exception code.
@@ -27,9 +30,9 @@ class PatchException extends SnapshotException {
    */
   public function __construct(
     string $message,
-    protected ?string $file_path = NULL,
-    protected int|string|null $line_number = NULL,
-    protected ?string $line_content = NULL,
+    protected ?string $filePath = NULL,
+    protected int|string|null $lineNumber = NULL,
+    protected ?string $lineContent = NULL,
     int $code = 0,
     ?\Throwable $previous = NULL,
   ) {
@@ -37,20 +40,20 @@ class PatchException extends SnapshotException {
       $message = 'An error occurred';
     }
 
-    if (($this->file_path || $this->line_number || $this->line_content) && str_ends_with($message, '.')) {
+    if (($this->filePath || $this->lineNumber || $this->lineContent) && str_ends_with($message, '.')) {
       $message = rtrim($message, '.');
     }
 
-    if ($this->file_path !== NULL) {
-      $message .= sprintf(' in file "%s"', $this->file_path);
+    if ($this->filePath !== NULL) {
+      $message .= sprintf(' in file "%s"', $this->filePath);
     }
 
-    if ($this->line_number !== NULL) {
-      $message .= ' on line ' . $this->line_number;
+    if ($this->lineNumber !== NULL) {
+      $message .= ' on line ' . $this->lineNumber;
     }
 
-    if ($this->line_content !== NULL) {
-      $message .= sprintf(': "%s"', $this->line_content);
+    if ($this->lineContent !== NULL) {
+      $message .= sprintf(': "%s"', $this->lineContent);
     }
 
     if (!str_ends_with($message, '.')) {
@@ -67,7 +70,7 @@ class PatchException extends SnapshotException {
    *   The file path.
    */
   public function getFilePath(): ?string {
-    return $this->file_path;
+    return $this->filePath;
   }
 
   /**
@@ -77,7 +80,7 @@ class PatchException extends SnapshotException {
    *   The line number.
    */
   public function getLineNumber(): int|string|null {
-    return $this->line_number;
+    return $this->lineNumber;
   }
 
   /**
@@ -87,7 +90,7 @@ class PatchException extends SnapshotException {
    *   The line content.
    */
   public function getLineContent(): ?string {
-    return $this->line_content;
+    return $this->lineContent;
   }
 
 }
