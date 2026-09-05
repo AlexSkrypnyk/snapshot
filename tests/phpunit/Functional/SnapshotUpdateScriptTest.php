@@ -684,8 +684,7 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
    */
   protected function findProcesses(string $marker): array {
     $output = [];
-    $code = 0;
-    exec(sprintf('pgrep -f %s 2>/dev/null', escapeshellarg($marker)), $output, $code);
+    exec(sprintf('pgrep -f %s 2>/dev/null', escapeshellarg($marker)), $output);
 
     return array_values(array_filter(array_map(trim(...), $output), fn(string $pid): bool => $pid !== ''));
   }
