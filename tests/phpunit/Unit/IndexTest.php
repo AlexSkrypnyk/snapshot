@@ -46,6 +46,7 @@ final class IndexTest extends UnitTestCase {
       'dir3_subdirs/dir32-unignored/d32f1.txt',
       'dir3_subdirs/dir32-unignored/d32f1_symlink.txt',
       'dir3_subdirs/dir32-unignored/d32f2-ignore-ext-only-dst.log',
+      'dir3_subdirs/dir32-unignored/d32f2-only-src.log',
       'dir3_subdirs/dir32-unignored/d32f2.txt',
       'dir3_subdirs/f3-new-file-ignore-everywhere.txt',
       'dir3_subdirs_symlink',
@@ -76,6 +77,7 @@ final class IndexTest extends UnitTestCase {
         'dir3_subdirs/d3f2-ignored.txt',
         'dir3_subdirs/dir31/d31f2-ignored.txt',
         'dir3_subdirs/dir32-unignored/d32f2-ignore-ext-only-dst.log',
+        'dir3_subdirs/dir32-unignored/d32f2-only-src.log',
         'dir3_subdirs/dir32-unignored/d32f2.txt',
         'dir5_content_ignore/d5f2-unignored-content.txt',
         'f2.txt',
@@ -103,6 +105,8 @@ final class IndexTest extends UnitTestCase {
         'dir3_subdirs/dir31/d31f2-ignored.txt',
         'dir3_subdirs/dir32-unignored/d32f1.txt',
         'dir3_subdirs/dir32-unignored/d32f1_symlink.txt',
+        'dir3_subdirs/dir32-unignored/d32f2-ignore-ext-only-dst.log',
+        'dir3_subdirs/dir32-unignored/d32f2-only-src.log',
         'dir3_subdirs/dir32-unignored/d32f2.txt',
         'dir3_subdirs_symlink',
         'dir5_content_ignore/d5f1-ignored-changed-content.txt',
@@ -387,6 +391,119 @@ final class IndexTest extends UnitTestCase {
       $this->assertArrayHasKey('test_file.txt', $files);
 
       $this->assertArrayNotHasKey('sub_directory', $files);
+    }
+    finally {
+      File::rmdir($test_dir);
+    }
+  }
+
+  public function testIncludePatternsOverrideGlobalAndSkipPatterns(): void {
+    $test_dir = $this->locationsTmp() . DIRECTORY_SEPARATOR . 'test_include_overrides';
+    File::mkdir($test_dir);
+    File::mkdir($test_dir . DIRECTORY_SEPARATOR . 'sub');
+    File::mkdir($test_dir . DIRECTORY_SEPARATOR . 'cache');
+    file_put_contents($test_dir . DIRECTORY_SEPARATOR . 'important.txt', 'content');
+    file_put_contents($test_dir . DIRECTORY_SEPARATOR . 'important.log', 'content');
+    file_put_contents($test_dir . DIRECTORY_SEPARATOR . 'other.log', 'content');
+    file_put_contents($test_dir . DIRECTORY_SEPARATOR . 'sub' . DIRECTORY_SEPARATOR . 'important.log', 'content');
+    file_put_contents($test_dir . DIRECTORY_SEPARATOR . 'sub' . DIRECTORY_SEPARATOR . 'other.log', 'content');
+    file_put_contents($test_dir . DIRECTORY_SEPARATOR . 'cache' . DIRECTORY_SEPARATOR . 'keep.txt', 'content');
+    file_put_contents($test_dir . DIRECTORY_SEPARATOR . 'cache' . DIRECTORY_SEPARATOR . 'other.txt', 'content');
+
+    try {
+      $rules = (new Rules())
+        ->addGlobal('important.txt')
+        ->addGlobal('*.log')
+        ->addSkip('cache/')
+        ->addInclude('important.txt')
+        ->addInclude('important.log')
+        ->addInclude('cache/keep.txt');
+
+      $files = (new Index($test_dir, $rules))->getFiles();
+
+      // 'important.txt' + '!important.txt': the file is indexed.
+      $this->assertArrayHasKey('important.txt', $files);
+
+      // '*.log' + '!important.log': the file is indexed at any depth,
+      // 'other.log' stays excluded.
+      $this->assertArrayHasKey('important.log', $files);
+      $this->assertArrayHasKey('sub/important.log', $files);
+      $this->assertArrayNotHasKey('other.log', $files);
+      $this->assertArrayNotHasKey('sub/other.log', $files);
+
+      // 'cache/' + '!cache/keep.txt': the named file is indexed, its
+      // sibling stays excluded.
+      $this->assertArrayHasKey('cache/keep.txt', $files);
+      $this->assertArrayNotHasKey('cache/other.txt', $files);
+    }
+    finally {
+      File::rmdir($test_dir);
+    }
+  }
+
+  public function testIncludeContentPatternsOverrideIgnoreContentPatterns(): void {
+    $test_dir = $this->locationsTmp() . DIRECTORY_SEPARATOR . 'test_include_content_overrides';
+    File::mkdir($test_dir);
+    File::mkdir($test_dir . DIRECTORY_SEPARATOR . 'dir');
+    file_put_contents($test_dir . DIRECTORY_SEPARATOR . 'file.txt', 'content');
+    file_put_contents($test_dir . DIRECTORY_SEPARATOR . 'skipped.txt', 'content');
+    file_put_contents($test_dir . DIRECTORY_SEPARATOR . 'dir' . DIRECTORY_SEPARATOR . 'keep.txt', 'content');
+    file_put_contents($test_dir . DIRECTORY_SEPARATOR . 'dir' . DIRECTORY_SEPARATOR . 'sibling.txt', 'content');
+
+    try {
+      $rules = (new Rules())
+        ->addIgnoreContent('file.txt')
+        ->addIgnoreContent('dir/')
+        ->addIgnoreContent('skipped.txt')
+        ->addSkip('skipped.txt')
+        ->addIncludeContent('file.txt')
+        ->addIncludeContent('dir/keep.txt')
+        ->addInclude('skipped.txt');
+
+      $files = (new Index($test_dir, $rules))->getFiles();
+
+      // '^file.txt' + '!^file.txt': content is compared, not ignored.
+      $this->assertFalse($this->assertIndexedFile($files, 'file.txt')->isIgnoreContent());
+
+      // '^dir/' + '!^dir/keep.txt': the named file's content is compared,
+      // the sibling's is not.
+      $this->assertFalse($this->assertIndexedFile($files, 'dir/keep.txt')->isIgnoreContent());
+      $this->assertTrue($this->assertIndexedFile($files, 'dir/sibling.txt')->isIgnoreContent());
+
+      // Skip + plain '!skipped.txt': the file is indexed, but its content
+      // is still ignored.
+      $this->assertTrue($this->assertIndexedFile($files, 'skipped.txt')->isIgnoreContent());
+    }
+    finally {
+      File::rmdir($test_dir);
+    }
+  }
+
+  public function testBuiltInSkipsAreNotOverridableByIncludePatterns(): void {
+    $test_dir = $this->locationsTmp() . DIRECTORY_SEPARATOR . 'test_builtin_skips';
+    File::mkdir($test_dir);
+    File::mkdir($test_dir . DIRECTORY_SEPARATOR . '.git');
+    File::mkdir($test_dir . DIRECTORY_SEPARATOR . 'sub');
+    file_put_contents($test_dir . DIRECTORY_SEPARATOR . Snapshot::IGNORECONTENT, 'content');
+    file_put_contents($test_dir . DIRECTORY_SEPARATOR . '.git' . DIRECTORY_SEPARATOR . 'config', 'content');
+    file_put_contents($test_dir . DIRECTORY_SEPARATOR . 'sub' . DIRECTORY_SEPARATOR . Snapshot::IGNORECONTENT, 'content');
+
+    try {
+      $rules = (new Rules())
+        ->addInclude('config')
+        ->addInclude('.git/config')
+        ->addInclude(Snapshot::IGNORECONTENT);
+
+      $files = (new Index($test_dir, $rules))->getFiles();
+
+      // A bare or path-formed include cannot expose the VCS tree.
+      $this->assertArrayNotHasKey('.git/config', $files);
+
+      // Nor can it expose the root rules file.
+      $this->assertArrayNotHasKey(Snapshot::IGNORECONTENT, $files);
+
+      // A nested rules file is not a built-in and stays indexed as before.
+      $this->assertArrayHasKey('sub/' . Snapshot::IGNORECONTENT, $files);
     }
     finally {
       File::rmdir($test_dir);

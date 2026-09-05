@@ -28,6 +28,7 @@ final class RulesTest extends UnitTestCase {
 
     $rules = Rules::fromFile($file);
     $this->assertSame($expected['include'], $rules->getInclude());
+    $this->assertSame($expected['include_content'], $rules->getIncludeContent());
     $this->assertSame($expected['content'], $rules->getIgnoreContent());
     $this->assertSame($expected['global'], $rules->getGlobal());
     $this->assertSame($expected['skip'], $rules->getSkip());
@@ -38,6 +39,7 @@ final class RulesTest extends UnitTestCase {
   public static function dataProviderRulesFromFile(): \Iterator {
     $default = [
       'include' => [],
+      'include_content' => [],
       'content' => [],
       'global' => [],
       'skip' => [],
@@ -57,7 +59,8 @@ final class RulesTest extends UnitTestCase {
     yield 'include rules' => [
       "!include-this\n!^content-only",
       [
-        'include' => ['include-this', 'content-only'],
+        'include' => ['include-this'],
+        'include_content' => ['content-only'],
       ] + $default,
     ];
     yield 'ignore content rules' => [
@@ -81,7 +84,8 @@ final class RulesTest extends UnitTestCase {
     yield 'mixed rules' => [
       "!include-this\n!^content-only\n^ignore-content\nsome/path/file.txt\nglobal-pattern",
       [
-        'include' => ['include-this', 'content-only'],
+        'include' => ['include-this'],
+        'include_content' => ['content-only'],
         'content' => ['ignore-content'],
         'global' => ['global-pattern'],
         'skip' => ['some/path/file.txt'],
@@ -91,6 +95,7 @@ final class RulesTest extends UnitTestCase {
       "  !include-with-spaces  \n  ^ignore-content-with-spaces  \n  global-with-spaces  \n  some/path/with spaces/  ",
       [
         'include' => ['include-with-spaces'],
+        'include_content' => [],
         'content' => ['ignore-content-with-spaces'],
         'global' => ['global-with-spaces'],
         'skip' => ['some/path/with spaces/'],
@@ -100,6 +105,7 @@ final class RulesTest extends UnitTestCase {
       "!include-this\r\n^ignore-content\r\rglobal-pattern\nsome/path/file.txt",
       [
         'include' => ['include-this'],
+        'include_content' => [],
         'content' => ['ignore-content'],
         'global' => ['global-pattern'],
         'skip' => ['some/path/file.txt'],
@@ -108,34 +114,39 @@ final class RulesTest extends UnitTestCase {
   }
 
   #[DataProvider('dataProviderParseEdgeCases')]
-  public function testParseEdgeCases(string $input, array $expected_include, array $expected_content, array $expected_global, array $expected_skip): void {
+  public function testParseEdgeCases(string $input, array $expected_include, array $expected_include_content, array $expected_content, array $expected_global, array $expected_skip): void {
     $rules = new Rules();
     $rules->parse($input);
 
     $this->assertSame($expected_include, $rules->getInclude());
+    $this->assertSame($expected_include_content, $rules->getIncludeContent());
     $this->assertSame($expected_content, $rules->getIgnoreContent());
     $this->assertSame($expected_global, $rules->getGlobal());
     $this->assertSame($expected_skip, $rules->getSkip());
   }
 
   public static function dataProviderParseEdgeCases(): \Iterator {
-    yield 'empty lines and whitespace' => ["\n  \n\t\n", [], [], [], []];
-    yield 'special characters in include rule' => ['!special@chars', ['special@chars'], [], [], []];
-    yield 'regex special characters as global rule' => ['[regex].special+chars?{test}', [], [], ['[regex].special+chars?{test}'], []];
-    yield 'very long pattern' => [str_repeat('a', 1000), [], [], [str_repeat('a', 1000)], []];
-    yield 'lone negation prefix is ignored' => ['!', [], [], [], []];
-    yield 'negation of content marker only is ignored' => ['!^', [], [], [], []];
+    yield 'empty lines and whitespace' => ["\n  \n\t\n", [], [], [], [], []];
+    yield 'special characters in include rule' => ['!special@chars', ['special@chars'], [], [], [], []];
+    yield 'regex special characters as global rule' => ['[regex].special+chars?{test}', [], [], [], ['[regex].special+chars?{test}'], []];
+    yield 'very long pattern' => [str_repeat('a', 1000), [], [], [], [str_repeat('a', 1000)], []];
+    yield 'lone negation prefix is ignored' => ['!', [], [], [], [], []];
+    yield 'negation of content marker only is ignored' => ['!^', [], [], [], [], []];
+    yield 'content-only include is routed to include-content' => ['!^keep-content.txt', [], ['keep-content.txt'], [], [], []];
+    yield 'plain include is routed to include, not include-content' => ['!keep.txt', ['keep.txt'], [], [], [], []];
   }
 
   public function testParseMethodChaining(): void {
     $rules = new Rules();
     $result = $rules->parse('!include-rule')
+      ->parse('!^include-content-rule')
       ->parse('^ignore-content-rule')
       ->parse('global-rule')
       ->parse('some/path/');
 
     $this->assertSame($rules, $result);
     $this->assertSame(['include-rule'], $rules->getInclude());
+    $this->assertSame(['include-content-rule'], $rules->getIncludeContent());
     $this->assertSame(['ignore-content-rule'], $rules->getIgnoreContent());
     $this->assertSame(['global-rule'], $rules->getGlobal());
     $this->assertSame(['some/path/'], $rules->getSkip());
@@ -153,6 +164,7 @@ final class RulesTest extends UnitTestCase {
     yield 'addSkip' => ['addSkip', 'getSkip', 'skip-pattern'];
     yield 'addGlobal' => ['addGlobal', 'getGlobal', 'global-pattern'];
     yield 'addInclude' => ['addInclude', 'getInclude', 'include-pattern'];
+    yield 'addIncludeContent' => ['addIncludeContent', 'getIncludeContent', 'include-content-pattern'];
   }
 
   public function testAddMethodChaining(): void {
@@ -160,13 +172,15 @@ final class RulesTest extends UnitTestCase {
     $result = $rules->addIgnoreContent('pattern1')
       ->addSkip('pattern2')
       ->addGlobal('pattern3')
-      ->addInclude('pattern4');
+      ->addInclude('pattern4')
+      ->addIncludeContent('pattern5');
 
     $this->assertSame($rules, $result, 'Method chaining should return the same instance');
     $this->assertSame(['pattern1'], $rules->getIgnoreContent());
     $this->assertSame(['pattern2'], $rules->getSkip());
     $this->assertSame(['pattern3'], $rules->getGlobal());
     $this->assertSame(['pattern4'], $rules->getInclude());
+    $this->assertSame(['pattern5'], $rules->getIncludeContent());
   }
 
   public function testFromFileReadException(): void {
@@ -200,7 +214,8 @@ EOT;
     try {
       $rules = Rules::fromFile($rules_file);
 
-      $this->assertSame(['include-pattern', 'include-ignore-content-pattern'], $rules->getInclude());
+      $this->assertSame(['include-pattern'], $rules->getInclude());
+      $this->assertSame(['include-ignore-content-pattern'], $rules->getIncludeContent());
       $this->assertSame(['ignore-content-pattern'], $rules->getIgnoreContent());
       $this->assertSame(['global-pattern'], $rules->getGlobal());
       $this->assertSame(['path/to/file.txt'], $rules->getSkip());
@@ -218,6 +233,7 @@ EOT;
     $this->assertSame([], $rules->getSkip());
     $this->assertSame([], $rules->getIgnoreContent());
     $this->assertSame([], $rules->getInclude());
+    $this->assertSame([], $rules->getIncludeContent());
     $this->assertSame([], $rules->getGlobal());
   }
 
@@ -242,15 +258,24 @@ EOT;
     $this->assertSame(['important.log', 'keep-this.txt'], $rules->getInclude());
   }
 
+  public function testFluentIncludeContentMethod(): void {
+    $rules = Rules::create()
+      ->includeContent('composer.lock', 'keep-this-content.txt');
+
+    $this->assertSame(['composer.lock', 'keep-this-content.txt'], $rules->getIncludeContent());
+  }
+
   public function testFluentMethodChaining(): void {
     $rules = Rules::create()
       ->skip('vendor/', 'node_modules/')
       ->ignoreContent('composer.lock')
-      ->include('!important.txt');
+      ->include('!important.txt')
+      ->includeContent('important.log');
 
     $this->assertSame(['vendor/', 'node_modules/'], $rules->getSkip());
     $this->assertSame(['composer.lock'], $rules->getIgnoreContent());
     $this->assertSame(['!important.txt'], $rules->getInclude());
+    $this->assertSame(['important.log'], $rules->getIncludeContent());
   }
 
   public function testPhpProject(): void {

@@ -42,6 +42,13 @@ class Rules implements RulesInterface {
   protected array $includePatterns = [];
 
   /**
+   * Patterns for files where content should be explicitly compared.
+   *
+   * @var array<int, string>
+   */
+  protected array $includeContentPatterns = [];
+
+  /**
    * Creates a new Rules instance.
    *
    * @return self
@@ -145,6 +152,13 @@ class Rules implements RulesInterface {
   /**
    * {@inheritdoc}
    */
+  public function getIncludeContent(): array {
+    return $this->includeContentPatterns;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function addIgnoreContent(string $pattern): static {
     $this->ignoreContentPatterns[] = $pattern;
     return $this;
@@ -171,6 +185,14 @@ class Rules implements RulesInterface {
    */
   public function addInclude(string $pattern): static {
     $this->includePatterns[] = $pattern;
+    return $this;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function addIncludeContent(string $pattern): static {
+    $this->includeContentPatterns[] = $pattern;
     return $this;
   }
 
@@ -206,6 +228,16 @@ class Rules implements RulesInterface {
 
   /**
    * {@inheritdoc}
+   */
+  public function includeContent(string ...$patterns): static {
+    foreach ($patterns as $pattern) {
+      $this->addIncludeContent($pattern);
+    }
+    return $this;
+  }
+
+  /**
+   * {@inheritdoc}
    *
    *  The syntax for the file is similar to .gitignore with addition of
    *  the content ignoring using ^ prefix:
@@ -214,10 +246,10 @@ class Rules implements RulesInterface {
    *  dir/    Ignore directory and all subdirectories.
    *  dir/*   Ignore all files in directory, but not subdirectories.
    *  ^file   Ignore content changes in file, but not the file itself.
-   *  ^dir/   Ignore content changes in all files and subdirectories, but check
-   *          that the directory itself exists.
-   *  ^dir/*  Ignore content changes in all files, but not subdirectories and
-   *          check that the directory itself exists.
+   *  ^dir/   Ignore content changes in all files under the directory, at any
+   *          depth.
+   *  ^dir/*  Ignore content changes in all files in directory, but not
+   *          subdirectories.
    *  !file   Do not ignore file.
    *  !dir/   Do not ignore directory, including all subdirectories.
    *  !dir/*  Do not ignore all files in directory, but not subdirectories.
@@ -237,9 +269,17 @@ class Rules implements RulesInterface {
         continue;
       }
       if ($line[0] === '!') {
-        $pattern = ($line[1] ?? '') === '^' ? substr($line, 2) : substr($line, 1);
-        if ($pattern !== '') {
-          $this->includePatterns[] = $pattern;
+        if (($line[1] ?? '') === '^') {
+          $pattern = substr($line, 2);
+          if ($pattern !== '') {
+            $this->includeContentPatterns[] = $pattern;
+          }
+        }
+        else {
+          $pattern = substr($line, 1);
+          if ($pattern !== '') {
+            $this->includePatterns[] = $pattern;
+          }
         }
       }
       elseif ($line[0] === '^') {

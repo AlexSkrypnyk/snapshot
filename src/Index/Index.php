@@ -91,6 +91,7 @@ class Index implements IndexInterface {
     $include_patterns = array_unique($this->rules->getInclude());
     $skip_patterns = array_unique($this->rules->getSkip());
     $ignore_content_patterns = array_unique($this->rules->getIgnoreContent());
+    $include_content_patterns = array_unique($this->rules->getIncludeContent());
 
     foreach ($this->iterator($this->directory) as $resource) {
       if (!$resource instanceof \SplFileInfo) {
@@ -111,26 +112,33 @@ class Index implements IndexInterface {
 
       $file = new IndexedFile($resource->getPathname(), $this->directory);
 
-      // Fast path: check basename against global patterns first.
       $basename = $file->getBasename();
-      if ($this->matchesAnyPattern($basename, $global_patterns)) {
+      $relative_path = $file->getPathnameFromBasepath();
+
+      // Neither the rules file nor the VCS tree is user-overridable, so both
+      // are hard-skipped before include patterns are checked.
+      if ($relative_path === Snapshot::IGNORECONTENT || str_starts_with($relative_path, '.git/')) {
         continue;
       }
 
-      $relative_path = $file->getPathnameFromBasepath();
-
+      // $is_included must be known before the global check, so an include
+      // pattern can override the global check as well as the skip check.
       $is_included = FALSE;
       if (!empty($include_patterns)) {
-        $is_included = $this->matchesAnyPattern($relative_path, $include_patterns);
+        $is_included = $this->matchesAnyPattern($relative_path, $include_patterns) || $this->matchesAnyPattern($basename, $include_patterns);
+      }
+
+      if (!$is_included && $this->matchesAnyPattern($basename, $global_patterns)) {
+        continue;
       }
 
       if (!$is_included && $this->matchesAnyPattern($relative_path, $skip_patterns)) {
         continue;
       }
 
-      $is_ignore_content = FALSE;
-      if (!$is_included && $this->matchesAnyPattern($relative_path, $ignore_content_patterns)) {
-        $is_ignore_content = TRUE;
+      $is_ignore_content = $this->matchesAnyPattern($relative_path, $ignore_content_patterns);
+      if ($is_ignore_content && !empty($include_content_patterns)) {
+        $is_ignore_content = !$this->matchesAnyPattern($relative_path, $include_content_patterns);
       }
 
       if ($is_ignore_content) {

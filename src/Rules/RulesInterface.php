@@ -42,6 +42,14 @@ interface RulesInterface {
   public function getInclude(): array;
 
   /**
+   * Gets patterns for files where content should be explicitly compared.
+   *
+   * @return array<int, string>
+   *   Array of patterns.
+   */
+  public function getIncludeContent(): array;
+
+  /**
    * Adds a pattern for files where only content should be ignored.
    *
    * @param string $pattern
@@ -86,6 +94,17 @@ interface RulesInterface {
   public function addInclude(string $pattern): static;
 
   /**
+   * Adds a pattern for files where content should be explicitly compared.
+   *
+   * @param string $pattern
+   *   The pattern to add.
+   *
+   * @return $this
+   *   Return self for chaining.
+   */
+  public function addIncludeContent(string $pattern): static;
+
+  /**
    * Fluent method to skip multiple patterns.
    *
    * @param string ...$patterns
@@ -117,6 +136,17 @@ interface RulesInterface {
    *   Return self for chaining.
    */
   public function include(string ...$patterns): static;
+
+  /**
+   * Fluent method to include content of multiple patterns.
+   *
+   * @param string ...$patterns
+   *   Patterns to compare content for.
+   *
+   * @return $this
+   *   Return self for chaining.
+   */
+  public function includeContent(string ...$patterns): static;
 
   /**
    * Parse the rules content.

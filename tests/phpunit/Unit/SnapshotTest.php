@@ -86,6 +86,7 @@ final class SnapshotTest extends UnitTestCase {
           'dir2_flat-present-dst/d2f1.txt',
           'dir2_flat-present-dst/d2f2.txt',
           'dir3_subdirs/dir31/f4-new-file-notignore-everywhere.txt',
+          'dir3_subdirs/dir32-unignored/d32f2-ignore-ext-only-dst.log',
           'dir5_content_ignore/dir51/d51f2-new-file.txt',
           'f4-new-file-notignore-everywhere.txt',
         ],
@@ -94,6 +95,7 @@ final class SnapshotTest extends UnitTestCase {
           'dir1_flat/d1f1_symlink.txt',
           'dir1_flat/d1f3-only-src.txt',
           'dir3_subdirs/dir32-unignored/d32f1_symlink.txt',
+          'dir3_subdirs/dir32-unignored/d32f2-only-src.log',
           'dir3_subdirs_symlink',
           'f2_symlink.txt',
         ],
@@ -188,6 +190,7 @@ ABSENT,
   dir2_flat-present-dst/d2f1.txt
   dir2_flat-present-dst/d2f2.txt
   dir3_subdirs/dir31/f4-new-file-notignore-everywhere.txt
+  dir3_subdirs/dir32-unignored/d32f2-ignore-ext-only-dst.log
   dir5_content_ignore/dir51/d51f2-new-file.txt
   f4-new-file-notignore-everywhere.txt
 ABSENT,
@@ -197,6 +200,7 @@ ABSENT,
   dir1_flat/d1f1_symlink.txt
   dir1_flat/d1f3-only-src.txt
   dir3_subdirs/dir32-unignored/d32f1_symlink.txt
+  dir3_subdirs/dir32-unignored/d32f2-only-src.log
   dir3_subdirs_symlink
   f2_symlink.txt
 ABSENT,

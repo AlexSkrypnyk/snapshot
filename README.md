@@ -244,8 +244,14 @@ build/cache/
 
 A pattern is matched in one of two ways, depending on whether it contains a `/`:
 
-- **Without a `/`** the pattern is matched against the file name alone, so `*.log` skips every `.log` file at any depth. Name patterns are applied before everything else, and a `!` rule does not override them.
-- **With a `/`** the pattern is matched against the path relative to the directory being indexed, so `build/cache/` only skips that one directory. A `!` rule does override a path rule.
+- **Without a `/`** the pattern is matched against the file name alone, so `*.log` skips every `.log` file at any depth.
+- **With a `/`** the pattern is matched against the path relative to the directory being indexed, so `build/cache/` only skips that one directory.
+
+A `!` rule overrides either kind: it is matched against both the file name and the relative path, so `!important.log` keeps that file even though `*.log` would otherwise skip it.
+
+A `!^` rule overrides content ignoring instead: `!^composer.lock` keeps comparing that file's content even though `^composer.lock` would otherwise leave it unchecked. Unlike `!`, a `!^` rule is matched only against the relative path, the same way a `^` rule is.
+
+The `.ignorecontent` file itself and the `.git/` directory are always skipped and cannot be re-included by any `!` rule.
 
 #### Why Ignore Content?
 
@@ -266,9 +272,10 @@ Using `^filename` ensures the file exists without failing on content differences
 | `*.log` | Skip every file whose name matches the glob, at any depth |
 | `cache/` | Skip the directory and everything under it |
 | `cache/*` | Skip the files directly in the directory, but not its subdirectories |
-| `!cache/keep.txt` | Include this file even though a path rule would skip it |
+| `!cache/keep.txt` | Include this file even though another rule would otherwise skip it |
 | `^composer.lock` | Check that the file exists, but do not compare its content |
 | `^cache/` | Check that files under the directory exist, but do not compare their content |
+| `!^composer.lock` | Compare this file's content even though a `^` rule would otherwise ignore it |
 
 ### Programmatic API
 
@@ -308,6 +315,7 @@ $builder = SnapshotBuilder::create()
     ->addSkip('custom/')
     ->addIgnoreContent('custom.lock')
     ->addInclude('custom/keep.txt')
+    ->addIncludeContent('custom/keep.log')
     ->withContentProcessor(fn($content) => trim($content));
 
 // Use the builder for multiple operations
@@ -334,7 +342,8 @@ $rules = Rules::nodeProject(); // Skips node_modules/, ignores lock files
 $rules = Rules::create()
     ->skip('vendor/', 'node_modules/', '.git/')
     ->ignoreContent('composer.lock', 'package-lock.json')
-    ->include('vendor/autoload.php');
+    ->include('vendor/autoload.php')
+    ->includeContent('build-manifest.json');
 
 // Or load them from an existing .ignorecontent file
 $rules = Rules::fromFile($baseline . '/.ignorecontent');

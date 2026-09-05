@@ -128,6 +128,23 @@ class SnapshotBuilder {
   }
 
   /**
+   * Add include content patterns to the rules.
+   *
+   * Creates rules if not set.
+   *
+   * @param string ...$patterns
+   *   Patterns to compare content for.
+   *
+   * @return $this
+   *   Return self for chaining.
+   */
+  public function addIncludeContent(string ...$patterns): static {
+    $this->rules ??= new Rules();
+    $this->rules->includeContent(...$patterns);
+    return $this;
+  }
+
+  /**
    * Get the configured rules.
    *
    * @return \AlexSkrypnyk\Snapshot\Rules\Rules|null
