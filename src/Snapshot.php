@@ -165,7 +165,9 @@ class Snapshot {
       // getFiles() allows a transform callback to return non-file values;
       // skip anything that is not a file since none is passed here.
       if (!$file instanceof IndexedFileInterface) {
+        // @codeCoverageIgnoreStart
         continue;
+        // @codeCoverageIgnoreEnd
       }
 
       $basename = $file->getBasename();

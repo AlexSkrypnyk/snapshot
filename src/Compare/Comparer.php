@@ -57,7 +57,9 @@ class Comparer implements ComparerInterface {
       // getFiles() allows a transform callback to return non-file values;
       // skip anything that is not a file since none is passed here.
       if (!$left_file instanceof IndexedFileInterface) {
+        // @codeCoverageIgnoreStart
         continue;
+        // @codeCoverageIgnoreEnd
       }
 
       ($this->diffs[$path] ??= new Diff())->setLeft($left_file);
@@ -70,7 +72,9 @@ class Comparer implements ComparerInterface {
 
     foreach ($right_files as $path => $right_file) {
       if (!$right_file instanceof IndexedFileInterface) {
+        // @codeCoverageIgnoreStart
         continue;
+        // @codeCoverageIgnoreEnd
       }
 
       ($this->diffs[$path] ??= new Diff())->setRight($right_file);
