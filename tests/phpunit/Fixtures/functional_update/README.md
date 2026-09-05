@@ -69,30 +69,34 @@ functional_update/
 │       └── scenario1/
 │           └── scenario_file.txt # "new scenario content"
 │
-└── both_change/                  # Scenario: baseline AND scenario need update
-    ├── .gitignore
-    ├── phpunit.xml
-    ├── composer.json
-    ├── tests/
-    │   ├── SnapshotTest.php
-    │   └── snapshots/
-    │       ├── _baseline/
-    │       │   ├── file1.txt     # "original content"
-    │       │   └── file2.txt     # "content 2"
-    │       └── scenario1/
-    │           ├── .gitkeep
-    │           └── .ignorecontent
-    ├── actual/
-    │   ├── file1.txt             # "modified content for baseline" ← DIFFERS
-    │   ├── file2.txt             # "content 2"
-    │   └── scenario_file.txt     # "new scenario content" ← NEW FILE
-    └── expected/
-        ├── _baseline/
-        │   ├── file1.txt         # "modified content for baseline"
-        │   ├── file2.txt         # "content 2"
-        │   └── scenario_file.txt # "new scenario content" (merged into baseline)
-        └── scenario1/
-            └── .gitkeep          # Empty (no diffs after baseline update)
+├── both_change/                  # Scenario: baseline AND scenario need update
+│   ├── .gitignore
+│   ├── phpunit.xml
+│   ├── composer.json
+│   ├── tests/
+│   │   ├── SnapshotTest.php
+│   │   └── snapshots/
+│   │       ├── _baseline/
+│   │       │   ├── file1.txt     # "original content"
+│   │       │   └── file2.txt     # "content 2"
+│   │       └── scenario1/
+│   │           ├── .gitkeep
+│   │           └── .ignorecontent
+│   ├── actual/
+│   │   ├── file1.txt             # "modified content for baseline" ← DIFFERS
+│   │   ├── file2.txt             # "content 2"
+│   │   └── scenario_file.txt     # "new scenario content" ← NEW FILE
+│   └── expected/
+│       ├── _baseline/
+│       │   ├── file1.txt         # "modified content for baseline"
+│       │   ├── file2.txt         # "content 2"
+│       │   └── scenario_file.txt # "new scenario content" (merged into baseline)
+│       └── scenario1/
+│           └── .gitkeep          # Empty (no diffs after baseline update)
+│
+├── scenario_only_change/         # Scenario: only the scenario diff is stale
+├── genuine_failure/              # Scenario: a failure no update can fix
+└── slow/                         # Scenario: a dataset that outlives a signal
 ```
 
 ## Test Scenarios
