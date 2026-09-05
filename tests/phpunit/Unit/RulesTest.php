@@ -271,12 +271,12 @@ EOT;
     $rules = Rules::create()
       ->skip('vendor/', 'node_modules/')
       ->ignoreContent('composer.lock')
-      ->include('!important.txt')
+      ->include('important.txt')
       ->includeContent('important.log');
 
     $this->assertSame(['vendor/', 'node_modules/'], $rules->getSkip());
     $this->assertSame(['composer.lock'], $rules->getIgnoreContent());
-    $this->assertSame(['!important.txt'], $rules->getInclude());
+    $this->assertSame(['important.txt'], $rules->getInclude());
     $this->assertSame(['important.log'], $rules->getIncludeContent());
   }
 
