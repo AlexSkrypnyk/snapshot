@@ -6,6 +6,7 @@ namespace AlexSkrypnyk\Snapshot\Index;
 
 use AlexSkrypnyk\File\File;
 use AlexSkrypnyk\Snapshot\Rules\Rules;
+use AlexSkrypnyk\Snapshot\Rules\RulesInterface;
 use AlexSkrypnyk\Snapshot\Snapshot;
 
 /**
@@ -25,14 +26,14 @@ class Index implements IndexInterface {
   /**
    * The rules to apply when indexing files.
    */
-  protected Rules $rules;
+  protected RulesInterface $rules;
 
   /**
    * Constructs an Index instance.
    *
    * @param string $directory
    *   The directory to index.
-   * @param \AlexSkrypnyk\Snapshot\Rules\Rules|null $rules
+   * @param \AlexSkrypnyk\Snapshot\Rules\RulesInterface|null $rules
    *   Optional rules to apply when indexing. Falls back to the directory's
    *   rules file, then to empty rules.
    * @param mixed $fileFilter
@@ -44,7 +45,7 @@ class Index implements IndexInterface {
    */
   public function __construct(
     protected string $directory,
-    ?Rules $rules = NULL,
+    ?RulesInterface $rules = NULL,
     protected mixed $fileFilter = NULL,
   ) {
     $this->rules = $rules ??
@@ -89,7 +90,7 @@ class Index implements IndexInterface {
   /**
    * {@inheritdoc}
    */
-  public function getRules(): Rules {
+  public function getRules(): RulesInterface {
     return $this->rules;
   }
 

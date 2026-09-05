@@ -7,6 +7,7 @@ namespace AlexSkrypnyk\Snapshot;
 use AlexSkrypnyk\Snapshot\Compare\Comparer;
 use AlexSkrypnyk\Snapshot\Index\Index;
 use AlexSkrypnyk\Snapshot\Rules\Rules;
+use AlexSkrypnyk\Snapshot\Rules\RulesInterface;
 
 /**
  * Configurable snapshot builder for repeated operations.
@@ -31,7 +32,7 @@ class SnapshotBuilder {
   /**
    * Configured rules for operations.
    */
-  protected ?Rules $rules = NULL;
+  protected ?RulesInterface $rules = NULL;
 
   /**
    * Configured content processor callback for the patch operation.
@@ -60,13 +61,13 @@ class SnapshotBuilder {
   /**
    * Set the rules for snapshot operations.
    *
-   * @param \AlexSkrypnyk\Snapshot\Rules\Rules $rules
+   * @param \AlexSkrypnyk\Snapshot\Rules\RulesInterface $rules
    *   The rules to use.
    *
    * @return $this
    *   Return self for chaining.
    */
-  public function withRules(Rules $rules): static {
+  public function withRules(RulesInterface $rules): static {
     $this->rules = $rules;
     return $this;
   }
@@ -172,10 +173,10 @@ class SnapshotBuilder {
   /**
    * Get the configured rules.
    *
-   * @return \AlexSkrypnyk\Snapshot\Rules\Rules|null
+   * @return \AlexSkrypnyk\Snapshot\Rules\RulesInterface|null
    *   The configured rules or NULL.
    */
-  public function getRules(): ?Rules {
+  public function getRules(): ?RulesInterface {
     return $this->rules;
   }
 

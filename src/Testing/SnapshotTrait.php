@@ -6,7 +6,7 @@ namespace AlexSkrypnyk\Snapshot\Testing;
 
 use AlexSkrypnyk\File\File;
 use AlexSkrypnyk\Snapshot\Exception\PatchException;
-use AlexSkrypnyk\Snapshot\Rules\Rules;
+use AlexSkrypnyk\Snapshot\Rules\RulesInterface;
 use AlexSkrypnyk\Snapshot\Snapshot;
 use PHPUnit\Framework\TestStatus\Error;
 use PHPUnit\Framework\TestStatus\Failure;
@@ -43,7 +43,7 @@ trait SnapshotTrait {
    *   Expected directory path.
    * @param string $actual
    *   Actual directory path.
-   * @param \AlexSkrypnyk\Snapshot\Rules\Rules|null $rules
+   * @param \AlexSkrypnyk\Snapshot\Rules\RulesInterface|null $rules
    *   Optional comparison rules.
    * @param callable|null $file_filter
    *   Optional callback receiving each indexed file; returning FALSE excludes
@@ -53,7 +53,7 @@ trait SnapshotTrait {
    * @param string|null $message
    *   Optional custom failure message.
    */
-  public function assertDirectoriesIdentical(string $expected, string $actual, ?Rules $rules = NULL, ?callable $file_filter = NULL, bool $show_diff = TRUE, ?string $message = NULL): void {
+  public function assertDirectoriesIdentical(string $expected, string $actual, ?RulesInterface $rules = NULL, ?callable $file_filter = NULL, bool $show_diff = TRUE, ?string $message = NULL): void {
     $text = Snapshot::compare($expected, $actual, $rules, $file_filter)->render(['show_diff' => $show_diff]);
     if (!empty($text)) {
       $this->fail($message ? $message . PHP_EOL . $text : $text);

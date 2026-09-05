@@ -10,7 +10,7 @@ use AlexSkrypnyk\Snapshot\Compare\Diff;
 use AlexSkrypnyk\Snapshot\Index\Index;
 use AlexSkrypnyk\Snapshot\Index\IndexedFileInterface;
 use AlexSkrypnyk\Snapshot\Patch\Patcher;
-use AlexSkrypnyk\Snapshot\Rules\Rules;
+use AlexSkrypnyk\Snapshot\Rules\RulesInterface;
 use AlexSkrypnyk\Snapshot\Sync\Syncer;
 
 /**
@@ -51,7 +51,7 @@ class Snapshot {
    *
    * @param string $directory
    *   Directory to scan.
-   * @param \AlexSkrypnyk\Snapshot\Rules\Rules|null $rules
+   * @param \AlexSkrypnyk\Snapshot\Rules\RulesInterface|null $rules
    *   Optional comparison rules.
    * @param callable|null $file_filter
    *   Optional callback receiving each indexed file; returning FALSE excludes
@@ -60,7 +60,7 @@ class Snapshot {
    * @return \AlexSkrypnyk\Snapshot\Index\Index
    *   The directory index.
    */
-  public static function scan(string $directory, ?Rules $rules = NULL, ?callable $file_filter = NULL): Index {
+  public static function scan(string $directory, ?RulesInterface $rules = NULL, ?callable $file_filter = NULL): Index {
     return new Index($directory, $rules, $file_filter);
   }
 
@@ -71,7 +71,7 @@ class Snapshot {
    *   Baseline directory path (expected).
    * @param string $actual
    *   Actual directory path.
-   * @param \AlexSkrypnyk\Snapshot\Rules\Rules|null $rules
+   * @param \AlexSkrypnyk\Snapshot\Rules\RulesInterface|null $rules
    *   Optional comparison rules.
    * @param callable|null $file_filter
    *   Optional callback receiving each indexed file; returning FALSE excludes
@@ -80,7 +80,7 @@ class Snapshot {
    * @return \AlexSkrypnyk\Snapshot\Compare\Comparer
    *   Comparison result object.
    */
-  public static function compare(string $baseline, string $actual, ?Rules $rules = NULL, ?callable $file_filter = NULL): Comparer {
+  public static function compare(string $baseline, string $actual, ?RulesInterface $rules = NULL, ?callable $file_filter = NULL): Comparer {
     $baseline_index = new Index($baseline, $rules, $file_filter);
 
     File::mkdir($actual);
@@ -98,13 +98,13 @@ class Snapshot {
    *   Actual directory path.
    * @param string $output
    *   Directory to write diff files to.
-   * @param \AlexSkrypnyk\Snapshot\Rules\Rules|null $rules
+   * @param \AlexSkrypnyk\Snapshot\Rules\RulesInterface|null $rules
    *   Optional comparison rules.
    * @param callable|null $file_filter
    *   Optional callback receiving each indexed file; returning FALSE excludes
    *   the file from both indexes.
    */
-  public static function diff(string $baseline, string $actual, string $output, ?Rules $rules = NULL, ?callable $file_filter = NULL): void {
+  public static function diff(string $baseline, string $actual, string $output, ?RulesInterface $rules = NULL, ?callable $file_filter = NULL): void {
     File::mkdir($output);
 
     $comparer = self::compare($baseline, $actual, $rules, $file_filter);
@@ -151,12 +151,12 @@ class Snapshot {
    *   Directory containing diff files produced by self::diff().
    * @param string $destination
    *   Destination directory for patched output.
-   * @param \AlexSkrypnyk\Snapshot\Rules\Rules|null $rules
+   * @param \AlexSkrypnyk\Snapshot\Rules\RulesInterface|null $rules
    *   Optional rules applied to the baseline sync and the diffs scan.
    * @param callable|null $content_processor
    *   Optional callback to process content after patching.
    */
-  public static function patch(string $baseline, string $diffs, string $destination, ?Rules $rules = NULL, ?callable $content_processor = NULL): void {
+  public static function patch(string $baseline, string $diffs, string $destination, ?RulesInterface $rules = NULL, ?callable $content_processor = NULL): void {
     File::mkdir($destination);
 
     self::sync($baseline, $destination, 0755, FALSE, $rules);
@@ -219,13 +219,13 @@ class Snapshot {
    *   Directory permissions.
    * @param bool $copy_empty_dirs
    *   Whether to copy empty directories.
-   * @param \AlexSkrypnyk\Snapshot\Rules\Rules|null $rules
+   * @param \AlexSkrypnyk\Snapshot\Rules\RulesInterface|null $rules
    *   Optional comparison rules.
    * @param callable|null $file_filter
    *   Optional callback receiving each indexed file; returning FALSE excludes
    *   the file from the sync.
    */
-  public static function sync(string $source, string $destination, int $permissions = 0755, bool $copy_empty_dirs = FALSE, ?Rules $rules = NULL, ?callable $file_filter = NULL): void {
+  public static function sync(string $source, string $destination, int $permissions = 0755, bool $copy_empty_dirs = FALSE, ?RulesInterface $rules = NULL, ?callable $file_filter = NULL): void {
     $index = self::scan($source, $rules, $file_filter);
     (new Syncer($index))->sync($destination, $permissions, $copy_empty_dirs);
   }
