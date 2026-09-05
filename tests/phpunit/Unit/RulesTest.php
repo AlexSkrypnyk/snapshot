@@ -253,6 +253,13 @@ EOT;
     $this->assertSame(['composer.lock', 'package-lock.json'], $rules->getIgnoreContent());
   }
 
+  public function testFluentGlobalMethod(): void {
+    $rules = Rules::create()
+      ->global('*.log', '.DS_Store');
+
+    $this->assertSame(['*.log', '.DS_Store'], $rules->getGlobal());
+  }
+
   public function testFluentIncludeMethod(): void {
     $rules = Rules::create()
       ->include('important.log', 'keep-this.txt');
@@ -271,11 +278,13 @@ EOT;
     $rules = Rules::create()
       ->skip('vendor/', 'node_modules/')
       ->ignoreContent('composer.lock')
+      ->global('*.log')
       ->include('important.txt')
       ->includeContent('important.log');
 
     $this->assertSame(['vendor/', 'node_modules/'], $rules->getSkip());
     $this->assertSame(['composer.lock'], $rules->getIgnoreContent());
+    $this->assertSame(['*.log'], $rules->getGlobal());
     $this->assertSame(['important.txt'], $rules->getInclude());
     $this->assertSame(['important.log'], $rules->getIncludeContent());
   }

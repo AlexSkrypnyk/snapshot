@@ -127,6 +127,17 @@ interface RulesInterface {
   public function ignoreContent(string ...$patterns): static;
 
   /**
+   * Fluent method to add multiple global patterns.
+   *
+   * @param string ...$patterns
+   *   Patterns that apply everywhere.
+   *
+   * @return $this
+   *   Return self for chaining.
+   */
+  public function global(string ...$patterns): static;
+
+  /**
    * Fluent method to include multiple patterns.
    *
    * @param string ...$patterns

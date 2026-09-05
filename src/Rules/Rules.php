@@ -225,6 +225,16 @@ class Rules implements RulesInterface {
   /**
    * {@inheritdoc}
    */
+  public function global(string ...$patterns): static {
+    foreach ($patterns as $pattern) {
+      $this->addGlobal($pattern);
+    }
+    return $this;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
   public function include(string ...$patterns): static {
     foreach ($patterns as $pattern) {
       $this->addInclude($pattern);

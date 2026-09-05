@@ -63,6 +63,14 @@ final class SnapshotBuilderTest extends UnitTestCase {
     $this->assertSame(['composer.lock', 'package-lock.json'], $rules->getIgnoreContent());
   }
 
+  public function testAddGlobal(): void {
+    $builder = SnapshotBuilder::create()->addGlobal('*.log', '.DS_Store');
+
+    $rules = $builder->getRules();
+    $this->assertInstanceOf(Rules::class, $rules);
+    $this->assertSame(['*.log', '.DS_Store'], $rules->getGlobal());
+  }
+
   public function testAddInclude(): void {
     $builder = SnapshotBuilder::create()->addInclude('important.log');
 
@@ -84,6 +92,7 @@ final class SnapshotBuilderTest extends UnitTestCase {
       ->withRules(Rules::phpProject())
       ->addSkip('custom/')
       ->addIgnoreContent('custom.lock')
+      ->addGlobal('*.tmp')
       ->withContentProcessor(fn(string $content): string => $content);
 
     $rules = $builder->getRules();
@@ -92,6 +101,7 @@ final class SnapshotBuilderTest extends UnitTestCase {
     $this->assertContains('custom/', $rules->getSkip());
     $this->assertContains('composer.lock', $rules->getIgnoreContent());
     $this->assertContains('custom.lock', $rules->getIgnoreContent());
+    $this->assertContains('*.tmp', $rules->getGlobal());
   }
 
   public function testScan(): void {

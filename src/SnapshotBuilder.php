@@ -137,6 +137,23 @@ class SnapshotBuilder {
   }
 
   /**
+   * Add global patterns to the rules.
+   *
+   * Creates rules if not set.
+   *
+   * @param string ...$patterns
+   *   Patterns that apply everywhere.
+   *
+   * @return $this
+   *   Return self for chaining.
+   */
+  public function addGlobal(string ...$patterns): static {
+    $this->rules ??= new Rules();
+    $this->rules->global(...$patterns);
+    return $this;
+  }
+
+  /**
    * Add include patterns to the rules.
    *
    * Creates rules if not set.
