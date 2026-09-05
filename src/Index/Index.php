@@ -115,7 +115,8 @@ class Index implements IndexInterface {
       $basename = $file->getBasename();
       $relative_path = $file->getPathnameFromBasepath();
 
-      // $is_included must be known before the global check, so an include pattern can override it too.
+      // $is_included must be known before the global check, so an include
+      // pattern can override it too.
       $is_included = FALSE;
       if (!empty($include_patterns)) {
         $is_included = $this->matchesAnyPattern($relative_path, $include_patterns) || $this->matchesAnyPattern($basename, $include_patterns);
