@@ -393,13 +393,13 @@ final class SnapshotTest extends UnitTestCase {
     $this->assertEmpty($files);
   }
 
-  public function testScanWithRulesAndProcessor(): void {
+  public function testScanWithRulesAndFileFilter(): void {
     $src = File::dir($this->locationsFixtureDir('compare') . DIRECTORY_SEPARATOR . 'files_equal' . DIRECTORY_SEPARATOR . 'directory1');
 
     $rules = Rules::create();
-    $processor = fn(string $content): string => $content;
+    $file_filter = fn(IndexedFile $file): bool => TRUE;
 
-    $index = Snapshot::scan($src, $rules, $processor);
+    $index = Snapshot::scan($src, $rules, $file_filter);
 
     $this->assertGreaterThan(0, count($index->getFiles()));
   }
