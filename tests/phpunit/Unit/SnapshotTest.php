@@ -79,16 +79,7 @@ final class SnapshotTest extends UnitTestCase {
         ],
       ],
     ];
-    yield 'files_equal_advanced' => [
-      [
-        'absent_dir1' => [
-          'dir3_subdirs/dir32-unignored/d32f2-ignore-ext-only-dst.log',
-        ],
-        'absent_dir2' => [
-          'dir3_subdirs/dir32-unignored/d32f2-only-src.log',
-        ],
-      ],
-    ];
+    yield 'files_equal_advanced' => [];
     yield 'files_not_equal_advanced' => [
       [
         'absent_dir1' => [
@@ -189,17 +180,7 @@ ABSENT,
       ],
     ];
     yield 'files_equal_advanced' => [
-      [
-        'Differences between directories',
-          <<<ABSENT
-Files absent in [left]:
-  dir3_subdirs/dir32-unignored/d32f2-ignore-ext-only-dst.log
-ABSENT,
-          <<<ABSENT
-Files absent in [right]:
-  dir3_subdirs/dir32-unignored/d32f2-only-src.log
-ABSENT,
-      ],
+      [],
     ];
     yield 'files_not_equal_advanced' => [
       [

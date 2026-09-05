@@ -115,8 +115,14 @@ class Index implements IndexInterface {
       $basename = $file->getBasename();
       $relative_path = $file->getPathnameFromBasepath();
 
+      // Neither the rules file nor the VCS tree is user-overridable, so both
+      // are hard-skipped before include patterns are checked.
+      if ($relative_path === Snapshot::IGNORECONTENT || str_starts_with($relative_path, '.git/')) {
+        continue;
+      }
+
       // $is_included must be known before the global check, so an include
-      // pattern can override it too.
+      // pattern can override the global check as well as the skip check.
       $is_included = FALSE;
       if (!empty($include_patterns)) {
         $is_included = $this->matchesAnyPattern($relative_path, $include_patterns) || $this->matchesAnyPattern($basename, $include_patterns);
