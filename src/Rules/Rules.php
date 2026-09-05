@@ -246,10 +246,10 @@ class Rules implements RulesInterface {
    *  dir/    Ignore directory and all subdirectories.
    *  dir/*   Ignore all files in directory, but not subdirectories.
    *  ^file   Ignore content changes in file, but not the file itself.
-   *  ^dir/   Ignore content changes in all files and subdirectories, but check
-   *          that the directory itself exists.
-   *  ^dir/*  Ignore content changes in all files, but not subdirectories and
-   *          check that the directory itself exists.
+   *  ^dir/   Ignore content changes in all files under the directory, at any
+   *          depth.
+   *  ^dir/*  Ignore content changes in all files in directory, but not
+   *          subdirectories.
    *  !file   Do not ignore file.
    *  !dir/   Do not ignore directory, including all subdirectories.
    *  !dir/*  Do not ignore all files in directory, but not subdirectories.
