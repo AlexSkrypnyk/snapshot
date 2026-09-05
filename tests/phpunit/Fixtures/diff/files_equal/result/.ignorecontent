@@ -5,8 +5,8 @@
 # dir/ - ignore directory and all subdirectories
 # dir/* - ignore all files in directory, but not subdirectories
 # ^file - ignore content changes in file, but not the file itself
-# ^dir/ - ignore content changes in all files and subdirectories, but check that the directory itself exists
-# ^dir/* - ignore content changes in all files, but not subdirectories and check that the directory itself exists
+# ^dir/ - ignore content changes in files under the directory, at any depth
+# ^dir/* - ignore content changes in files in directory, not subdirectories
 # !file - do not ignore file
 # !dir/ - do not ignore directory, including all subdirectories
 # !dir/* - do not ignore all files in directory, but not subdirectories
