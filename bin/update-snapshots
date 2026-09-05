@@ -646,6 +646,7 @@ function run_engine(array $datasets, array $config, int $jobs, int $start_number
       'dots' => 0,
       'attempt' => 1,
       'last_dot_time' => 0.0,
+      'reported' => FALSE,
     ];
   }
 
@@ -694,7 +695,7 @@ function run_engine(array $datasets, array $config, int $jobs, int $start_number
     }
     unset($task);
 
-    render_progress($tasks, $run);
+    $tasks = render_progress($tasks, $run);
 
     $pending = array_filter($tasks, fn(array $task): bool => $task['status'] === STATUS_QUEUED || $task['status'] === STATUS_RUNNING);
 
@@ -877,7 +878,9 @@ function build_phpunit_command(array $config, array $arguments, array $env = [],
     $prefix[] = sprintf('timeout --foreground %ds', $timeout);
   }
 
-  return sprintf('%s %s/vendor/bin/phpunit %s', implode(' ', $prefix), $config['root'], implode(' ', $arguments));
+  $phpunit = escapeshellarg(rtrim((string) $config['root'], '/') . '/vendor/bin/phpunit');
+
+  return sprintf('%s %s %s', implode(' ', $prefix), $phpunit, implode(' ', $arguments));
 }
 
 /**
@@ -1253,40 +1256,51 @@ function get_viewport_height(): int {
  *   All tasks.
  * @param array<string, mixed> $run
  *   Display state of the current engine run.
+ *
+ * @return array<int, array<string, mixed>>
+ *   Tasks, with the ones whose result has been printed marked as reported.
  */
-function render_progress(array $tasks, array $run): void {
+function render_progress(array $tasks, array $run): array {
   if (!$run['tui']) {
-    render_progress_plain($tasks, $run);
-
-    return;
+    return render_progress_plain($tasks, $run);
   }
 
   // @codeCoverageIgnoreStart
   render_progress_tui($tasks, $run);
   // @codeCoverageIgnoreEnd
+
+  return $tasks;
 }
 
 /**
- * Print one result line per task once every task has finished.
+ * Print the result line of every task that has settled since the last call.
+ *
+ * Without a screen to redraw, a result is printed as soon as its dataset ends
+ * rather than held until the whole batch does.
  *
  * @param array<int, array<string, mixed>> $tasks
  *   All tasks.
  * @param array<string, mixed> $run
  *   Display state of the current engine run.
+ *
+ * @return array<int, array<string, mixed>>
+ *   Tasks, with the printed ones marked as reported.
  */
-function render_progress_plain(array $tasks, array $run): void {
-  $pending = array_filter($tasks, fn(array $task): bool => $task['status'] === STATUS_QUEUED || $task['status'] === STATUS_RUNNING);
-
-  if (!empty($pending)) {
-    return;
-  }
-
+function render_progress_plain(array $tasks, array $run): array {
   $pad = strlen((string) $run['total']);
 
-  foreach ($tasks as $task) {
+  foreach ($tasks as &$task) {
+    if ($task['reported'] || $task['status'] === STATUS_QUEUED || $task['status'] === STATUS_RUNNING) {
+      continue;
+    }
+
     $prefix = sprintf('  [%' . $pad . 'd/%d] %s ', $task['number'], $run['total'], $task['dataset']);
     verbose("%s%s %ss%s\n", $prefix, status_label((string) $task['status']), $task['elapsed'], attempt_suffix($task, $run));
+    $task['reported'] = TRUE;
   }
+  unset($task);
+
+  return $tasks;
 }
 
 /**
