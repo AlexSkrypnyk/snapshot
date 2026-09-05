@@ -273,17 +273,16 @@ final class SnapshotBuilderTest extends UnitTestCase {
     $builder->patch($baseline, $diffs, $destination);
 
     $this->assertSame([], $filtered, 'File filter is not used by the patch operation');
-    sort($processed);
-    $this->assertSame(['drop content', 'keep content'], $processed);
+    $this->assertEqualsCanonicalizing(['drop content', 'keep content'], $processed);
     $this->assertStringEqualsFile($destination . DIRECTORY_SEPARATOR . 'keep.txt', 'KEEP CONTENT');
 
+    $filtered = [];
     $processed = [];
 
     $builder->sync($baseline, $synced);
 
     $this->assertSame([], $processed, 'Content processor is not used by the sync operation');
-    sort($filtered);
-    $this->assertSame(['drop.txt', 'keep.txt'], $filtered);
+    $this->assertEqualsCanonicalizing(['drop.txt', 'keep.txt'], $filtered);
     $this->assertFileExists($synced . DIRECTORY_SEPARATOR . 'keep.txt');
     $this->assertFileDoesNotExist($synced . DIRECTORY_SEPARATOR . 'drop.txt');
   }

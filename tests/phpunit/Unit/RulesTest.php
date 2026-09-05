@@ -365,27 +365,39 @@ EOT;
   public function testRuleSetAppliesAllRuleKinds(): void {
     $rules = (new AllKindsRuleSet())->applyTo();
 
-    $this->assertSame(['skipped/'], $rules->getSkip());
     $this->assertSame(['ignored.lock'], $rules->getIgnoreContent());
+    $this->assertSame(['skipped/'], $rules->getSkip());
     $this->assertSame(['*.tmp'], $rules->getGlobal());
     $this->assertSame(['skipped/keep.txt'], $rules->getInclude());
-    $this->assertSame(['ignored.lock'], $rules->getIncludeContent());
+    $this->assertSame(['compared.lock'], $rules->getIncludeContent());
   }
 
-  public function testFactoriesReturnSubclass(): void {
+  #[DataProvider('dataProviderFactoriesReturnSubclass')]
+  public function testFactoriesReturnSubclass(string $factory): void {
     $file = $this->locationsTmp() . DIRECTORY_SEPARATOR . 'subclass.ignorecontent';
     file_put_contents($file, "vendor/\n");
 
+    $arguments = match ($factory) {
+      'fromRuleSet' => [new PhpProjectRuleSet()],
+      'fromFile' => [$file],
+      default => [],
+    };
+
     try {
-      $this->assertInstanceOf(CustomRules::class, CustomRules::create());
-      $this->assertInstanceOf(CustomRules::class, CustomRules::phpProject());
-      $this->assertInstanceOf(CustomRules::class, CustomRules::nodeProject());
-      $this->assertInstanceOf(CustomRules::class, CustomRules::fromRuleSet(new PhpProjectRuleSet()));
-      $this->assertInstanceOf(CustomRules::class, CustomRules::fromFile($file));
+      $rules = CustomRules::$factory(...$arguments);
+      $this->assertInstanceOf(CustomRules::class, $rules);
     }
     finally {
       unlink($file);
     }
+  }
+
+  public static function dataProviderFactoriesReturnSubclass(): \Iterator {
+    yield 'create' => ['create'];
+    yield 'phpProject' => ['phpProject'];
+    yield 'nodeProject' => ['nodeProject'];
+    yield 'fromRuleSet' => ['fromRuleSet'];
+    yield 'fromFile' => ['fromFile'];
   }
 
 }
@@ -393,22 +405,24 @@ EOT;
 /**
  * Rules subclass used to assert that the factories honour late static binding.
  */
-class CustomRules extends Rules {
+final class CustomRules extends Rules {
 }
 
 /**
  * Rule set covering every rule kind that applyTo() forwards.
+ *
+ * Each kind carries a distinct pattern so a misrouted constant is visible.
  */
-class AllKindsRuleSet extends AbstractRuleSet {
-
-  protected const SKIP_PATTERNS = ['skipped/'];
+final class AllKindsRuleSet extends AbstractRuleSet {
 
   protected const IGNORE_CONTENT_PATTERNS = ['ignored.lock'];
+
+  protected const SKIP_PATTERNS = ['skipped/'];
 
   protected const GLOBAL_PATTERNS = ['*.tmp'];
 
   protected const INCLUDE_PATTERNS = ['skipped/keep.txt'];
 
-  protected const INCLUDE_CONTENT_PATTERNS = ['ignored.lock'];
+  protected const INCLUDE_CONTENT_PATTERNS = ['compared.lock'];
 
 }

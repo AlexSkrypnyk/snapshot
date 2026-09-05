@@ -82,9 +82,7 @@ class Rules implements RulesInterface {
    *   A new Rules instance configured for PHP projects.
    */
   public static function phpProject(): static {
-    $rules = new static();
-    (new PhpProjectRuleSet())->applyTo($rules);
-    return $rules;
+    return static::fromRuleSet(new PhpProjectRuleSet());
   }
 
   /**
@@ -94,9 +92,7 @@ class Rules implements RulesInterface {
    *   A new Rules instance configured for Node.js projects.
    */
   public static function nodeProject(): static {
-    $rules = new static();
-    (new NodeProjectRuleSet())->applyTo($rules);
-    return $rules;
+    return static::fromRuleSet(new NodeProjectRuleSet());
   }
 
   /**
