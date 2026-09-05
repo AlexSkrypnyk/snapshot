@@ -859,7 +859,13 @@ function poll_task(array $task, array $config): array {
  *   Command line to pass to the shell.
  */
 function build_phpunit_command(array $config, array $arguments, array $env = [], ?int $timeout = NULL): string {
-  $prefix = ['XDEBUG_MODE=off'];
+  // proc_open() runs the command through a shell and hands back a handle to
+  // that shell. 'exec' makes the shell replace itself so the handle points at
+  // the command, and 'env' carries the variables without turning the command
+  // into an assignment that some shells decline to exec. Without both, a
+  // shell can survive as an intermediary that dies on a signal without
+  // passing it on, orphaning everything below it.
+  $prefix = ['exec', 'env', 'XDEBUG_MODE=off'];
 
   foreach ($env as $name => $value) {
     $prefix[] = $name . '=' . $value;
@@ -981,9 +987,20 @@ function kill_all_tasks(): void {
     return;
   }
 
+  // The handle covers the process the shell became, and the sweep covers
+  // whatever that process spawned below it. Both are signalled, so the
+  // guarantee does not depend on the shape of the tree a platform builds.
+  $pids = [];
+
   foreach ($tasks as $task) {
+    $status = proc_get_status($task['process']);
+    $pids = array_merge($pids, descendant_pids((int) $status['pid']));
     proc_terminate($task['process'], SIGNAL_TERM);
   }
+
+  $pids = array_unique($pids);
+
+  signal_pids($pids, SIGNAL_TERM);
 
   for ($step = 0; $step < KILL_GRACE_STEPS; $step++) {
     $alive = array_filter($tasks, fn(array $task): bool => is_resource($task['process']) && proc_get_status($task['process'])['running']);
@@ -994,6 +1011,10 @@ function kill_all_tasks(): void {
 
     usleep(KILL_GRACE_INTERVAL);
   }
+
+  // Escalate before any handle is closed, so no reaped process number is
+  // signalled after the system is free to hand it to somebody else.
+  signal_pids($pids, SIGNAL_KILL);
 
   foreach ($tasks as $task) {
     if (!is_resource($task['process'])) {
@@ -1016,6 +1037,56 @@ function kill_all_tasks(): void {
   }
 
   live_tasks([]);
+}
+
+/**
+ * Collect a process and every process descended from it.
+ *
+ * @param int $pid
+ *   Process ID to walk from.
+ *
+ * @return array<int>
+ *   The given process ID followed by the IDs below it. Only the given ID is
+ *   returned where 'pgrep' is unavailable.
+ */
+function descendant_pids(int $pid): array {
+  if ($pid < 1) {
+    return [];
+  }
+
+  $pids = [$pid];
+  $output = [];
+  exec(sprintf('pgrep -P %d 2>/dev/null', $pid), $output);
+
+  foreach ($output as $line) {
+    $child = (int) trim($line);
+
+    if ($child > 0) {
+      $pids = array_merge($pids, descendant_pids($child));
+    }
+  }
+
+  return $pids;
+}
+
+/**
+ * Send a signal to a list of processes.
+ *
+ * @param array<int> $pids
+ *   Process IDs to signal.
+ * @param int $signal
+ *   Signal number to send.
+ */
+function signal_pids(array $pids, int $signal): void {
+  foreach ($pids as $pid) {
+    if (function_exists('posix_kill')) {
+      posix_kill($pid, $signal);
+
+      continue;
+    }
+
+    exec(sprintf('kill -%d %d 2>/dev/null', $signal, $pid));
+  }
 }
 
 /**
