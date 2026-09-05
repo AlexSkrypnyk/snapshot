@@ -342,21 +342,21 @@ final class PatcherTest extends UnitTestCase {
   public function testUpdateDestinations(): void {
     $patcher = new Patcher(self::$sut, self::$sut);
 
-    $dest_file1 = self::$sut . DIRECTORY_SEPARATOR . 'file1.txt';
-    $dest_file2 = self::$sut . DIRECTORY_SEPARATOR . 'file2.txt';
+    $dst_file1 = self::$sut . DIRECTORY_SEPARATOR . 'file1.txt';
+    $dst_file2 = self::$sut . DIRECTORY_SEPARATOR . 'file2.txt';
 
     self::setProtectedValue($patcher, 'dstLines', [
-      $dest_file1 => ['line1', 'line2'],
-      $dest_file2 => ['line3', 'line4'],
+      $dst_file1 => ['line1', 'line2'],
+      $dst_file2 => ['line3', 'line4'],
     ]);
 
     $result = self::callProtectedMethod($patcher, 'updateDestinations', []);
 
     $this->assertSame(2, $result);
-    $this->assertFileExists($dest_file1);
-    $this->assertFileExists($dest_file2);
-    $this->assertSame("line1\nline2", file_get_contents($dest_file1));
-    $this->assertSame("line3\nline4", file_get_contents($dest_file2));
+    $this->assertFileExists($dst_file1);
+    $this->assertFileExists($dst_file2);
+    $this->assertSame("line1\nline2", file_get_contents($dst_file1));
+    $this->assertSame("line3\nline4", file_get_contents($dst_file2));
   }
 
   /**

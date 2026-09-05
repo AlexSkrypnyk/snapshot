@@ -61,7 +61,7 @@ final class SnapshotBuilderTest extends UnitTestCase {
     $this->assertSame(['important.log'], $rules->getInclude());
   }
 
-  public function testFluentChaining(): void {
+  public function testFluentMethodChaining(): void {
     $builder = SnapshotBuilder::create()
       ->withRules(Rules::phpProject())
       ->addSkip('custom/')

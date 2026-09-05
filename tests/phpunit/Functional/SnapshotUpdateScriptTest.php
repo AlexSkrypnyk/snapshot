@@ -222,9 +222,9 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
     $this->assertSame(2, $commit_count, 'Expected initial + update commit');
 
     // Assert: commit message contains "Updated".
-    $last_commit_msg = $this->getLastCommitMessage();
+    $last_commit_message = $this->getLastCommitMessage();
     $this->assertTrue(
-      str_contains($last_commit_msg, 'Updated baseline') || str_contains($last_commit_msg, 'Updated snapshots'),
+      str_contains($last_commit_message, 'Updated baseline') || str_contains($last_commit_message, 'Updated snapshots'),
       'Expected commit message containing "Updated"'
     );
 
@@ -355,9 +355,9 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
     $this->assertSame(2, $commit_count, 'Expected initial + update commit');
 
     // Assert: commit message contains "Updated".
-    $last_commit_msg = $this->getLastCommitMessage();
+    $last_commit_message = $this->getLastCommitMessage();
     $this->assertTrue(
-      str_contains($last_commit_msg, 'Updated baseline') || str_contains($last_commit_msg, 'Updated snapshots'),
+      str_contains($last_commit_message, 'Updated baseline') || str_contains($last_commit_message, 'Updated snapshots'),
       'Expected commit message containing "Updated"'
     );
 
@@ -620,8 +620,8 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
     $commit_count = $this->getCommitCount();
     $this->assertSame(2, $commit_count, 'Expected initial + update commit');
 
-    $last_commit_msg = $this->getLastCommitMessage();
-    $this->assertStringContainsString('Updated', $last_commit_msg);
+    $last_commit_message = $this->getLastCommitMessage();
+    $this->assertStringContainsString('Updated', $last_commit_message);
   }
 
   /**

@@ -32,7 +32,7 @@ class Rules implements RulesInterface {
    *
    * @var array<int, string>
    */
-  protected array $global = [];
+  protected array $globalPatterns = [];
 
   /**
    * Patterns for files to explicitly include.
@@ -104,7 +104,7 @@ class Rules implements RulesInterface {
    * {@inheritdoc}
    */
   public function getGlobal(): array {
-    return $this->global;
+    return $this->globalPatterns;
   }
 
   /**
@@ -134,7 +134,7 @@ class Rules implements RulesInterface {
    * {@inheritdoc}
    */
   public function addGlobal(string $pattern): static {
-    $this->global[] = $pattern;
+    $this->globalPatterns[] = $pattern;
     return $this;
   }
 
@@ -218,7 +218,7 @@ class Rules implements RulesInterface {
         $this->ignoreContentPatterns[] = substr($line, 1);
       }
       elseif (!str_contains($line, DIRECTORY_SEPARATOR)) {
-        $this->global[] = $line;
+        $this->globalPatterns[] = $line;
       }
       else {
         $this->skipPatterns[] = $line;

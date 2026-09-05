@@ -337,7 +337,7 @@ final class IndexTest extends UnitTestCase {
 
   #[DataProvider('dataProviderIsPathMatchesPattern')]
   public function testIsPathMatchesPattern(string $path, string $pattern, bool $expected): void {
-    $result = self::callProtectedMethod(Index::class, 'isPathMatchesPattern', [$path, $pattern]);
+    $result = self::callProtectedMethod(Index::class, 'pathMatchesPattern', [$path, $pattern]);
     $this->assertSame($expected, $result);
   }
 

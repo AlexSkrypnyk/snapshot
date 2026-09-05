@@ -178,7 +178,7 @@ class Index implements IndexInterface {
    */
   protected function matchesAnyPattern(string $path, array $patterns): bool {
     foreach ($patterns as $pattern) {
-      if (static::isPathMatchesPattern($path, $pattern)) {
+      if (static::pathMatchesPattern($path, $pattern)) {
         return TRUE;
       }
     }
@@ -201,7 +201,7 @@ class Index implements IndexInterface {
    * @return bool
    *   TRUE if the path matches the pattern, FALSE otherwise.
    */
-  protected static function isPathMatchesPattern(string $path, string $pattern): bool {
+  protected static function pathMatchesPattern(string $path, string $pattern): bool {
     // Match directory pattern (e.g., "dir/").
     if (str_ends_with($pattern, DIRECTORY_SEPARATOR)) {
       return str_starts_with($path, $pattern);

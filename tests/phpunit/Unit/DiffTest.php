@@ -17,12 +17,12 @@ final class DiffTest extends UnitTestCase {
     $file_path = self::$sut . DIRECTORY_SEPARATOR . 'test.txt';
     file_put_contents($file_path, 'test content');
 
-    $file_info = new IndexedFile($file_path, self::$sut);
+    $indexed_file = new IndexedFile($file_path, self::$sut);
 
-    $result = $diff->setLeft($file_info);
+    $result = $diff->setLeft($indexed_file);
 
     $this->assertInstanceOf(Diff::class, $result);
-    $this->assertSame($file_info, $diff->getLeft());
+    $this->assertSame($indexed_file, $diff->getLeft());
   }
 
   public function testSetGetRight(): void {
@@ -30,12 +30,12 @@ final class DiffTest extends UnitTestCase {
     $file_path = self::$sut . DIRECTORY_SEPARATOR . 'test.txt';
     file_put_contents($file_path, 'test content');
 
-    $file_info = new IndexedFile($file_path, self::$sut);
+    $indexed_file = new IndexedFile($file_path, self::$sut);
 
-    $result = $diff->setRight($file_info);
+    $result = $diff->setRight($indexed_file);
 
     $this->assertInstanceOf(Diff::class, $result);
-    $this->assertSame($file_info, $diff->getRight());
+    $this->assertSame($indexed_file, $diff->getRight());
   }
 
   public function testExistsLeft(): void {
@@ -45,9 +45,9 @@ final class DiffTest extends UnitTestCase {
 
     $file_path = self::$sut . DIRECTORY_SEPARATOR . 'test.txt';
     file_put_contents($file_path, 'test content');
-    $file_info = new IndexedFile($file_path, self::$sut);
+    $indexed_file = new IndexedFile($file_path, self::$sut);
 
-    $diff->setLeft($file_info);
+    $diff->setLeft($indexed_file);
     $this->assertTrue($diff->existsLeft());
   }
 
@@ -58,9 +58,9 @@ final class DiffTest extends UnitTestCase {
 
     $file_path = self::$sut . DIRECTORY_SEPARATOR . 'test.txt';
     file_put_contents($file_path, 'test content');
-    $file_info = new IndexedFile($file_path, self::$sut);
+    $indexed_file = new IndexedFile($file_path, self::$sut);
 
-    $diff->setRight($file_info);
+    $diff->setRight($indexed_file);
     $this->assertTrue($diff->existsRight());
   }
 
@@ -73,14 +73,14 @@ final class DiffTest extends UnitTestCase {
     // Only left file set.
     $file_path = self::$sut . DIRECTORY_SEPARATOR . 'test.txt';
     file_put_contents($file_path, 'test content');
-    $file_info = new IndexedFile($file_path, self::$sut);
+    $indexed_file = new IndexedFile($file_path, self::$sut);
 
-    $diff->setLeft($file_info);
+    $diff->setLeft($indexed_file);
     $this->assertFalse($diff->isSameContent());
 
     // Reset and set only right file.
     $diff = new Diff();
-    $diff->setRight($file_info);
+    $diff->setRight($indexed_file);
     $this->assertFalse($diff->isSameContent());
   }
 
@@ -93,11 +93,11 @@ final class DiffTest extends UnitTestCase {
     file_put_contents($file_path1, 'test content');
     file_put_contents($file_path2, 'test content');
 
-    $file_info1 = new IndexedFile($file_path1, self::$sut);
-    $file_info2 = new IndexedFile($file_path2, self::$sut);
+    $indexed_file1 = new IndexedFile($file_path1, self::$sut);
+    $indexed_file2 = new IndexedFile($file_path2, self::$sut);
 
-    $diff->setLeft($file_info1);
-    $diff->setRight($file_info2);
+    $diff->setLeft($indexed_file1);
+    $diff->setRight($indexed_file2);
 
     $this->assertTrue($diff->isSameContent());
   }
@@ -111,11 +111,11 @@ final class DiffTest extends UnitTestCase {
     file_put_contents($file_path1, 'test content 1');
     file_put_contents($file_path2, 'test content 2');
 
-    $file_info1 = new IndexedFile($file_path1, self::$sut);
-    $file_info2 = new IndexedFile($file_path2, self::$sut);
+    $indexed_file1 = new IndexedFile($file_path1, self::$sut);
+    $indexed_file2 = new IndexedFile($file_path2, self::$sut);
 
-    $diff->setLeft($file_info1);
-    $diff->setRight($file_info2);
+    $diff->setLeft($indexed_file1);
+    $diff->setRight($indexed_file2);
 
     $this->assertFalse($diff->isSameContent());
   }
@@ -129,25 +129,25 @@ final class DiffTest extends UnitTestCase {
     file_put_contents($file_path1, 'test content 1');
     file_put_contents($file_path2, 'test content 2');
 
-    $file_info1 = new IndexedFile($file_path1, self::$sut);
-    $file_info2 = new IndexedFile($file_path2, self::$sut);
+    $indexed_file1 = new IndexedFile($file_path1, self::$sut);
+    $indexed_file2 = new IndexedFile($file_path2, self::$sut);
 
     // Set left file to ignore content.
-    $file_info1->setIgnoreContent(TRUE);
+    $indexed_file1->setIgnoreContent(TRUE);
 
-    $diff->setLeft($file_info1);
-    $diff->setRight($file_info2);
+    $diff->setLeft($indexed_file1);
+    $diff->setRight($indexed_file2);
 
     $this->assertTrue($diff->isSameContent());
 
     // Reset and set right file to ignore content.
     $diff = new Diff();
-    $file_info1 = new IndexedFile($file_path1, self::$sut);
-    $file_info2 = new IndexedFile($file_path2, self::$sut);
-    $file_info2->setIgnoreContent(TRUE);
+    $indexed_file1 = new IndexedFile($file_path1, self::$sut);
+    $indexed_file2 = new IndexedFile($file_path2, self::$sut);
+    $indexed_file2->setIgnoreContent(TRUE);
 
-    $diff->setLeft($file_info1);
-    $diff->setRight($file_info2);
+    $diff->setLeft($indexed_file1);
+    $diff->setRight($indexed_file2);
 
     $this->assertTrue($diff->isSameContent());
   }
@@ -161,11 +161,11 @@ final class DiffTest extends UnitTestCase {
     file_put_contents($file_path1, 'test content');
     file_put_contents($file_path2, 'test content');
 
-    $file_info1 = new IndexedFile($file_path1, self::$sut);
-    $file_info2 = new IndexedFile($file_path2, self::$sut);
+    $indexed_file1 = new IndexedFile($file_path1, self::$sut);
+    $indexed_file2 = new IndexedFile($file_path2, self::$sut);
 
-    $diff->setLeft($file_info1);
-    $diff->setRight($file_info2);
+    $diff->setLeft($indexed_file1);
+    $diff->setRight($indexed_file2);
 
     // Test with default renderer.
     $rendered = $diff->render();
@@ -188,11 +188,11 @@ final class DiffTest extends UnitTestCase {
     file_put_contents($file_path1, 'test content');
     file_put_contents($file_path2, 'test content');
 
-    $file_info1 = new IndexedFile($file_path1, self::$sut);
-    $file_info2 = new IndexedFile($file_path2, self::$sut);
+    $indexed_file1 = new IndexedFile($file_path1, self::$sut);
+    $indexed_file2 = new IndexedFile($file_path2, self::$sut);
 
-    $diff->setLeft($file_info1);
-    $diff->setRight($file_info2);
+    $diff->setLeft($indexed_file1);
+    $diff->setRight($indexed_file2);
 
     $result = self::callProtectedMethod(Diff::class, 'doRender', [$diff]);
     $this->assertSame('test content', $result);
@@ -201,11 +201,11 @@ final class DiffTest extends UnitTestCase {
     file_put_contents($file_path1, "line1\n");
     file_put_contents($file_path2, "line2\n");
 
-    $file_info1 = new IndexedFile($file_path1, self::$sut);
-    $file_info2 = new IndexedFile($file_path2, self::$sut);
+    $indexed_file1 = new IndexedFile($file_path1, self::$sut);
+    $indexed_file2 = new IndexedFile($file_path2, self::$sut);
 
-    $diff->setLeft($file_info1);
-    $diff->setRight($file_info2);
+    $diff->setLeft($indexed_file1);
+    $diff->setRight($indexed_file2);
 
     $result = self::callProtectedMethod(Diff::class, 'doRender', [$diff]);
     $this->assertIsString($result);
@@ -217,19 +217,19 @@ final class DiffTest extends UnitTestCase {
   public function testDoRenderWithAbsentSide(): void {
     $file_path = self::$sut . DIRECTORY_SEPARATOR . 'one-side.txt';
     file_put_contents($file_path, "one side line\n");
-    $file_info = new IndexedFile($file_path, self::$sut);
+    $indexed_file = new IndexedFile($file_path, self::$sut);
 
     // Absent left (an added file) renders as a pure addition instead of
     // throwing on the uninitialized side.
     $added = new Diff();
-    $added->setRight($file_info);
+    $added->setRight($indexed_file);
     $rendered_added = self::callProtectedMethod(Diff::class, 'doRender', [$added]);
     $this->assertIsString($rendered_added);
     $this->assertStringContainsString('+one side line', $rendered_added);
 
     // Absent right (a removed file) renders as a pure deletion.
     $removed = new Diff();
-    $removed->setLeft($file_info);
+    $removed->setLeft($indexed_file);
     $rendered_removed = self::callProtectedMethod(Diff::class, 'doRender', [$removed]);
     $this->assertIsString($rendered_removed);
     $this->assertStringContainsString('-one side line', $rendered_removed);
@@ -245,11 +245,11 @@ final class DiffTest extends UnitTestCase {
     file_put_contents($file_path1, 'short');
     file_put_contents($file_path2, 'much longer content');
 
-    $file_info1 = new IndexedFile($file_path1, self::$sut);
-    $file_info2 = new IndexedFile($file_path2, self::$sut);
+    $indexed_file1 = new IndexedFile($file_path1, self::$sut);
+    $indexed_file2 = new IndexedFile($file_path2, self::$sut);
 
-    $diff->setLeft($file_info1);
-    $diff->setRight($file_info2);
+    $diff->setLeft($indexed_file1);
+    $diff->setRight($indexed_file2);
 
     // Should return FALSE without reading content (optimization).
     $this->assertFalse($diff->isSameContent(), 'Files with different sizes should not be same');
@@ -265,11 +265,11 @@ final class DiffTest extends UnitTestCase {
     file_put_contents($file_path1, 'abcde');
     file_put_contents($file_path2, 'fghij');
 
-    $file_info1 = new IndexedFile($file_path1, self::$sut);
-    $file_info2 = new IndexedFile($file_path2, self::$sut);
+    $indexed_file1 = new IndexedFile($file_path1, self::$sut);
+    $indexed_file2 = new IndexedFile($file_path2, self::$sut);
 
-    $diff->setLeft($file_info1);
-    $diff->setRight($file_info2);
+    $diff->setLeft($indexed_file1);
+    $diff->setRight($indexed_file2);
 
     // Should return FALSE after checking hash.
     $this->assertFalse($diff->isSameContent(), 'Files with same size but different content should not be same');
@@ -287,11 +287,11 @@ final class DiffTest extends UnitTestCase {
     symlink($target_path, $link_path1);
     symlink($target_path, $link_path2);
 
-    $file_info1 = new IndexedFile($link_path1, self::$sut);
-    $file_info2 = new IndexedFile($link_path2, self::$sut);
+    $indexed_file1 = new IndexedFile($link_path1, self::$sut);
+    $indexed_file2 = new IndexedFile($link_path2, self::$sut);
 
-    $diff->setLeft($file_info1);
-    $diff->setRight($file_info2);
+    $diff->setLeft($indexed_file1);
+    $diff->setRight($indexed_file2);
 
     // Should compare symlink targets correctly.
     $this->assertTrue($diff->isSameContent(), 'Symlinks with same targets should be same');
@@ -311,11 +311,11 @@ final class DiffTest extends UnitTestCase {
     symlink($dir1, $link_path1);
     symlink($dir2, $link_path2);
 
-    $file_info1 = new IndexedFile($link_path1, self::$sut);
-    $file_info2 = new IndexedFile($link_path2, self::$sut);
+    $indexed_file1 = new IndexedFile($link_path1, self::$sut);
+    $indexed_file2 = new IndexedFile($link_path2, self::$sut);
 
-    $diff->setLeft($file_info1);
-    $diff->setRight($file_info2);
+    $diff->setLeft($indexed_file1);
+    $diff->setRight($indexed_file2);
 
     // Should not throw exception from getSize() and compare by hash.
     $this->assertFalse($diff->isSameContent(), 'Symlinks to different directories should not be same');
