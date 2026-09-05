@@ -295,7 +295,8 @@ final class DiffTest extends UnitTestCase {
 
     $diff = new Diff();
 
-    // Create symlinks to directories (getSize() would fail).
+    // Link metadata is unreliable, so the isLink() guard short-circuits
+    // before any size comparison.
     $dir1 = self::$sut . DIRECTORY_SEPARATOR . 'dir1';
     $dir2 = self::$sut . DIRECTORY_SEPARATOR . 'dir2';
     mkdir($dir1, 0777, TRUE);

@@ -170,7 +170,8 @@ final class SnapshotTraitTest extends TestCase {
     mkdir($this->baselineDir . DIRECTORY_SEPARATOR . 'subdir', 0777, TRUE);
     file_put_contents($this->baselineDir . DIRECTORY_SEPARATOR . 'file1.txt', "line1\nline2\nline3\n");
 
-    // Create an invalid patch file with incorrect line indices.
+    // The removal line does not match baseline content, so applyHunk()
+    // throws a source file verification failure.
     mkdir($this->diffDir, 0777, TRUE);
     $diff_content = "@@ -1,3 +1,3 @@\n line1\n-wrong line\n+new line 2\n line3\n";
     file_put_contents($this->diffDir . DIRECTORY_SEPARATOR . 'file1.txt', $diff_content);
