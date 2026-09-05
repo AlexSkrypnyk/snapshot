@@ -25,6 +25,24 @@ use Symfony\Component\Process\Process;
 #[CoversNothing]
 final class SnapshotUpdateScriptTest extends FunctionalTestCase {
 
+  /**
+   * Seconds to wait for a file written by a spawned dataset to appear.
+   */
+  protected const WAIT_FOR_FILE = 30;
+
+  /**
+   * Seconds to wait for the signalled script to exit.
+   */
+  protected const WAIT_FOR_EXIT = 30;
+
+  /**
+   * Seconds to wait for spawned processes to disappear.
+   *
+   * Far shorter than the fixture's sleep, so a process that only ends when its
+   * own test finishes still counts as a survivor.
+   */
+  protected const WAIT_FOR_PROCESSES_GONE = 10;
+
   protected string $scriptPath;
 
   protected string $projectDir;
@@ -595,9 +613,10 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
     $this->setupTestProject('slow');
 
     // The project directory is unique per test, so a command line containing
-    // it belongs to this run and to no other. Only dataset runs are passed
-    // '--no-coverage', which keeps dataset discovery out of the match.
-    $marker = $this->projectDir . '/vendor/bin/phpunit --no-coverage';
+    // it belongs to this run and to no other, and only dataset runs are passed
+    // '--no-coverage', which keeps dataset discovery out of the match. The
+    // bracket stops the pattern from matching the shell that runs pgrep.
+    $marker = $this->projectDir . '/vendor/bin/[p]hpunit --no-coverage';
 
     $process = new Process([
       PHP_BINARY,
@@ -623,7 +642,7 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
 
       $process->signal($signal);
 
-      $deadline = microtime(TRUE) + 30;
+      $deadline = microtime(TRUE) + static::WAIT_FOR_EXIT;
       while ($process->isRunning() && microtime(TRUE) < $deadline) {
         usleep(50000);
       }
@@ -660,7 +679,7 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
    *   TRUE if the file appeared before the wait ended.
    */
   protected function waitForFile(string $path): bool {
-    $deadline = microtime(TRUE) + 30;
+    $deadline = microtime(TRUE) + static::WAIT_FOR_FILE;
 
     do {
       clearstatcache(TRUE, $path);
@@ -678,9 +697,6 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
   /**
    * Wait until no process matches a command line fragment.
    *
-   * The wait is far shorter than the fixture's sleep, so a process that only
-   * ends when its own test finishes still counts as a survivor.
-   *
    * @param string $marker
    *   Command line fragment identifying the processes.
    *
@@ -688,7 +704,7 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
    *   Process IDs matching the fragment when the wait ended.
    */
   protected function waitForProcessesGone(string $marker): array {
-    $deadline = microtime(TRUE) + 10;
+    $deadline = microtime(TRUE) + static::WAIT_FOR_PROCESSES_GONE;
 
     do {
       $pids = $this->findProcesses($marker);

@@ -50,7 +50,9 @@ define('STATUS_TIMEOUT', 'timeout');
 // Exit code reported by 'timeout' when a run exceeds its time limit.
 define('EXIT_CODE_TIMEOUT', 124);
 
-// Exit codes reported for a process stopped by SIGINT and by SIGTERM.
+// Exit codes reported for a process stopped by SIGINT and by SIGTERM. Only the
+// script's own SIGTERM handler reports 143; a child that exits with it is
+// classified as failed like any other non-zero exit.
 define('EXIT_CODE_INTERRUPTED', 130);
 define('EXIT_CODE_TERMINATED', 143);
 
@@ -680,7 +682,7 @@ function run_engine(array $datasets, array $config, int $jobs, int $start_number
     unset($task);
 
     // The poll loop can end the script when a child reports an interrupt, so
-    // processes are registered before it runs and again once it returns.
+    // processes are registered before it runs.
     live_tasks($tasks);
 
     foreach ($tasks as &$task) {
@@ -691,8 +693,6 @@ function run_engine(array $datasets, array $config, int $jobs, int $start_number
       $task = poll_task($task, $config);
     }
     unset($task);
-
-    live_tasks($tasks);
 
     render_progress($tasks, $run);
 
