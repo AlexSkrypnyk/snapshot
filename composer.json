@@ -29,9 +29,9 @@
         "drupal/coder": "^9.0.1",
         "ergebnis/composer-normalize": "^2.52.0",
         "phpbench/phpbench": "^1.7.0",
-        "phpstan/phpstan": "^2.2.8",
+        "phpstan/phpstan": "^2.2.13",
         "phpunit/phpunit": "^11.5.56",
-        "rector/rector": "^2.6.3"
+        "rector/rector": "^2.6.6"
     },
     "minimum-stability": "stable",
     "prefer-stable": true,
