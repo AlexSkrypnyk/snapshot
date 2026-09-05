@@ -249,7 +249,7 @@ A pattern is matched in one of two ways, depending on whether it contains a `/`:
 
 A `!` rule overrides either kind: it is matched against both the file name and the relative path, so `!important.log` keeps that file even though `*.log` would otherwise skip it.
 
-A `!^` rule overrides content ignoring instead: `!^composer.lock` keeps comparing that file's content even though `^composer.lock` would otherwise leave it unchecked.
+A `!^` rule overrides content ignoring instead: `!^composer.lock` keeps comparing that file's content even though `^composer.lock` would otherwise leave it unchecked. Unlike `!`, a `!^` rule is matched only against the relative path, the same way a `^` rule is.
 
 #### Why Ignore Content?
 
@@ -313,6 +313,7 @@ $builder = SnapshotBuilder::create()
     ->addSkip('custom/')
     ->addIgnoreContent('custom.lock')
     ->addInclude('custom/keep.txt')
+    ->addIncludeContent('custom/keep.log')
     ->withContentProcessor(fn($content) => trim($content));
 
 // Use the builder for multiple operations
@@ -339,7 +340,8 @@ $rules = Rules::nodeProject(); // Skips node_modules/, ignores lock files
 $rules = Rules::create()
     ->skip('vendor/', 'node_modules/', '.git/')
     ->ignoreContent('composer.lock', 'package-lock.json')
-    ->include('vendor/autoload.php');
+    ->include('vendor/autoload.php')
+    ->includeContent('build-manifest.json');
 
 // Or load them from an existing .ignorecontent file
 $rules = Rules::fromFile($baseline . '/.ignorecontent');
