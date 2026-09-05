@@ -14,13 +14,13 @@ interface IndexInterface {
   /**
    * Gets the indexed files.
    *
-   * @param callable|null $cb
+   * @param callable|null $transformer
    *   Optional callback to transform each file.
    *
    * @return array<string, \AlexSkrypnyk\Snapshot\Index\IndexedFileInterface|mixed>
    *   Array of files indexed by path relative to base directory.
    */
-  public function getFiles(?callable $cb = NULL): array;
+  public function getFiles(?callable $transformer = NULL): array;
 
   /**
    * Gets the directory being indexed.

@@ -92,7 +92,7 @@ final class SnapshotTraitTest extends TestCase {
     }
 
     try {
-      $this->assertDirectoriesIdentical($dir1, $dir2, 'Custom message for missing files');
+      $this->assertDirectoriesIdentical($dir1, $dir2, message: 'Custom message for missing files');
       $this->fail('Assertion should have failed for missing files');
     }
     catch (AssertionFailedError $assertion_failed_error) {
@@ -114,7 +114,7 @@ final class SnapshotTraitTest extends TestCase {
     file_put_contents($dir2 . DIRECTORY_SEPARATOR . 'file1.txt', 'Different content');
 
     $rules = Rules::create()->skip('file1.txt');
-    $this->assertDirectoriesIdentical($dir1, $dir2, NULL, NULL, TRUE, $rules);
+    $this->assertDirectoriesIdentical($dir1, $dir2, $rules);
   }
 
   public function testAssertSnapshotMatchesBaselinePositive(): void {

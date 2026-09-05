@@ -19,12 +19,12 @@ use PHPUnit\Framework\Attributes\DataProvider;
 final class IndexTest extends UnitTestCase {
 
   #[DataProvider('dataProviderIndexScan')]
-  public function testIndexScan(?callable $rules, ?callable $before_match_content, array $expected): void {
+  public function testIndexScan(?callable $rules, ?callable $file_filter, array $expected): void {
     $dir = File::dir($this->locationsFixtureDir('compare') . DIRECTORY_SEPARATOR . 'files_equal_advanced' . DIRECTORY_SEPARATOR . 'directory2');
 
     $rules = is_callable($rules) ? $rules() : $rules;
 
-    $index = new Index($dir, $rules, $before_match_content);
+    $index = new Index($dir, $rules, $file_filter);
     $this->callProtectedMethod($index, 'scan');
 
     $this->assertSame($expected, array_keys($index->getFiles()));
@@ -189,21 +189,21 @@ final class IndexTest extends UnitTestCase {
     rmdir($test_dir);
   }
 
-  public function testBeforeMatchContentCallback(): void {
+  public function testFileFilterCallback(): void {
     $dir = File::dir($this->locationsFixtureDir('compare') . DIRECTORY_SEPARATOR . 'files_equal_advanced' . DIRECTORY_SEPARATOR . 'directory2');
 
-    $before_match_content =
+    $file_filter =
         (fn(IndexedFile $file): bool => str_contains($file->getContent(), 'specific content'));
 
-    $test_file = $dir . DIRECTORY_SEPARATOR . 'test_before_match.txt';
+    $test_file = $dir . DIRECTORY_SEPARATOR . 'test_file_filter.txt';
     file_put_contents($test_file, 'This file contains specific content that should be included');
 
     try {
-      $index = new Index($dir, NULL, $before_match_content);
+      $index = new Index($dir, NULL, $file_filter);
 
       $files = $index->getFiles();
 
-      $this->assertArrayHasKey('test_before_match.txt', $files);
+      $this->assertArrayHasKey('test_file_filter.txt', $files);
 
       $control_index = new Index($dir);
       $control_files = $control_index->getFiles();

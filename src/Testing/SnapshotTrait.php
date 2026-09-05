@@ -39,21 +39,22 @@ trait SnapshotTrait {
   /**
    * Assert that two directories have identical structure and content.
    *
-   * @param string $dir1
-   *   First directory path to compare.
-   * @param string $dir2
-   *   Second directory path to compare.
-   * @param string|null $message
-   *   Optional custom failure message.
-   * @param callable|null $match_content
-   *   Optional callback to process file content before comparison.
-   * @param bool $show_diff
-   *   Whether to include diff output in failure messages.
+   * @param string $expected
+   *   Expected directory path.
+   * @param string $actual
+   *   Actual directory path.
    * @param \AlexSkrypnyk\Snapshot\Rules\Rules|null $rules
    *   Optional comparison rules.
+   * @param callable|null $file_filter
+   *   Optional callback receiving each indexed file; returning FALSE excludes
+   *   the file from both indexes.
+   * @param bool $show_diff
+   *   Whether to include diff output in failure messages.
+   * @param string|null $message
+   *   Optional custom failure message.
    */
-  public function assertDirectoriesIdentical(string $dir1, string $dir2, ?string $message = NULL, ?callable $match_content = NULL, bool $show_diff = TRUE, ?Rules $rules = NULL): void {
-    $text = Snapshot::compare($dir1, $dir2, $rules, $match_content)->render(['show_diff' => $show_diff]);
+  public function assertDirectoriesIdentical(string $expected, string $actual, ?Rules $rules = NULL, ?callable $file_filter = NULL, bool $show_diff = TRUE, ?string $message = NULL): void {
+    $text = Snapshot::compare($expected, $actual, $rules, $file_filter)->render(['show_diff' => $show_diff]);
     if (!empty($text)) {
       $this->fail($message ? $message . PHP_EOL . $text : $text);
     }
@@ -101,7 +102,7 @@ trait SnapshotTrait {
       File::copy($baseline . DIRECTORY_SEPARATOR . Snapshot::IGNORECONTENT, $expected . DIRECTORY_SEPARATOR . Snapshot::IGNORECONTENT);
     }
 
-    $this->assertDirectoriesIdentical($expected, $actual, $message);
+    $this->assertDirectoriesIdentical($expected, $actual, message: $message);
   }
 
   /**

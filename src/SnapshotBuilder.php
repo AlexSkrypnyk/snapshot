@@ -11,14 +11,14 @@ use AlexSkrypnyk\Snapshot\Rules\Rules;
 /**
  * Configurable snapshot builder for repeated operations.
  *
- * Use this class to configure rules or content processors and perform
- * multiple operations with the same settings.
+ * Use this class to configure rules, a file filter or a content processor and
+ * perform multiple operations with the same settings.
  *
  * @code
  * $builder = SnapshotBuilder::create()
  *     ->withRules(Rules::phpProject())
  *     ->addSkip('custom/')
- *     ->withContentProcessor(fn($content) => trim($content));
+ *     ->withFileFilter(fn(IndexedFile $file) => !$file->isLink());
  *
  * $builder->sync($src, $dest);
  * $comparer = $builder->compare($dir1, $dir2);
@@ -32,11 +32,18 @@ class SnapshotBuilder {
   protected ?Rules $rules = NULL;
 
   /**
-   * Configured content processor callback.
+   * Configured content processor callback for the patch operation.
    *
    * @var callable|null
    */
   protected $contentProcessor;
+
+  /**
+   * Configured file filter callback for the indexing operations.
+   *
+   * @var callable|null
+   */
+  protected $fileFilter;
 
   /**
    * Creates a new configurable SnapshotBuilder instance.
@@ -63,16 +70,32 @@ class SnapshotBuilder {
   }
 
   /**
-   * Set the content processor callback.
+   * Set the content processor callback used by the patch operation.
    *
    * @param callable $processor
-   *   Callback to process file content before operations.
+   *   Callback receiving the content of each patched file as a string and
+   *   returning the content to write.
    *
    * @return $this
    *   Return self for chaining.
    */
   public function withContentProcessor(callable $processor): static {
     $this->contentProcessor = $processor;
+    return $this;
+  }
+
+  /**
+   * Set the file filter callback used by the indexing operations.
+   *
+   * @param callable $file_filter
+   *   Callback receiving the IndexedFile of each indexed file; returning FALSE
+   *   excludes the file from the index.
+   *
+   * @return $this
+   *   Return self for chaining.
+   */
+  public function withFileFilter(callable $file_filter): static {
+    $this->fileFilter = $file_filter;
     return $this;
   }
 
@@ -165,6 +188,16 @@ class SnapshotBuilder {
   }
 
   /**
+   * Get the configured file filter.
+   *
+   * @return callable|null
+   *   The configured file filter or NULL.
+   */
+  public function getFileFilter(): ?callable {
+    return $this->fileFilter;
+  }
+
+  /**
    * Scan a directory and create an index.
    *
    * @param string $directory
@@ -174,7 +207,7 @@ class SnapshotBuilder {
    *   The directory index.
    */
   public function scan(string $directory): Index {
-    return Snapshot::scan($directory, $this->rules, $this->contentProcessor);
+    return Snapshot::scan($directory, $this->rules, $this->fileFilter);
   }
 
   /**
@@ -189,7 +222,7 @@ class SnapshotBuilder {
    *   Comparison result object.
    */
   public function compare(string $baseline, string $actual): Comparer {
-    return Snapshot::compare($baseline, $actual, $this->rules, $this->contentProcessor);
+    return Snapshot::compare($baseline, $actual, $this->rules, $this->fileFilter);
   }
 
   /**
@@ -206,7 +239,7 @@ class SnapshotBuilder {
    *   Return self for chaining.
    */
   public function diff(string $baseline, string $actual, string $output): static {
-    Snapshot::diff($baseline, $actual, $output, $this->rules, $this->contentProcessor);
+    Snapshot::diff($baseline, $actual, $output, $this->rules, $this->fileFilter);
     return $this;
   }
 
@@ -215,16 +248,16 @@ class SnapshotBuilder {
    *
    * @param string $baseline
    *   Baseline directory path.
-   * @param string $patches
-   *   Directory containing patch/diff files.
+   * @param string $diffs
+   *   Directory containing diff files produced by self::diff().
    * @param string $destination
    *   Destination directory for patched output.
    *
    * @return $this
    *   Return self for chaining.
    */
-  public function patch(string $baseline, string $patches, string $destination): static {
-    Snapshot::patch($baseline, $patches, $destination, $this->rules, $this->contentProcessor);
+  public function patch(string $baseline, string $diffs, string $destination): static {
+    Snapshot::patch($baseline, $diffs, $destination, $this->rules, $this->contentProcessor);
     return $this;
   }
 
@@ -244,7 +277,7 @@ class SnapshotBuilder {
    *   Return self for chaining.
    */
   public function sync(string $source, string $destination, int $permissions = 0755, bool $copy_empty_dirs = FALSE): static {
-    Snapshot::sync($source, $destination, $permissions, $copy_empty_dirs, $this->rules, $this->contentProcessor);
+    Snapshot::sync($source, $destination, $permissions, $copy_empty_dirs, $this->rules, $this->fileFilter);
     return $this;
   }
 

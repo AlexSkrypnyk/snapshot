@@ -7,6 +7,7 @@ namespace AlexSkrypnyk\Snapshot\Tests\Unit;
 use AlexSkrypnyk\File\File;
 use AlexSkrypnyk\Snapshot\Compare\Comparer;
 use AlexSkrypnyk\Snapshot\Index\Index;
+use AlexSkrypnyk\Snapshot\Index\IndexedFile;
 use AlexSkrypnyk\Snapshot\Rules\Rules;
 use AlexSkrypnyk\Snapshot\Snapshot;
 use AlexSkrypnyk\Snapshot\SnapshotBuilder;
@@ -21,6 +22,7 @@ final class SnapshotBuilderTest extends UnitTestCase {
     $this->assertInstanceOf(SnapshotBuilder::class, $builder);
     $this->assertNotInstanceOf(Rules::class, $builder->getRules());
     $this->assertNull($builder->getContentProcessor());
+    $this->assertNull($builder->getFileFilter());
   }
 
   public function testWithRules(): void {
@@ -35,6 +37,14 @@ final class SnapshotBuilderTest extends UnitTestCase {
     $builder = SnapshotBuilder::create()->withContentProcessor($processor);
 
     $this->assertSame($processor, $builder->getContentProcessor());
+  }
+
+  public function testWithFileFilter(): void {
+    $file_filter = fn(IndexedFile $file): bool => TRUE;
+    $builder = SnapshotBuilder::create()->withFileFilter($file_filter);
+
+    $this->assertSame($file_filter, $builder->getFileFilter());
+    $this->assertNull($builder->getContentProcessor());
   }
 
   public function testAddSkip(): void {
@@ -209,6 +219,63 @@ final class SnapshotBuilderTest extends UnitTestCase {
     $this->assertSame($builder, $result);
     $this->assertFileExists($destination . DIRECTORY_SEPARATOR . 'keep.txt');
     $this->assertFileDoesNotExist($destination . DIRECTORY_SEPARATOR . 'skip.txt');
+  }
+
+  public function testSyncWithFileFilterExcludesFiles(): void {
+    $src = self::$sut . DIRECTORY_SEPARATOR . 'src';
+    $dst = self::$sut . DIRECTORY_SEPARATOR . 'dst';
+    mkdir($src, 0777, TRUE);
+
+    file_put_contents($src . DIRECTORY_SEPARATOR . 'keep.txt', 'keep content');
+    file_put_contents($src . DIRECTORY_SEPARATOR . 'drop.txt', 'drop content');
+
+    $builder = SnapshotBuilder::create()->withFileFilter(fn(IndexedFile $file): bool => $file->getBasename() !== 'drop.txt');
+    $builder->sync($src, $dst);
+
+    $this->assertFileExists($dst . DIRECTORY_SEPARATOR . 'keep.txt');
+    $this->assertFileDoesNotExist($dst . DIRECTORY_SEPARATOR . 'drop.txt');
+  }
+
+  public function testFileFilterAndContentProcessorReceiveOwnValues(): void {
+    $baseline = self::$sut . DIRECTORY_SEPARATOR . 'baseline';
+    $diffs = self::$sut . DIRECTORY_SEPARATOR . 'diffs';
+    $destination = self::$sut . DIRECTORY_SEPARATOR . 'destination';
+    $synced = self::$sut . DIRECTORY_SEPARATOR . 'synced';
+    mkdir($baseline, 0777, TRUE);
+    mkdir($diffs, 0777, TRUE);
+
+    file_put_contents($baseline . DIRECTORY_SEPARATOR . 'keep.txt', 'keep content');
+    file_put_contents($baseline . DIRECTORY_SEPARATOR . 'drop.txt', 'drop content');
+
+    $filtered = [];
+    $processed = [];
+
+    $builder = SnapshotBuilder::create()
+      ->withFileFilter(function (IndexedFile $file) use (&$filtered): bool {
+        $filtered[] = $file->getPathnameFromBasepath();
+        return $file->getBasename() !== 'drop.txt';
+      })
+      ->withContentProcessor(function (string $content) use (&$processed): string {
+        $processed[] = $content;
+        return strtoupper($content);
+      });
+
+    $builder->patch($baseline, $diffs, $destination);
+
+    $this->assertSame([], $filtered, 'File filter is not used by the patch operation');
+    sort($processed);
+    $this->assertSame(['drop content', 'keep content'], $processed);
+    $this->assertStringEqualsFile($destination . DIRECTORY_SEPARATOR . 'keep.txt', 'KEEP CONTENT');
+
+    $processed = [];
+
+    $builder->sync($baseline, $synced);
+
+    $this->assertSame([], $processed, 'Content processor is not used by the sync operation');
+    sort($filtered);
+    $this->assertSame(['drop.txt', 'keep.txt'], $filtered);
+    $this->assertFileExists($synced . DIRECTORY_SEPARATOR . 'keep.txt');
+    $this->assertFileDoesNotExist($synced . DIRECTORY_SEPARATOR . 'drop.txt');
   }
 
   public function testSyncWithRulesHonoursSkip(): void {

@@ -27,10 +27,25 @@ class Index implements IndexInterface {
    */
   protected Rules $rules;
 
+  /**
+   * Constructs an Index instance.
+   *
+   * @param string $directory
+   *   The directory to index.
+   * @param \AlexSkrypnyk\Snapshot\Rules\Rules|null $rules
+   *   Optional rules to apply when indexing. Falls back to the directory's
+   *   rules file, then to empty rules.
+   * @param mixed $fileFilter
+   *   Optional callback receiving the IndexedFile of each file whose content
+   *   is compared; directories and files with ignored content never reach it.
+   *   Returning FALSE excludes the file from the index; any other return value
+   *   is discarded, leaving the file indexed along with any change the
+   *   callback made to it.
+   */
   public function __construct(
     protected string $directory,
     ?Rules $rules = NULL,
-    protected mixed $beforeMatchContent = NULL,
+    protected mixed $fileFilter = NULL,
   ) {
     $this->rules = $rules ??
       (
@@ -44,21 +59,21 @@ class Index implements IndexInterface {
   /**
    * {@inheritdoc}
    */
-  public function getFiles(?callable $cb = NULL): array {
+  public function getFiles(?callable $transformer = NULL): array {
     if ($this->files === NULL) {
       $this->scan();
     }
 
     $this->files ??= [];
 
-    if (!is_callable($cb)) {
+    if (!is_callable($transformer)) {
       return $this->files;
     }
 
     // Transform a copy so the callback never mutates the cached index.
     $files = [];
     foreach ($this->files as $path => $file) {
-      $files[$path] = $cb($file);
+      $files[$path] = $transformer($file);
     }
 
     return $files;
@@ -79,7 +94,7 @@ class Index implements IndexInterface {
   }
 
   /**
-   * Scan files in directory respecting rules and optionally using a callback.
+   * Scans files in the directory, applying the rules and the file filter.
    */
   protected function scan(): static {
     $this->files = [];
@@ -149,9 +164,8 @@ class Index implements IndexInterface {
         $file->setIgnoreContent();
         // @codeCoverageIgnoreEnd
       }
-      elseif (is_callable($this->beforeMatchContent)) {
-        $ret = call_user_func($this->beforeMatchContent, $file);
-        if ($ret === FALSE) {
+      elseif (is_callable($this->fileFilter)) {
+        if (call_user_func($this->fileFilter, $file) === FALSE) {
           continue;
         }
       }

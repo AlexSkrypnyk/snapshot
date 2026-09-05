@@ -294,8 +294,8 @@ echo $comparer->render();
 // Create diff files
 Snapshot::diff($baseline, $actual, $output_dir);
 
-// Apply patches
-Snapshot::patch($baseline, $patches, $destination);
+// Apply diffs to the baseline
+Snapshot::patch($baseline, $diffs, $destination);
 
 // Sync directories
 Snapshot::sync($source, $destination);
@@ -303,9 +303,11 @@ Snapshot::sync($source, $destination);
 
 ### Fluent Builder API
 
-For configured operations with rules and content processors, use `SnapshotBuilder`:
+For configured operations with rules, a file filter or a content processor, use
+`SnapshotBuilder`:
 
 ```php
+use AlexSkrypnyk\Snapshot\Index\IndexedFile;
 use AlexSkrypnyk\Snapshot\SnapshotBuilder;
 use AlexSkrypnyk\Snapshot\Rules\Rules;
 
@@ -316,15 +318,25 @@ $builder = SnapshotBuilder::create()
     ->addIgnoreContent('custom.lock')
     ->addInclude('custom/keep.txt')
     ->addIncludeContent('custom/keep.log')
-    ->withContentProcessor(fn($content) => trim($content));
+    // Drop every generated file from the index
+    ->withFileFilter(fn(IndexedFile $file) => !str_contains($file->getPathnameFromBasepath(), 'generated/'))
+    // Normalise the content of every file written by patch()
+    ->withContentProcessor(fn(string $content) => trim($content));
 
 // Use the builder for multiple operations
 $index = $builder->scan($directory);
 $comparer = $builder->compare($dir1, $dir2);
 $builder->sync($source, $destination);
 $builder->diff($baseline, $actual, $output);
-$builder->patch($baseline, $patches, $destination);
+$builder->patch($baseline, $diffs, $destination);
 ```
+
+The two callbacks serve different operations and receive different values:
+
+| Callback | Used by | Receives | Effect |
+|----------|---------|----------|--------|
+| `withFileFilter()` | `scan()`, `compare()`, `diff()`, `sync()` | An `IndexedFile` | Returning `FALSE` excludes the file from the index |
+| `withContentProcessor()` | `patch()` | The patched file content as a string | The returned string is written back to the file |
 
 ### Programmatic Rules
 

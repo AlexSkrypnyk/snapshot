@@ -110,22 +110,22 @@ class Comparer implements ComparerInterface {
   /**
    * {@inheritdoc}
    */
-  public function getAbsentLeftDiffs(?callable $cb = NULL): array {
-    return $this->filterCached('absent_left', fn(Diff $diff): bool => !$diff->existsLeft(), $cb);
+  public function getAbsentLeftDiffs(?callable $transformer = NULL): array {
+    return $this->filterCached('absent_left', fn(Diff $diff): bool => !$diff->existsLeft(), $transformer);
   }
 
   /**
    * {@inheritdoc}
    */
-  public function getAbsentRightDiffs(?callable $cb = NULL): array {
-    return $this->filterCached('absent_right', fn(Diff $diff): bool => !$diff->existsRight(), $cb);
+  public function getAbsentRightDiffs(?callable $transformer = NULL): array {
+    return $this->filterCached('absent_right', fn(Diff $diff): bool => !$diff->existsRight(), $transformer);
   }
 
   /**
    * {@inheritdoc}
    */
-  public function getContentDiffs(?callable $cb = NULL): array {
-    return $this->filterCached('content', fn(Diff $diff): bool => $diff->existsLeft() && $diff->existsRight() && !$diff->isSameContent(), $cb);
+  public function getContentDiffs(?callable $transformer = NULL): array {
+    return $this->filterCached('content', fn(Diff $diff): bool => $diff->existsLeft() && $diff->existsRight() && !$diff->isSameContent(), $transformer);
   }
 
   /**
@@ -135,20 +135,20 @@ class Comparer implements ComparerInterface {
    *   Cache key for this filter type.
    * @param callable $filter
    *   The filter callback. Should return TRUE to include an item.
-   * @param callable|null $cb
+   * @param callable|null $transformer
    *   Optional transformation callback applied to each filtered diff.
    *
    * @return array<string, Diff|mixed>
    *   Filtered (and optionally transformed) array of diffs.
    */
-  protected function filterCached(string $cache_key, callable $filter, ?callable $cb = NULL): array {
+  protected function filterCached(string $cache_key, callable $filter, ?callable $transformer = NULL): array {
     $this->cache[$cache_key] ??= array_filter($this->diffs, $filter);
 
     $diffs = $this->cache[$cache_key];
 
-    if (is_callable($cb)) {
+    if (is_callable($transformer)) {
       foreach ($diffs as $path => $diff) {
-        $diffs[$path] = $cb($diff);
+        $diffs[$path] = $transformer($diff);
       }
     }
 

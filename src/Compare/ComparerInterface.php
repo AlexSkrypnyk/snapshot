@@ -38,37 +38,37 @@ interface ComparerInterface extends RenderableInterface {
   /**
    * Get an array of absent left diffs.
    *
-   * @param callable|null $cb
+   * @param callable|null $transformer
    *   Optional transformation callback.
    *
    * @return array<string, \AlexSkrypnyk\Snapshot\Compare\Diff|mixed>
    *   An array of diffs that are present in the right directory but not in
    *   the left.
    */
-  public function getAbsentLeftDiffs(?callable $cb = NULL): array;
+  public function getAbsentLeftDiffs(?callable $transformer = NULL): array;
 
   /**
    * Get an array of absent right diffs.
    *
-   * @param callable|null $cb
+   * @param callable|null $transformer
    *   Optional transformation callback.
    *
    * @return array<string, \AlexSkrypnyk\Snapshot\Compare\Diff|mixed>
    *   An array of diffs that are present in the left directory but not in
    *   the right.
    */
-  public function getAbsentRightDiffs(?callable $cb = NULL): array;
+  public function getAbsentRightDiffs(?callable $transformer = NULL): array;
 
   /**
    * Get an array of content diffs.
    *
-   * @param callable|null $cb
+   * @param callable|null $transformer
    *   Optional transformation callback.
    *
    * @return array<string, \AlexSkrypnyk\Snapshot\Compare\Diff|mixed>
    *   An array of diffs that are present in both directories but have different
    *   content.
    */
-  public function getContentDiffs(?callable $cb = NULL): array;
+  public function getContentDiffs(?callable $transformer = NULL): array;
 
 }

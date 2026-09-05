@@ -17,8 +17,8 @@ use AlexSkrypnyk\Snapshot\Sync\Syncer;
  * Static facade for directory snapshot operations.
  *
  * Provides quick access to snapshot functionality for one-off operations.
- * For configured operations with rules and content processors, use
- * SnapshotBuilder instead.
+ * For configured operations with rules, a file filter or a content processor,
+ * use SnapshotBuilder instead.
  *
  * @code
  * // Quick one-off operations
@@ -53,14 +53,15 @@ class Snapshot {
    *   Directory to scan.
    * @param \AlexSkrypnyk\Snapshot\Rules\Rules|null $rules
    *   Optional comparison rules.
-   * @param callable|null $content_processor
-   *   Optional callback to process file content.
+   * @param callable|null $file_filter
+   *   Optional callback receiving each indexed file; returning FALSE excludes
+   *   the file from the index.
    *
    * @return \AlexSkrypnyk\Snapshot\Index\Index
    *   The directory index.
    */
-  public static function scan(string $directory, ?Rules $rules = NULL, ?callable $content_processor = NULL): Index {
-    return new Index($directory, $rules, $content_processor);
+  public static function scan(string $directory, ?Rules $rules = NULL, ?callable $file_filter = NULL): Index {
+    return new Index($directory, $rules, $file_filter);
   }
 
   /**
@@ -72,17 +73,18 @@ class Snapshot {
    *   Actual directory path.
    * @param \AlexSkrypnyk\Snapshot\Rules\Rules|null $rules
    *   Optional comparison rules.
-   * @param callable|null $content_processor
-   *   Optional callback to process file content.
+   * @param callable|null $file_filter
+   *   Optional callback receiving each indexed file; returning FALSE excludes
+   *   the file from both indexes.
    *
    * @return \AlexSkrypnyk\Snapshot\Compare\Comparer
    *   Comparison result object.
    */
-  public static function compare(string $baseline, string $actual, ?Rules $rules = NULL, ?callable $content_processor = NULL): Comparer {
-    $baseline_index = new Index($baseline, $rules, $content_processor);
+  public static function compare(string $baseline, string $actual, ?Rules $rules = NULL, ?callable $file_filter = NULL): Comparer {
+    $baseline_index = new Index($baseline, $rules, $file_filter);
 
     File::mkdir($actual);
-    $actual_index = new Index($actual, $rules ?: $baseline_index->getRules(), $content_processor);
+    $actual_index = new Index($actual, $rules ?: $baseline_index->getRules(), $file_filter);
 
     return (new Comparer($baseline_index, $actual_index))->compare();
   }
@@ -98,13 +100,14 @@ class Snapshot {
    *   Directory to write diff files to.
    * @param \AlexSkrypnyk\Snapshot\Rules\Rules|null $rules
    *   Optional comparison rules.
-   * @param callable|null $content_processor
-   *   Optional callback to process file content.
+   * @param callable|null $file_filter
+   *   Optional callback receiving each indexed file; returning FALSE excludes
+   *   the file from both indexes.
    */
-  public static function diff(string $baseline, string $actual, string $output, ?Rules $rules = NULL, ?callable $content_processor = NULL): void {
+  public static function diff(string $baseline, string $actual, string $output, ?Rules $rules = NULL, ?callable $file_filter = NULL): void {
     File::mkdir($output);
 
-    $comparer = self::compare($baseline, $actual, $rules, $content_processor);
+    $comparer = self::compare($baseline, $actual, $rules, $file_filter);
 
     $absent_left = $comparer->getAbsentLeftDiffs();
     $absent_right = $comparer->getAbsentRightDiffs();
@@ -144,23 +147,23 @@ class Snapshot {
    *
    * @param string $baseline
    *   Baseline directory path.
-   * @param string $patches
-   *   Directory containing patch/diff files.
+   * @param string $diffs
+   *   Directory containing diff files produced by self::diff().
    * @param string $destination
    *   Destination directory for patched output.
    * @param \AlexSkrypnyk\Snapshot\Rules\Rules|null $rules
-   *   Optional rules applied to the baseline sync and the patches scan.
+   *   Optional rules applied to the baseline sync and the diffs scan.
    * @param callable|null $content_processor
    *   Optional callback to process content after patching.
    */
-  public static function patch(string $baseline, string $patches, string $destination, ?Rules $rules = NULL, ?callable $content_processor = NULL): void {
+  public static function patch(string $baseline, string $diffs, string $destination, ?Rules $rules = NULL, ?callable $content_processor = NULL): void {
     File::mkdir($destination);
 
     self::sync($baseline, $destination, 0755, FALSE, $rules);
 
     $patcher = new Patcher($baseline, $destination);
 
-    $patch_index = self::scan($patches, $rules);
+    $patch_index = self::scan($diffs, $rules);
     foreach ($patch_index->getFiles() as $file) {
       // getFiles() allows a transform callback to return non-file values;
       // skip anything that is not a file since none is passed here.
@@ -218,11 +221,12 @@ class Snapshot {
    *   Whether to copy empty directories.
    * @param \AlexSkrypnyk\Snapshot\Rules\Rules|null $rules
    *   Optional comparison rules.
-   * @param callable|null $content_processor
-   *   Optional callback to process file content.
+   * @param callable|null $file_filter
+   *   Optional callback receiving each indexed file; returning FALSE excludes
+   *   the file from the sync.
    */
-  public static function sync(string $source, string $destination, int $permissions = 0755, bool $copy_empty_dirs = FALSE, ?Rules $rules = NULL, ?callable $content_processor = NULL): void {
-    $index = self::scan($source, $rules, $content_processor);
+  public static function sync(string $source, string $destination, int $permissions = 0755, bool $copy_empty_dirs = FALSE, ?Rules $rules = NULL, ?callable $file_filter = NULL): void {
+    $index = self::scan($source, $rules, $file_filter);
     (new Syncer($index))->sync($destination, $permissions, $copy_empty_dirs);
   }
 
