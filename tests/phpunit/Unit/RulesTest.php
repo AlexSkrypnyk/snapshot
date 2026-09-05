@@ -61,7 +61,7 @@ final class RulesTest extends UnitTestCase {
       ] + $default,
     ];
     yield 'ignore content rules' => [
-      "^ignore-content",
+      '^ignore-content',
       [
         'content' => ['ignore-content'],
       ] + $default,
@@ -120,9 +120,9 @@ final class RulesTest extends UnitTestCase {
 
   public static function dataProviderParseEdgeCases(): \Iterator {
     yield 'empty lines and whitespace' => ["\n  \n\t\n", [], [], [], []];
-    yield 'special characters in include rule' => ["!special@chars", ["special@chars"], [], [], []];
-    yield 'regex special characters as global rule' => ["[regex].special+chars?{test}", [], [], ["[regex].special+chars?{test}"], []];
-    yield 'very long pattern' => [str_repeat("a", 1000), [], [], [str_repeat("a", 1000)], []];
+    yield 'special characters in include rule' => ['!special@chars', ['special@chars'], [], [], []];
+    yield 'regex special characters as global rule' => ['[regex].special+chars?{test}', [], [], ['[regex].special+chars?{test}'], []];
+    yield 'very long pattern' => [str_repeat('a', 1000), [], [], [str_repeat('a', 1000)], []];
     yield 'lone negation prefix is ignored' => ['!', [], [], [], []];
     yield 'negation of content marker only is ignored' => ['!^', [], [], [], []];
   }
@@ -130,10 +130,10 @@ final class RulesTest extends UnitTestCase {
   public function testParseMethodChaining(): void {
     // Test chained parse calls.
     $rules = new Rules();
-    $result = $rules->parse("!include-rule")
-      ->parse("^ignore-content-rule")
-      ->parse("global-rule")
-      ->parse("some/path/");
+    $result = $rules->parse('!include-rule')
+      ->parse('^ignore-content-rule')
+      ->parse('global-rule')
+      ->parse('some/path/');
 
     $this->assertSame($rules, $result);
     $this->assertSame(['include-rule'], $rules->getInclude());

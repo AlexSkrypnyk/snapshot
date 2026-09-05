@@ -215,7 +215,7 @@ final class SnapshotAssertionsTraitTest extends TestCase {
     // Create a patch file with unexpected EOF.
     mkdir($this->diffDir, 0777, TRUE);
     // Missing the content completely.
-    $diff_content = "@@ -1,3 +1,3 @@";
+    $diff_content = '@@ -1,3 +1,3 @@';
     file_put_contents($this->diffDir . DIRECTORY_SEPARATOR . 'file1.txt', $diff_content);
 
     mkdir($this->actualDir, 0777, TRUE);

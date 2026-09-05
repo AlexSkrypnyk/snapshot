@@ -34,7 +34,7 @@ final class PatcherTest extends UnitTestCase {
       file_put_contents($file_path, "Some content\n@@ -1,1 +1,1 @@\n");
     }
     else {
-      file_put_contents($file_path, "Some content without patch markers");
+      file_put_contents($file_path, 'Some content without patch markers');
     }
 
     $result = Patcher::isPatchFile($file_path);
@@ -67,7 +67,7 @@ final class PatcherTest extends UnitTestCase {
   }
 
   public function testAddPatchFileInvalid(): void {
-    $content = "Not a patch file";
+    $content = 'Not a patch file';
     $file_path = self::$sut . DIRECTORY_SEPARATOR . 'not_a_patch.txt';
     file_put_contents($file_path, $content);
 
@@ -92,7 +92,7 @@ final class PatcherTest extends UnitTestCase {
     $result1 = $patcher->addDiff($diff_string, 'test.txt');
     $this->assertInstanceOf(Patcher::class, $result1);
 
-    $diff_array = ["@@ -1,1 +1,1 @@", "-old line", "+new line"];
+    $diff_array = ['@@ -1,1 +1,1 @@', '-old line', '+new line'];
     $result2 = $patcher->addDiff($diff_array, 'test2.txt');
     $this->assertInstanceOf(Patcher::class, $result2);
   }
@@ -141,11 +141,11 @@ final class PatcherTest extends UnitTestCase {
 
   public function testFindHunk(): void {
     $lines = [
-      "@@ -1,3 +1,3 @@",
-      " line1",
-      "-line2",
-      "+new line 2",
-      " line3",
+      '@@ -1,3 +1,3 @@',
+      ' line1',
+      '-line2',
+      '+new line 2',
+      ' line3',
     ];
     reset($lines);
 
@@ -159,11 +159,11 @@ final class PatcherTest extends UnitTestCase {
       'dst_size' => 3,
     ];
     $this->assertEquals($expected, $result);
-    $this->assertSame(" line1", current($lines));
+    $this->assertSame(' line1', current($lines));
   }
 
   public function testFindHunkNull(): void {
-    $lines = ["Not a hunk header"];
+    $lines = ['Not a hunk header'];
     reset($lines);
 
     $patcher = new Patcher(self::$sut, self::$sut);
@@ -173,7 +173,7 @@ final class PatcherTest extends UnitTestCase {
   }
 
   public function testFindHunkUnexpectedEof(): void {
-    $lines = ["@@ -1,3 +1,3 @@"];
+    $lines = ['@@ -1,3 +1,3 @@'];
     reset($lines);
 
     $patcher = new Patcher(self::$sut, self::$sut);
@@ -193,10 +193,10 @@ final class PatcherTest extends UnitTestCase {
     file_put_contents($source_file, "line1\nline2\nline3\n");
 
     $diff = [
-      " line1",
-      "-line2",
-      "+new line 2",
-      " line3",
+      ' line1',
+      '-line2',
+      '+new line 2',
+      ' line3',
     ];
     reset($diff);
 
@@ -233,10 +233,10 @@ final class PatcherTest extends UnitTestCase {
     file_put_contents($source_file, "line1\nline2\nline3");
 
     $diff = [
-      " line1",
-      "-line2",
-      "+new line 2",
-      " line3",
+      ' line1',
+      '-line2',
+      '+new line 2',
+      ' line3',
       "\\ No newline at end of file",
     ];
     reset($diff);
@@ -275,10 +275,10 @@ final class PatcherTest extends UnitTestCase {
     file_put_contents($source_file, $content);
 
     $diff = [
-      " line1",
-      "-line2",
-      "+new line 2",
-      " line3",
+      ' line1',
+      '-line2',
+      '+new line 2',
+      ' line3',
     ];
     reset($diff);
 
@@ -313,8 +313,8 @@ final class PatcherTest extends UnitTestCase {
     file_put_contents($source_file, "line1\nline2\nline3\n");
 
     $diff = [
-      " line1",
-      "-line2",
+      ' line1',
+      '-line2',
     ];
     reset($diff);
 
@@ -373,10 +373,10 @@ final class PatcherTest extends UnitTestCase {
 
     // Create a diff with too many removal lines.
     $diff = [
-      " line1",
-      "-line2",
-      "-extra removal line",
-      " line3",
+      ' line1',
+      '-line2',
+      '-extra removal line',
+      ' line3',
     ];
     reset($diff);
 
@@ -422,10 +422,10 @@ final class PatcherTest extends UnitTestCase {
 
     // Create a diff with too many addition lines.
     $diff = [
-      " line1",
-      "+new line",
-      "+extra addition line",
-      " line3",
+      ' line1',
+      '+new line',
+      '+extra addition line',
+      ' line3',
     ];
     reset($diff);
 
@@ -500,11 +500,11 @@ final class PatcherTest extends UnitTestCase {
     // Create a diff where "No newline at end of file" appears during
     // processing.
     $diff = [
-      " line1",
+      ' line1',
       "\\ No newline at end of file",
-      "-line2",
-      "+new line 2",
-      " line3",
+      '-line2',
+      '+new line 2',
+      ' line3',
     ];
     reset($diff);
 
