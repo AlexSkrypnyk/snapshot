@@ -16,6 +16,8 @@ use AlexSkrypnyk\Snapshot\Rules\RulesInterface;
  * perform multiple operations with the same settings.
  *
  * @code
+ * use AlexSkrypnyk\Snapshot\Index\IndexedFile;
+ *
  * $builder = SnapshotBuilder::create()
  *     ->withRules(Rules::phpProject())
  *     ->addSkip('custom/')

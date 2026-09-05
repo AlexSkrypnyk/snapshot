@@ -338,6 +338,8 @@ The two callbacks serve different operations and receive different values:
 | `withFileFilter()` | `scan()`, `compare()`, `diff()`, `sync()` | An `IndexedFile` | Returning `FALSE` excludes the file from the index |
 | `withContentProcessor()` | `patch()` | The patched file content as a string | The returned string is written back to the file |
 
+`patch()` takes no file filter: its baseline sync and its scan of the diffs directory are driven by the configured rules alone.
+
 ### Programmatic Rules
 
 Configure comparison rules programmatically using the `Rules` class:
@@ -469,6 +471,39 @@ $replacer->replace($content);  // $content is now 'Version: __VERSION__'
 // Apply to directory
 $replacer->replaceInDir($directory);
 ```
+
+## ⬆️ Upgrading
+
+This release settles the public API and contains breaking changes.
+
+- **Read this first - one break is silent.** `assertSnapshotMatchesBaseline()` reordered its three leading string parameters from `($actual, $baseline, $diffs)` to `($baseline, $diffs, $actual)`. Every parameter is a string path, so an un-updated call still type-checks and runs against the wrong directories instead of failing at the call site. Update every call site before upgrading.
+- **The companion break is loud.** `assertDirectoriesIdentical()` moved `$message` to last and promoted `$rules` to third, so an un-updated call that passed a message third now throws a `TypeError` rather than misbehaving quietly.
+
+Every renamed or reshaped public symbol:
+
+| Old | New |
+|-----|-----|
+| `assertSnapshotMatchesBaseline($actual, $baseline, $diffs, $expected, $message)` | `assertSnapshotMatchesBaseline($baseline, $diffs, $actual, $expected, $message)` |
+| `assertDirectoriesIdentical($dir1, $dir2, $message, $match_content, $show_diff, $rules)` | `assertDirectoriesIdentical($expected, $actual, $rules, $file_filter, $show_diff, $message)` |
+| `Snapshot::scan/compare/diff/sync(..., $content_processor)` | `Snapshot::scan/compare/diff/sync(..., $file_filter)` |
+| `Snapshot::patch($baseline, $patches, ...)` | `Snapshot::patch($baseline, $diffs, ...)` |
+| `SnapshotBuilder::patch($baseline, $patches, ...)` | `SnapshotBuilder::patch($baseline, $diffs, ...)` |
+| `SnapshotBuilder::withContentProcessor()` fed every operation | `withContentProcessor()` feeds `patch()` only; new `withFileFilter()` feeds `scan()`, `compare()`, `diff()`, `sync()` |
+| `SnapshotBuilder::withContentProcessor(callable $processor)` | `SnapshotBuilder::withContentProcessor(callable $content_processor)` |
+| `Index::__construct(..., $beforeMatchContent)` | `Index::__construct(..., $fileFilter)` |
+| `Index::getFiles($cb)` | `Index::getFiles($transformer)` |
+| `Comparer::getAbsentLeftDiffs/getAbsentRightDiffs/getContentDiffs($cb)` | the same methods taking `$transformer` |
+| `Comparer::addLeftFile/addRightFile(): void` | the same methods returning `static` |
+| `IndexedFile::setBasepath/setContent/setIgnoreContent(): void` | the same methods returning `static` |
+| `RuleSetInterface::getSkipPatterns()` | `RuleSetInterface::getSkip()` |
+| `RuleSetInterface::getIgnoreContentPatterns()` | `RuleSetInterface::getIgnoreContent()` |
+| `RuleSetInterface::toRules()` | removed; use `Rules::fromRuleSet($set)` or `$set->applyTo()` |
+| `RuleSetInterface::applyTo(?Rules $rules): Rules` | `applyTo(?RulesInterface $rules): RulesInterface` |
+| `Rules::create/fromRuleSet/phpProject/nodeProject/fromFile(): self` | the same factories returning `static` |
+| `?Rules` parameters and returns across the facade, builder, trait and `Index` | `?RulesInterface` |
+| `PatchException::$file_path/$line_number/$line_content` | `$filePath/$lineNumber/$lineContent`; the getters are unchanged |
+
+Additions that break nothing: `Rules::global()`, `SnapshotBuilder::addGlobal()`, `SnapshotBuilder::withFileFilter()`/`getFileFilter()`, and `RuleSetInterface::getGlobal()`/`getInclude()`/`getIncludeContent()` with their `GLOBAL_PATTERNS`, `INCLUDE_PATTERNS` and `INCLUDE_CONTENT_PATTERNS` constants.
 
 ## 🤝 Contributing
 
