@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace AlexSkrypnyk\Snapshot\Tests\Functional;
 
-use PHPUnit\Framework\Exception;
 use AlexSkrypnyk\File\File;
+use AlexSkrypnyk\Snapshot\Snapshot;
 use PHPUnit\Framework\Attributes\CoversNothing;
+use PHPUnit\Framework\Exception;
 
 /**
  * Functional tests for the update-snapshots CLI script.
@@ -230,8 +231,8 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
 
     // Assert: baseline files match expected.
     $this->assertDirectoriesIdentical(
-      $this->fixturesDir . '/baseline_change/expected/_baseline',
-      $this->projectDir . '/tests/snapshots/_baseline'
+      $this->fixturesDir . '/baseline_change/expected/' . Snapshot::BASELINE_DIR,
+      $this->projectDir . '/tests/snapshots/' . Snapshot::BASELINE_DIR
     );
   }
 
@@ -311,8 +312,8 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
 
     // Assert: baseline files match expected (includes scenario_file.txt).
     $this->assertDirectoriesIdentical(
-      $this->fixturesDir . '/both_change/expected/_baseline',
-      $this->projectDir . '/tests/snapshots/_baseline'
+      $this->fixturesDir . '/both_change/expected/' . Snapshot::BASELINE_DIR,
+      $this->projectDir . '/tests/snapshots/' . Snapshot::BASELINE_DIR
     );
 
     // Assert: only 1 commit (initial - specified dataset mode doesn't commit).
@@ -363,8 +364,8 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
 
     // Assert: baseline files match expected (includes scenario_file.txt).
     $this->assertDirectoriesIdentical(
-      $this->fixturesDir . '/both_change/expected/_baseline',
-      $this->projectDir . '/tests/snapshots/_baseline'
+      $this->fixturesDir . '/both_change/expected/' . Snapshot::BASELINE_DIR,
+      $this->projectDir . '/tests/snapshots/' . Snapshot::BASELINE_DIR
     );
 
     // Assert: scenario1 should remain empty (just metadata files like .gitkeep
@@ -472,8 +473,8 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
     $this->assertSame(2, $commit_count, 'Expected initial + update commit');
 
     $this->assertDirectoriesIdentical(
-      $this->fixturesDir . '/baseline_change/expected/_baseline',
-      $this->projectDir . '/tests/snapshots/_baseline'
+      $this->fixturesDir . '/baseline_change/expected/' . Snapshot::BASELINE_DIR,
+      $this->projectDir . '/tests/snapshots/' . Snapshot::BASELINE_DIR
     );
   }
 
@@ -501,8 +502,8 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
     $this->assertSame(2, $commit_count, 'Expected initial + update commit');
 
     $this->assertDirectoriesIdentical(
-      $this->fixturesDir . '/both_change/expected/_baseline',
-      $this->projectDir . '/tests/snapshots/_baseline'
+      $this->fixturesDir . '/both_change/expected/' . Snapshot::BASELINE_DIR,
+      $this->projectDir . '/tests/snapshots/' . Snapshot::BASELINE_DIR
     );
 
     $scenario_path = $this->projectDir . '/tests/snapshots/scenario1';

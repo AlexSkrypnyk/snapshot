@@ -22,7 +22,7 @@ declare(strict_types=1);
 
 // ----------------------------------------------------------------------------
 // Suffix appended to snapshots path to create baseline snapshots path.
-define('BASELINE_SUFFIX', '_baseline');
+define('BASELINE_DIR', '_baseline');
 
 // Name of the baseline dataset (will be run first).
 define('BASELINE_DATASET_NAME', 'baseline');
@@ -174,7 +174,7 @@ function run_specified_datasets(array $config): void {
 function run_all_datasets(array $config): void {
   $start_time = time();
   $baseline_committed = FALSE;
-  $baseline_path = rtrim((string) $config['snapshots_path'], '/') . '/' . BASELINE_SUFFIX;
+  $baseline_path = rtrim((string) $config['snapshots_path'], '/') . '/' . BASELINE_DIR;
 
   $datasets = discover_datasets($config);
   $total = count($datasets);

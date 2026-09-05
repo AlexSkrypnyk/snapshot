@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace AlexSkrypnyk\Snapshot\Tests\Unit;
 
-use AlexSkrypnyk\Snapshot\Index\IndexedFile;
 use AlexSkrypnyk\File\Exception\FileException;
 use AlexSkrypnyk\File\File;
 use AlexSkrypnyk\Snapshot\Compare\Comparer;
 use AlexSkrypnyk\Snapshot\Compare\Diff;
+use AlexSkrypnyk\Snapshot\Index\IndexedFile;
 use AlexSkrypnyk\Snapshot\Patch\Patcher;
 use AlexSkrypnyk\Snapshot\Rules\Rules;
 use AlexSkrypnyk\Snapshot\Snapshot;
