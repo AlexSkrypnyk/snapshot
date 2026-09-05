@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace AlexSkrypnyk\Snapshot\Tests\Unit;
 
-use AlexSkrypnyk\Snapshot\Index\IndexedFile;
 use AlexSkrypnyk\File\Exception\FileException;
 use AlexSkrypnyk\File\File;
 use AlexSkrypnyk\Snapshot\Compare\Comparer;
 use AlexSkrypnyk\Snapshot\Compare\Diff;
+use AlexSkrypnyk\Snapshot\Index\IndexedFile;
 use AlexSkrypnyk\Snapshot\Patch\Patcher;
 use AlexSkrypnyk\Snapshot\Rules\Rules;
 use AlexSkrypnyk\Snapshot\Snapshot;
@@ -39,9 +39,9 @@ final class SnapshotTest extends UnitTestCase {
       'dir2' => $diff->getRight()->getContent(),
     ]);
 
-    $this->assertEquals($expected_diffs['absent_dir1'] ?? [], array_keys($absent_dir1));
-    $this->assertEquals($expected_diffs['absent_dir2'] ?? [], array_keys($absent_dir2));
-    $this->assertEquals($expected_diffs['content'] ?? [], $content);
+    $this->assertSame($expected_diffs['absent_dir1'] ?? [], array_keys($absent_dir1));
+    $this->assertSame($expected_diffs['absent_dir2'] ?? [], array_keys($absent_dir2));
+    $this->assertSame($expected_diffs['content'] ?? [], $content);
   }
 
   public static function dataProviderCompare(): \Iterator {
@@ -119,7 +119,7 @@ final class SnapshotTest extends UnitTestCase {
       return;
     }
 
-    if (is_null($content)) {
+    if ($content === NULL) {
       $this->fail('Expected content, but got NULL.');
     }
 
@@ -214,7 +214,7 @@ ABSENT,
 
   #[DataProvider('dataProviderDiff')]
   public function testDiff(): void {
-    $baseline = File::dir($this->locationsFixtureDir() . DIRECTORY_SEPARATOR . '/../baseline');
+    $baseline = File::dir($this->locationsFixtureDir() . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'baseline');
     $dst = File::dir($this->locationsFixtureDir() . DIRECTORY_SEPARATOR . 'result');
 
     Snapshot::diff($baseline, $dst, self::$sut);
@@ -252,7 +252,7 @@ ABSENT,
 
   #[DataProvider('dataProviderPatch')]
   public function testPatch(): void {
-    $baseline = File::dir($this->locationsFixtureDir('diff') . DIRECTORY_SEPARATOR . '/../baseline');
+    $baseline = File::dir($this->locationsFixtureDir('diff') . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'baseline');
     $diff = File::dir($this->locationsFixtureDir('diff') . DIRECTORY_SEPARATOR . 'diff');
 
     Snapshot::patch($baseline, $diff, self::$sut);
@@ -294,11 +294,10 @@ ABSENT,
     $baseline = File::dir($this->locationsFixtureDir('diff') . DIRECTORY_SEPARATOR . 'baseline');
     $diff = File::dir($this->locationsFixtureDir('diff') . DIRECTORY_SEPARATOR . 'files_equal' . DIRECTORY_SEPARATOR . 'diff');
 
-    $processor = (fn(string $content): string => str_replace('f1l1', 'REPLACED', $content));
+    $processor = fn(string $content): string => str_replace('f1l1', 'REPLACED', $content);
 
     Snapshot::patch($baseline, $diff, self::$sut, $processor);
 
-    // Verify content was actually modified on disk.
     $files = File::scandir(self::$sut);
     $modified = FALSE;
     foreach ($files as $file_path) {
@@ -311,12 +310,11 @@ ABSENT,
   }
 
   public function testGetBaselinePath(): void {
-    // Create the baseline directory structure.
     $parent = self::$sut;
     $baseline_dir = $parent . DIRECTORY_SEPARATOR . Snapshot::BASELINE_DIR;
     $snapshot_dir = $parent . DIRECTORY_SEPARATOR . 'snapshot';
-    mkdir($baseline_dir, 0755, TRUE);
-    mkdir($snapshot_dir, 0755, TRUE);
+    mkdir($baseline_dir, 0777, TRUE);
+    mkdir($snapshot_dir, 0777, TRUE);
 
     $result = Snapshot::getBaselinePath($snapshot_dir);
 
@@ -341,13 +339,13 @@ ABSENT,
   }
 
   public function testDiffWithRules(): void {
-    $baseline = File::dir($this->locationsFixtureDir('diff') . DIRECTORY_SEPARATOR . 'files_equal' . DIRECTORY_SEPARATOR . '/../baseline');
+    $baseline = File::dir($this->locationsFixtureDir('diff') . DIRECTORY_SEPARATOR . 'files_equal' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'baseline');
     $dst = File::dir($this->locationsFixtureDir('diff') . DIRECTORY_SEPARATOR . 'files_equal' . DIRECTORY_SEPARATOR . 'result');
 
     $rules = Rules::create();
     Snapshot::diff($baseline, $dst, self::$sut, $rules);
 
-    // No diff should be generated for equal directories.
+    // Equal directories generate no diff.
     $files = glob(self::$sut . '/*');
     $this->assertEmpty($files);
   }
@@ -366,20 +364,20 @@ ABSENT,
   public function testComparerCacheInvalidation(): void {
     $dir1 = self::$sut . DIRECTORY_SEPARATOR . 'dir1';
     $dir2 = self::$sut . DIRECTORY_SEPARATOR . 'dir2';
-    mkdir($dir1);
-    mkdir($dir2);
+    mkdir($dir1, 0777, TRUE);
+    mkdir($dir2, 0777, TRUE);
 
     file_put_contents($dir1 . DIRECTORY_SEPARATOR . 'f1.txt', 'content1');
     file_put_contents($dir2 . DIRECTORY_SEPARATOR . 'f1.txt', 'content1');
 
     $comparer = Snapshot::compare($dir1, $dir2);
 
-    // First call - should be empty (directories are identical).
+    // The directories are identical, so the first call returns empty results.
     $this->assertEmpty($comparer->getAbsentLeftDiffs());
     $this->assertEmpty($comparer->getAbsentRightDiffs());
     $this->assertEmpty($comparer->getContentDiffs());
 
-    // Second call - should return same cached results.
+    // The second call returns the same cached results.
     $this->assertEmpty($comparer->getAbsentLeftDiffs());
     $this->assertEmpty($comparer->getContentDiffs());
   }
@@ -387,24 +385,23 @@ ABSENT,
   public function testComparerCacheInvalidatedOnAddFile(): void {
     $dir1 = self::$sut . DIRECTORY_SEPARATOR . 'dir1';
     $dir2 = self::$sut . DIRECTORY_SEPARATOR . 'dir2';
-    mkdir($dir1);
-    mkdir($dir2);
+    mkdir($dir1, 0777, TRUE);
+    mkdir($dir2, 0777, TRUE);
 
     file_put_contents($dir1 . DIRECTORY_SEPARATOR . 'f1.txt', 'content1');
     file_put_contents($dir2 . DIRECTORY_SEPARATOR . 'f1.txt', 'content1');
 
     $comparer = Snapshot::compare($dir1, $dir2);
 
-    // Populate cache.
+    // The first read populates the cache.
     $this->assertEmpty($comparer->getAbsentLeftDiffs());
 
-    // Add a new file to the left side - this should invalidate cache.
+    // Adding a file to the left side invalidates the cache.
     $new_file_path = $dir1 . DIRECTORY_SEPARATOR . 'f2.txt';
     file_put_contents($new_file_path, 'new content');
     $new_file = new IndexedFile($new_file_path, $dir1);
     $comparer->addLeftFile($new_file);
 
-    // Cache should be invalidated - absent right should now include f2.txt.
     $absent_right = $comparer->getAbsentRightDiffs();
     $this->assertArrayHasKey('f2.txt', $absent_right);
   }
@@ -412,7 +409,7 @@ ABSENT,
   public function testSyncRespectsContentIgnored(): void {
     $src = self::$sut . DIRECTORY_SEPARATOR . 'src';
     $dst = self::$sut . DIRECTORY_SEPARATOR . 'dst';
-    mkdir($src);
+    mkdir($src, 0777, TRUE);
 
     file_put_contents($src . DIRECTORY_SEPARATOR . 'regular.txt', 'regular content');
     file_put_contents($src . DIRECTORY_SEPARATOR . 'ignored.txt', 'actual secret content');
@@ -427,19 +424,21 @@ ABSENT,
   }
 
   public function testSyncUsesFileCopy(): void {
+    if (!function_exists('symlink')) {
+      $this->markTestSkipped('Symlinks are not supported on this system.');
+    }
+
     $src = self::$sut . DIRECTORY_SEPARATOR . 'src';
     $dst = self::$sut . DIRECTORY_SEPARATOR . 'dst';
-    mkdir($src);
+    mkdir($src, 0777, TRUE);
 
-    // Create various file types.
     file_put_contents($src . DIRECTORY_SEPARATOR . 'regular.txt', 'regular content');
-    mkdir($src . DIRECTORY_SEPARATOR . 'subdir');
+    mkdir($src . DIRECTORY_SEPARATOR . 'subdir', 0777, TRUE);
     file_put_contents($src . DIRECTORY_SEPARATOR . 'subdir' . DIRECTORY_SEPARATOR . 'nested.txt', 'nested content');
     symlink($src . DIRECTORY_SEPARATOR . 'regular.txt', $src . DIRECTORY_SEPARATOR . 'link.txt');
 
     Snapshot::sync($src, $dst);
 
-    // Verify all files were copied correctly.
     $this->assertFileExists($dst . DIRECTORY_SEPARATOR . 'regular.txt');
     $this->assertSame('regular content', file_get_contents($dst . DIRECTORY_SEPARATOR . 'regular.txt'));
     $this->assertFileExists($dst . DIRECTORY_SEPARATOR . 'subdir' . DIRECTORY_SEPARATOR . 'nested.txt');

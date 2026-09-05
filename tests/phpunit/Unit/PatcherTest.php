@@ -34,7 +34,7 @@ final class PatcherTest extends UnitTestCase {
       file_put_contents($file_path, "Some content\n@@ -1,1 +1,1 @@\n");
     }
     else {
-      file_put_contents($file_path, "Some content without patch markers");
+      file_put_contents($file_path, 'Some content without patch markers');
     }
 
     $result = Patcher::isPatchFile($file_path);
@@ -54,28 +54,20 @@ final class PatcherTest extends UnitTestCase {
     $patch_file_path = self::$sut . DIRECTORY_SEPARATOR . 'test.patch';
     file_put_contents($patch_file_path, $patch_content);
 
-    $file_info = new IndexedFile(
-      $patch_file_path,
-      '',
-      ''
-    );
+    $file_info = new IndexedFile($patch_file_path, '', '');
 
     $patcher = new Patcher(self::$sut, self::$sut);
     $result = $patcher->addPatchFile($file_info);
 
-    $this->assertInstanceOf(Patcher::class, $result);
+    $this->assertSame($patcher, $result);
   }
 
   public function testAddPatchFileInvalid(): void {
-    $content = "Not a patch file";
+    $content = 'Not a patch file';
     $file_path = self::$sut . DIRECTORY_SEPARATOR . 'not_a_patch.txt';
     file_put_contents($file_path, $content);
 
-    $file_info = new IndexedFile(
-      $file_path,
-      '',
-      ''
-    );
+    $file_info = new IndexedFile($file_path, '', '');
 
     $patcher = new Patcher(self::$sut, self::$sut);
 
@@ -90,11 +82,11 @@ final class PatcherTest extends UnitTestCase {
 
     $diff_string = "@@ -1,1 +1,1 @@\n-old line\n+new line\n";
     $result1 = $patcher->addDiff($diff_string, 'test.txt');
-    $this->assertInstanceOf(Patcher::class, $result1);
+    $this->assertSame($patcher, $result1);
 
-    $diff_array = ["@@ -1,1 +1,1 @@", "-old line", "+new line"];
+    $diff_array = ['@@ -1,1 +1,1 @@', '-old line', '+new line'];
     $result2 = $patcher->addDiff($diff_array, 'test2.txt');
-    $this->assertInstanceOf(Patcher::class, $result2);
+    $this->assertSame($patcher, $result2);
   }
 
   public function testSplitLines(): void {
@@ -103,18 +95,18 @@ final class PatcherTest extends UnitTestCase {
     $result = self::callProtectedMethod(Patcher::class, 'splitLines', [$content]);
 
     $expected = ['line1', 'line2', 'line3', 'line4'];
-    $this->assertEquals($expected, $result);
+    $this->assertSame($expected, $result);
   }
 
   public function testSplitLinesEdgeCases(): void {
     $result1 = self::callProtectedMethod(Patcher::class, 'splitLines', ['']);
-    $this->assertEquals([''], $result1);
+    $this->assertSame([''], $result1);
 
     $result2 = self::callProtectedMethod(Patcher::class, 'splitLines', ['single line']);
-    $this->assertEquals(['single line'], $result2);
+    $this->assertSame(['single line'], $result2);
 
     $result3 = self::callProtectedMethod(Patcher::class, 'splitLines', ["\n\n\n"]);
-    $this->assertEquals(['', '', '', ''], $result3);
+    $this->assertSame(['', '', '', ''], $result3);
   }
 
   public function testFilePatch(): void {
@@ -141,11 +133,11 @@ final class PatcherTest extends UnitTestCase {
 
   public function testFindHunk(): void {
     $lines = [
-      "@@ -1,3 +1,3 @@",
-      " line1",
-      "-line2",
-      "+new line 2",
-      " line3",
+      '@@ -1,3 +1,3 @@',
+      ' line1',
+      '-line2',
+      '+new line 2',
+      ' line3',
     ];
     reset($lines);
 
@@ -158,12 +150,12 @@ final class PatcherTest extends UnitTestCase {
       'dst_idx' => 1,
       'dst_size' => 3,
     ];
-    $this->assertEquals($expected, $result);
-    $this->assertSame(" line1", current($lines));
+    $this->assertSame($expected, $result);
+    $this->assertSame(' line1', current($lines));
   }
 
   public function testFindHunkNull(): void {
-    $lines = ["Not a hunk header"];
+    $lines = ['Not a hunk header'];
     reset($lines);
 
     $patcher = new Patcher(self::$sut, self::$sut);
@@ -173,7 +165,7 @@ final class PatcherTest extends UnitTestCase {
   }
 
   public function testFindHunkUnexpectedEof(): void {
-    $lines = ["@@ -1,3 +1,3 @@"];
+    $lines = ['@@ -1,3 +1,3 @@'];
     reset($lines);
 
     $patcher = new Patcher(self::$sut, self::$sut);
@@ -193,10 +185,10 @@ final class PatcherTest extends UnitTestCase {
     file_put_contents($source_file, "line1\nline2\nline3\n");
 
     $diff = [
-      " line1",
-      "-line2",
-      "+new line 2",
-      " line3",
+      ' line1',
+      '-line2',
+      '+new line 2',
+      ' line3',
     ];
     reset($diff);
 
@@ -233,10 +225,10 @@ final class PatcherTest extends UnitTestCase {
     file_put_contents($source_file, "line1\nline2\nline3");
 
     $diff = [
-      " line1",
-      "-line2",
-      "+new line 2",
-      " line3",
+      ' line1',
+      '-line2',
+      '+new line 2',
+      ' line3',
       "\\ No newline at end of file",
     ];
     reset($diff);
@@ -275,10 +267,10 @@ final class PatcherTest extends UnitTestCase {
     file_put_contents($source_file, $content);
 
     $diff = [
-      " line1",
-      "-line2",
-      "+new line 2",
-      " line3",
+      ' line1',
+      '-line2',
+      '+new line 2',
+      ' line3',
     ];
     reset($diff);
 
@@ -293,7 +285,7 @@ final class PatcherTest extends UnitTestCase {
     $dst_file = $dest_dir . DIRECTORY_SEPARATOR . 'test.txt';
 
     $this->expectException(PatchException::class);
-    $this->expectExceptionMessageMatches('/Source file verification failed/');
+    $this->expectExceptionMessage('Source file verification failed');
 
     self::callProtectedMethod($patcher, 'applyHunk', [
       &$diff,
@@ -313,8 +305,8 @@ final class PatcherTest extends UnitTestCase {
     file_put_contents($source_file, "line1\nline2\nline3\n");
 
     $diff = [
-      " line1",
-      "-line2",
+      ' line1',
+      '-line2',
     ];
     reset($diff);
 
@@ -329,7 +321,7 @@ final class PatcherTest extends UnitTestCase {
     $dst_file = $dest_dir . DIRECTORY_SEPARATOR . 'test.txt';
 
     $this->expectException(PatchException::class);
-    $this->expectExceptionMessageMatches('/Hunk mismatch/');
+    $this->expectExceptionMessage('Hunk mismatch');
 
     self::callProtectedMethod($patcher, 'applyHunk', [
       &$diff,
@@ -342,26 +334,23 @@ final class PatcherTest extends UnitTestCase {
   public function testUpdateDestinations(): void {
     $patcher = new Patcher(self::$sut, self::$sut);
 
-    $dest_file1 = self::$sut . DIRECTORY_SEPARATOR . 'file1.txt';
-    $dest_file2 = self::$sut . DIRECTORY_SEPARATOR . 'file2.txt';
+    $dst_file1 = self::$sut . DIRECTORY_SEPARATOR . 'file1.txt';
+    $dst_file2 = self::$sut . DIRECTORY_SEPARATOR . 'file2.txt';
 
     self::setProtectedValue($patcher, 'dstLines', [
-      $dest_file1 => ['line1', 'line2'],
-      $dest_file2 => ['line3', 'line4'],
+      $dst_file1 => ['line1', 'line2'],
+      $dst_file2 => ['line3', 'line4'],
     ]);
 
     $result = self::callProtectedMethod($patcher, 'updateDestinations', []);
 
-    $this->assertEquals(2, $result);
-    $this->assertFileExists($dest_file1);
-    $this->assertFileExists($dest_file2);
-    $this->assertSame("line1\nline2", file_get_contents($dest_file1));
-    $this->assertSame("line3\nline4", file_get_contents($dest_file2));
+    $this->assertSame(2, $result);
+    $this->assertFileExists($dst_file1);
+    $this->assertFileExists($dst_file2);
+    $this->assertSame("line1\nline2", file_get_contents($dst_file1));
+    $this->assertSame("line3\nline4", file_get_contents($dst_file2));
   }
 
-  /**
-   * Tests the unexpected removal line exception.
-   */
   public function testUnexpectedRemovalLine(): void {
     $source_dir = self::$sut . DIRECTORY_SEPARATOR . 'source';
     $dest_dir = self::$sut . DIRECTORY_SEPARATOR . 'dest';
@@ -371,18 +360,17 @@ final class PatcherTest extends UnitTestCase {
     $source_file = $source_dir . DIRECTORY_SEPARATOR . 'test.txt';
     file_put_contents($source_file, "line1\nline2\nline3\n");
 
-    // Create a diff with too many removal lines.
     $diff = [
-      " line1",
-      "-line2",
-      "-extra removal line",
-      " line3",
+      ' line1',
+      '-line2',
+      '-extra removal line',
+      ' line3',
     ];
     reset($diff);
 
     $info = [
       'src_idx' => 1,
-      // Source size is only 2, but we're trying to remove 3 lines.
+      // Source size is only 2, but the hunk removes 3 lines.
       'src_size' => 2,
       'dst_idx' => 1,
       'dst_size' => 2,
@@ -408,9 +396,6 @@ final class PatcherTest extends UnitTestCase {
     }
   }
 
-  /**
-   * Tests the unexpected addition line exception.
-   */
   public function testUnexpectedAdditionLine(): void {
     $source_dir = self::$sut . DIRECTORY_SEPARATOR . 'source';
     $dest_dir = self::$sut . DIRECTORY_SEPARATOR . 'dest';
@@ -420,12 +405,11 @@ final class PatcherTest extends UnitTestCase {
     $source_file = $source_dir . DIRECTORY_SEPARATOR . 'test.txt';
     file_put_contents($source_file, "line1\nline2\nline3\n");
 
-    // Create a diff with too many addition lines.
     $diff = [
-      " line1",
-      "+new line",
-      "+extra addition line",
-      " line3",
+      ' line1',
+      '+new line',
+      '+extra addition line',
+      ' line3',
     ];
     reset($diff);
 
@@ -433,7 +417,7 @@ final class PatcherTest extends UnitTestCase {
       'src_idx' => 1,
       'src_size' => 2,
       'dst_idx' => 1,
-      // Destination size is only 2, but we're trying to add 3 lines.
+      // Destination size is only 2, but the hunk adds 3 lines.
       'dst_size' => 2,
     ];
 
@@ -457,37 +441,24 @@ final class PatcherTest extends UnitTestCase {
     }
   }
 
-  /**
-   * Tests PatchException constructor and properties.
-   */
   public function testPatchExceptionProperties(): void {
     $message = 'Test message';
     $file_path = '/path/to/file.txt';
     $line_number = 42;
     $line_content = 'Test line content';
 
-    $exception = new PatchException(
-      $message,
-      $file_path,
-      $line_number,
-      $line_content
-    );
+    $exception = new PatchException($message, $file_path, $line_number, $line_content);
 
-    // Test getters.
     $this->assertSame($file_path, $exception->getFilePath());
     $this->assertSame($line_number, $exception->getLineNumber());
     $this->assertSame($line_content, $exception->getLineContent());
 
-    // Test message formatting.
     $this->assertStringContainsString($message, $exception->getMessage());
     $this->assertStringContainsString($file_path, $exception->getMessage());
     $this->assertStringContainsString((string) $line_number, $exception->getMessage());
     $this->assertStringContainsString($line_content, $exception->getMessage());
   }
 
-  /**
-   * Test applying hunk with "No newline at end of file" line in the middle.
-   */
   public function testApplyHunkWithNoNewlineInMiddle(): void {
     $source_dir = self::$sut . DIRECTORY_SEPARATOR . 'source';
     $dest_dir = self::$sut . DIRECTORY_SEPARATOR . 'dest';
@@ -497,14 +468,12 @@ final class PatcherTest extends UnitTestCase {
     $source_file = $source_dir . DIRECTORY_SEPARATOR . 'test.txt';
     file_put_contents($source_file, "line1\nline2\nline3\n");
 
-    // Create a diff where "No newline at end of file" appears during
-    // processing.
     $diff = [
-      " line1",
+      ' line1',
       "\\ No newline at end of file",
-      "-line2",
-      "+new line 2",
-      " line3",
+      '-line2',
+      '+new line 2',
+      ' line3',
     ];
     reset($diff);
 

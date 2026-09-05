@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace AlexSkrypnyk\Snapshot\Tests\Functional;
 
-use PHPUnit\Framework\Exception;
 use AlexSkrypnyk\File\File;
+use AlexSkrypnyk\Snapshot\Snapshot;
 use PHPUnit\Framework\Attributes\CoversNothing;
+use PHPUnit\Framework\Exception;
 
 /**
  * Functional tests for the update-snapshots CLI script.
@@ -20,19 +21,10 @@ use PHPUnit\Framework\Attributes\CoversNothing;
 #[CoversNothing]
 final class SnapshotUpdateScriptTest extends FunctionalTestCase {
 
-  /**
-   * Path to the update-snapshots script.
-   */
   protected string $scriptPath;
 
-  /**
-   * Path to the test project directory in $sut.
-   */
   protected string $projectDir;
 
-  /**
-   * Path to the functional_update fixtures.
-   */
   protected string $fixturesDir;
 
   /**
@@ -45,9 +37,6 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
     $this->fixturesDir = self::$fixtures . DIRECTORY_SEPARATOR . 'functional_update';
   }
 
-  /**
-   * Test that help is displayed with --help flag.
-   */
   public function testHelpFlag(): void {
     $this->processRun('php', [$this->scriptPath, '--help']);
 
@@ -65,9 +54,6 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
     $this->assertProcessOutputContains('Examples:');
   }
 
-  /**
-   * Test that help is displayed with -h flag.
-   */
   public function testHelpShortFlag(): void {
     $this->processRun('php', [$this->scriptPath, '-h']);
 
@@ -75,9 +61,6 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
     $this->assertProcessOutputContains('Update test snapshots');
   }
 
-  /**
-   * Test that error is shown when test-name argument is missing.
-   */
   public function testMissingTestNameArgument(): void {
     $this->processRun('php', [$this->scriptPath]);
 
@@ -85,9 +68,6 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
     $this->assertProcessOutputContains('Missing required argument: <test-name>');
   }
 
-  /**
-   * Test that error is shown when snapshots-path argument is missing.
-   */
   public function testMissingSnapshotsPathArgument(): void {
     $this->processRun('php', [$this->scriptPath, 'testSomeMethod']);
 
@@ -95,9 +75,6 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
     $this->assertProcessOutputContains('Missing required argument: <snapshots-path>');
   }
 
-  /**
-   * Test that error is shown when root directory does not exist.
-   */
   public function testInvalidRootDirectory(): void {
     $this->processRun('php', [
       $this->scriptPath,
@@ -110,9 +87,6 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
     $this->assertProcessOutputContains('Root directory does not exist');
   }
 
-  /**
-   * Test that error is shown when PHPUnit is not found.
-   */
   public function testPhpunitNotFound(): void {
     $temp_dir = self::$sut . DIRECTORY_SEPARATOR . 'no_phpunit';
     File::mkdir($temp_dir);
@@ -128,9 +102,6 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
     $this->assertProcessOutputContains('PHPUnit not found');
   }
 
-  /**
-   * Test that SCRIPT_QUIET environment variable suppresses output.
-   */
   public function testQuietMode(): void {
     $this->processRun(
       'php',
@@ -143,9 +114,6 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
     $this->assertEmpty($this->processGet()->getOutput());
   }
 
-  /**
-   * Test that script can be skipped with SCRIPT_RUN_SKIP environment variable.
-   */
   public function testSkipScript(): void {
     $this->processRun(
       'php',
@@ -169,7 +137,6 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
   public function testNoChangeNoCommits(): void {
     $this->setupTestProject('no_change');
 
-    // Run update-snapshots for all datasets.
     $this->processRun('php', [
       $this->scriptPath,
       '--root=' . $this->projectDir,
@@ -179,12 +146,10 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
       'tests/snapshots',
     ]);
 
-    // Assert: datasets discovered, all pass.
     $this->assertProcessSuccessful();
     $this->assertProcessOutputContains('Discovering datasets');
     $this->assertProcessOutputContains('Found');
 
-    // Assert: only 1 commit (initial commit).
     $commit_count = $this->getCommitCount();
     $this->assertSame(1, $commit_count, 'Expected only initial commit');
   }
@@ -200,7 +165,6 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
   public function testBaselineChangeCreatesCommit(): void {
     $this->setupTestProject('baseline_change');
 
-    // Run update-snapshots for all datasets.
     $this->processRun('php', [
       $this->scriptPath,
       '--root=' . $this->projectDir,
@@ -210,28 +174,24 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
       'tests/snapshots',
     ]);
 
-    // Assert: a successful update exits 0. Only genuine failures exit non-zero.
+    // A successful update exits 0. Only genuine failures exit non-zero.
     $this->assertProcessSuccessful();
 
-    // Assert: datasets discovered.
     $this->assertProcessOutputContains('Discovering datasets');
     $this->assertProcessOutputContains('Found');
 
-    // Assert: 2 commits (initial + update).
     $commit_count = $this->getCommitCount();
     $this->assertSame(2, $commit_count, 'Expected initial + update commit');
 
-    // Assert: commit message contains "Updated".
-    $last_commit_msg = $this->getLastCommitMessage();
+    $last_commit_message = $this->getLastCommitMessage();
     $this->assertTrue(
-      str_contains($last_commit_msg, 'Updated baseline') || str_contains($last_commit_msg, 'Updated snapshots'),
+      str_contains($last_commit_message, 'Updated baseline') || str_contains($last_commit_message, 'Updated snapshots'),
       'Expected commit message containing "Updated"'
     );
 
-    // Assert: baseline files match expected.
     $this->assertDirectoriesIdentical(
-      $this->fixturesDir . '/baseline_change/expected/_baseline',
-      $this->projectDir . '/tests/snapshots/_baseline'
+      $this->fixturesDir . '/baseline_change/expected/' . Snapshot::BASELINE_DIR,
+      $this->projectDir . '/tests/snapshots/' . Snapshot::BASELINE_DIR
     );
   }
 
@@ -247,8 +207,6 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
   public function testScenarioChangeUpdatesFiles(): void {
     $this->setupTestProject('scenario_change');
 
-    // Run update-snapshots for ONLY scenario1 dataset.
-    // Specified dataset mode doesn't create commits.
     $this->processRun('php', [
       $this->scriptPath,
       '--root=' . $this->projectDir,
@@ -259,22 +217,18 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
       'scenario1',
     ]);
 
-    // Assert: a successful update exits 0 even in specified dataset mode.
+    // A successful update exits 0 even in specified dataset mode.
     $this->assertProcessSuccessful();
 
-    // Assert: specified dataset mode ran.
     $this->assertProcessOutputContains('Running 1 specified dataset(s)');
     $this->assertProcessOutputContains('scenario1');
 
-    // Assert: scenario diff file was created.
     $scenario_file = $this->projectDir . '/tests/snapshots/scenario1/scenario_file.txt';
     $this->assertFileExists($scenario_file);
 
-    // Assert: content matches expected.
     $expected_file = $this->fixturesDir . '/scenario_change/expected/scenario1/scenario_file.txt';
     $this->assertFileEquals($expected_file, $scenario_file);
 
-    // Assert: only 1 commit (initial - specified dataset mode doesn't commit).
     $commit_count = $this->getCommitCount();
     $this->assertSame(1, $commit_count, 'Specified dataset mode should not create commits');
   }
@@ -289,7 +243,6 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
   public function testMultipleDatasetsUpdatesFiles(): void {
     $this->setupTestProject('both_change');
 
-    // Run update-snapshots for baseline AND scenario1 datasets.
     $this->processRun('php', [
       $this->scriptPath,
       '--root=' . $this->projectDir,
@@ -301,21 +254,18 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
       'scenario1',
     ]);
 
-    // Assert: a successful update exits 0 with multiple specified datasets.
+    // A successful update exits 0 with multiple specified datasets.
     $this->assertProcessSuccessful();
 
-    // Assert: both datasets were scanned.
     $this->assertProcessOutputContains('Running 2 specified dataset(s)');
     $this->assertProcessOutputContains('baseline');
     $this->assertProcessOutputContains('scenario1');
 
-    // Assert: baseline files match expected (includes scenario_file.txt).
     $this->assertDirectoriesIdentical(
-      $this->fixturesDir . '/both_change/expected/_baseline',
-      $this->projectDir . '/tests/snapshots/_baseline'
+      $this->fixturesDir . '/both_change/expected/' . Snapshot::BASELINE_DIR,
+      $this->projectDir . '/tests/snapshots/' . Snapshot::BASELINE_DIR
     );
 
-    // Assert: only 1 commit (initial - specified dataset mode doesn't commit).
     $commit_count = $this->getCommitCount();
     $this->assertSame(1, $commit_count, 'Specified dataset mode should not create commits');
   }
@@ -332,7 +282,6 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
   public function testBothChangeCreatesCommit(): void {
     $this->setupTestProject('both_change');
 
-    // Run update-snapshots for all datasets.
     $this->processRun('php', [
       $this->scriptPath,
       '--root=' . $this->projectDir,
@@ -342,33 +291,28 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
       'tests/snapshots',
     ]);
 
-    // Assert: a successful update exits 0 even when baseline and scenario both
-    // change.
+    // A successful update exits 0 even when baseline and scenario both change.
     $this->assertProcessSuccessful();
 
-    // Assert: datasets discovered.
     $this->assertProcessOutputContains('Discovering datasets');
     $this->assertProcessOutputContains('Found');
 
-    // Assert: 2 commits (initial + update, possibly amended).
     $commit_count = $this->getCommitCount();
     $this->assertSame(2, $commit_count, 'Expected initial + update commit');
 
-    // Assert: commit message contains "Updated".
-    $last_commit_msg = $this->getLastCommitMessage();
+    $last_commit_message = $this->getLastCommitMessage();
     $this->assertTrue(
-      str_contains($last_commit_msg, 'Updated baseline') || str_contains($last_commit_msg, 'Updated snapshots'),
+      str_contains($last_commit_message, 'Updated baseline') || str_contains($last_commit_message, 'Updated snapshots'),
       'Expected commit message containing "Updated"'
     );
 
-    // Assert: baseline files match expected (includes scenario_file.txt).
     $this->assertDirectoriesIdentical(
-      $this->fixturesDir . '/both_change/expected/_baseline',
-      $this->projectDir . '/tests/snapshots/_baseline'
+      $this->fixturesDir . '/both_change/expected/' . Snapshot::BASELINE_DIR,
+      $this->projectDir . '/tests/snapshots/' . Snapshot::BASELINE_DIR
     );
 
-    // Assert: scenario1 should remain empty (just metadata files like .gitkeep
-    // and .ignorecontent - no actual diff files).
+    // The scenario1 directory holds only metadata files (.gitkeep,
+    // .ignorecontent), no diff files.
     $scenario_path = $this->projectDir . '/tests/snapshots/scenario1';
     $scenario_files = array_diff(scandir($scenario_path), ['.', '..', '.gitkeep', '.ignorecontent']);
     $this->assertCount(0, $scenario_files, 'scenario1 should not contain any diff files');
@@ -404,8 +348,6 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
 
     $output = $this->processGet()->getOutput();
 
-    // The [SNAPSHOT] messages should appear in debug output, captured from
-    // PHPUnit's stderr pipe.
     $this->assertStringContainsString('[SNAPSHOT]', $output, 'stderr messages should be captured in debug output');
 
     // Stderr messages must not cause PHPUnit to wrap them as exceptions.
@@ -415,7 +357,6 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
       'stderr messages should not cause PHPUnit framework exceptions'
     );
 
-    // Files must still be updated correctly despite stderr output.
     $scenario_file = $this->projectDir . '/tests/snapshots/scenario1/scenario_file.txt';
     $this->assertFileExists($scenario_file);
 
@@ -423,9 +364,6 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
     $this->assertFileEquals($expected_file, $scenario_file);
   }
 
-  /**
-   * Test no_change scenario works with parallel jobs.
-   */
   public function testNoChangeParallelJobs(): void {
     $this->setupTestProject('no_change');
 
@@ -448,9 +386,6 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
     $this->assertSame(1, $commit_count, 'Expected only initial commit');
   }
 
-  /**
-   * Test baseline_change scenario works with parallel jobs.
-   */
   public function testBaselineChangeParallelJobs(): void {
     $this->setupTestProject('baseline_change');
 
@@ -472,14 +407,11 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
     $this->assertSame(2, $commit_count, 'Expected initial + update commit');
 
     $this->assertDirectoriesIdentical(
-      $this->fixturesDir . '/baseline_change/expected/_baseline',
-      $this->projectDir . '/tests/snapshots/_baseline'
+      $this->fixturesDir . '/baseline_change/expected/' . Snapshot::BASELINE_DIR,
+      $this->projectDir . '/tests/snapshots/' . Snapshot::BASELINE_DIR
     );
   }
 
-  /**
-   * Test both_change scenario works with parallel jobs.
-   */
   public function testBothChangeParallelJobs(): void {
     $this->setupTestProject('both_change');
 
@@ -501,8 +433,8 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
     $this->assertSame(2, $commit_count, 'Expected initial + update commit');
 
     $this->assertDirectoriesIdentical(
-      $this->fixturesDir . '/both_change/expected/_baseline',
-      $this->projectDir . '/tests/snapshots/_baseline'
+      $this->fixturesDir . '/both_change/expected/' . Snapshot::BASELINE_DIR,
+      $this->projectDir . '/tests/snapshots/' . Snapshot::BASELINE_DIR
     );
 
     $scenario_path = $this->projectDir . '/tests/snapshots/scenario1';
@@ -510,9 +442,6 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
     $this->assertCount(0, $scenario_files, 'scenario1 should not contain any diff files');
   }
 
-  /**
-   * Test that --jobs=1 works as sequential fallback.
-   */
   public function testJobsOneSequential(): void {
     $this->setupTestProject('no_change');
 
@@ -559,14 +488,10 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
     $this->assertProcessFailed();
     $this->assertProcessOutputContains('Some tests failed');
 
-    // No update commit should be created.
     $commit_count = $this->getCommitCount();
     $this->assertSame(1, $commit_count, 'Genuine failure should not create a commit');
   }
 
-  /**
-   * Test that a genuine failure in specified dataset mode exits non-zero.
-   */
   public function testGenuineFailureSpecifiedDatasetExitsNonZero(): void {
     $this->setupTestProject('genuine_failure');
 
@@ -613,15 +538,13 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
     // A scenario updated in parallel is a success, not a failure.
     $this->assertProcessSuccessful();
 
-    // The stale diff file was removed by the update.
     $this->assertFileDoesNotExist($stale_file);
 
-    // The update was committed (initial + update).
     $commit_count = $this->getCommitCount();
     $this->assertSame(2, $commit_count, 'Expected initial + update commit');
 
-    $last_commit_msg = $this->getLastCommitMessage();
-    $this->assertStringContainsString('Updated', $last_commit_msg);
+    $last_commit_message = $this->getLastCommitMessage();
+    $this->assertStringContainsString('Updated', $last_commit_message);
   }
 
   /**
@@ -631,11 +554,9 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
    *   Scenario name (no_change, baseline_change, scenario_change, both_change).
    */
   protected function setupTestProject(string $scenario): void {
-    // Copy complete scenario fixture to $sut.
     $scenario_dir = $this->fixturesDir . DIRECTORY_SEPARATOR . $scenario;
     File::copy($scenario_dir, $this->projectDir);
 
-    // Create vendor directory with symlinks to root's vendor.
     $vendor_dir = $this->projectDir . '/vendor';
     File::mkdir($vendor_dir . '/bin');
     symlink(
@@ -663,7 +584,6 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
       $vendor_dir . '/sebastian'
     );
 
-    // Initialize git repository.
     $this->processCwd = $this->projectDir;
     $this->processRun('git', ['init']);
     $this->processRun('git', ['config', 'user.email', 'test@test.com']);
@@ -672,18 +592,12 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
     $this->processRun('git', ['commit', '-m', 'Initial commit']);
   }
 
-  /**
-   * Get the number of commits in the test project.
-   */
   protected function getCommitCount(): int {
     $this->processCwd = $this->projectDir;
     $this->processRun('git', ['rev-list', '--count', 'HEAD']);
     return (int) trim($this->processGet()->getOutput());
   }
 
-  /**
-   * Get the last commit message in the test project.
-   */
   protected function getLastCommitMessage(): string {
     $this->processCwd = $this->projectDir;
     $this->processRun('git', ['log', '-1', '--format=%s']);

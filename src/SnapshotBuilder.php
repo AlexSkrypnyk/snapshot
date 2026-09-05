@@ -12,8 +12,8 @@ use AlexSkrypnyk\Snapshot\Sync\Syncer;
 /**
  * Configurable snapshot builder for repeated operations.
  *
- * Use this class when you need to configure rules or content processors
- * and perform multiple operations with the same settings.
+ * Use this class to configure rules or content processors and perform
+ * multiple operations with the same settings.
  *
  * @code
  * $builder = SnapshotBuilder::create()
@@ -158,7 +158,7 @@ class SnapshotBuilder {
    *   The directory index.
    */
   public function scan(string $directory): Index {
-    return new Index($directory, $this->rules, $this->contentProcessor);
+    return Snapshot::scan($directory, $this->rules, $this->contentProcessor);
   }
 
   /**

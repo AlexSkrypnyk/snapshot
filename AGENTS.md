@@ -170,9 +170,9 @@ tests/phpunit/
 │   ├── PatcherTest.php
 │   ├── PatchExceptionTest.php
 │   ├── RulesTest.php
-│   ├── SnapshotAssertionsTraitTest.php
 │   ├── SnapshotBuilderTest.php
-│   └── SnapshotTest.php
+│   ├── SnapshotTest.php
+│   └── SnapshotTraitTest.php
 ├── Functional/              # Integration tests - subprocess testing
 │   ├── FunctionalTestCase.php
 │   ├── SnapshotTraitUpdateTest.php

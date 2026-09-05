@@ -126,8 +126,7 @@ class IndexedFile extends \SplFileInfo implements IndexedFileInterface {
    * {@inheritdoc}
    */
   public function isIgnoreContent(): bool {
-    // If content is explicitly set, check it.
-    // If not loaded yet, it can't be the ignore marker.
+    // Content that has not been loaded cannot be the ignore marker.
     return $this->contentLoaded && $this->content === static::CONTENT_IGNORED_MARKER;
   }
 
@@ -142,7 +141,7 @@ class IndexedFile extends \SplFileInfo implements IndexedFileInterface {
    * {@inheritdoc}
    */
   public function setContent(?string $content): void {
-    if (!is_null($content)) {
+    if ($content !== NULL) {
       $this->content = $content;
       $this->hash = $this->hash($this->content);
       $this->contentLoaded = TRUE;
@@ -165,7 +164,6 @@ class IndexedFile extends \SplFileInfo implements IndexedFileInterface {
 
     if ($this->isLink()) {
       $link_target = $this->getLinkTarget();
-      // If the link target is absolute and within basepath, make it relative.
       if (str_starts_with($link_target, $this->basepath)) {
         $this->content = static::stripBasepath($this->basepath, $link_target);
       }
@@ -175,9 +173,6 @@ class IndexedFile extends \SplFileInfo implements IndexedFileInterface {
       $this->hash = $this->hash($this->content);
     }
     elseif ($this->getSize() <= static::LARGE_FILE_THRESHOLD) {
-      // Small files: read content once and compute hash from in-memory buffer.
-      // This eliminates the double-read that previously occurred when both
-      // getHash() and getContent() were called on the same file.
       $this->content = (string) file_get_contents($this->getRealPath());
       $this->hash = $this->hash($this->content);
     }

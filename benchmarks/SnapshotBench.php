@@ -56,7 +56,6 @@ class SnapshotBench {
     $this->directoryCreateIdentical(100, 3, 1024);
     $this->directoryCreateWithContentDiffs(20);
 
-    // Create diff files first.
     $this->diffDir = $this->tmpDir . DIRECTORY_SEPARATOR . 'diff';
     mkdir($this->diffDir, 0777, TRUE);
     Snapshot::diff($this->baselineDir, $this->actualDir, $this->diffDir);

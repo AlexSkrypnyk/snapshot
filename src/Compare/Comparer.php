@@ -51,18 +51,16 @@ class Comparer implements ComparerInterface {
     $right_files = $this->right->getFiles();
 
     // The index keys are already the pathname relative to the base directory
-    // (the same value addLeftFile()/addRightFile() would recompute), so reuse
-    // them directly as the diff keys.
+    // that addLeftFile()/addRightFile() would recompute, so they are reused
+    // as the diff keys.
     foreach ($left_files as $path => $left_file) {
       ($this->diffs[$path] ??= new Diff())->setLeft($left_file);
       if (isset($right_files[$path])) {
         $this->diffs[$path]->setRight($right_files[$path]);
-        // Mark as processed to avoid duplicate processing.
         unset($right_files[$path]);
       }
     }
 
-    // Process remaining right files that don't exist in left.
     foreach ($right_files as $path => $right_file) {
       ($this->diffs[$path] ??= new Diff())->setRight($right_file);
     }
@@ -146,7 +144,7 @@ class Comparer implements ComparerInterface {
    * {@inheritdoc}
    */
   public function render(array $options = [], ?callable $renderer = NULL): ?string {
-    return call_user_func($renderer ?? [static::class, 'doRender'], $this->left, $this->right, $this, $options);
+    return call_user_func($renderer ?? static::doRender(...), $this->left, $this->right, $this, $options);
   }
 
   /**
@@ -167,8 +165,8 @@ class Comparer implements ComparerInterface {
   protected static function doRender(IndexInterface $left, IndexInterface $right, Comparer $comparer, array $options = []): ?string {
     $options += [
       'show_diff' => TRUE,
-      // Number of files to include in the diff output. This allows to prevent
-      // an output that could potentially eat a lot of memory.
+      // Cap on the number of files rendered with a full diff; an unbounded
+      // output could consume excessive memory.
       'show_diff_file_limit' => 10,
     ];
 
@@ -203,9 +201,9 @@ class Comparer implements ComparerInterface {
         $render .= sprintf("  %s\n", $file);
 
         if ($options['show_diff'] && $content_diffs_render_count > 0 && $diff instanceof Diff) {
-          $render .= '--- DIFF START ---' . PHP_EOL;
+          $render .= "--- DIFF START ---\n";
           $render .= $diff->render();
-          $render .= '--- DIFF END ---' . PHP_EOL;
+          $render .= "--- DIFF END ---\n";
           $content_diffs_render_count--;
         }
       }

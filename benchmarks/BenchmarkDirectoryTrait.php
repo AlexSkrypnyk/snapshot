@@ -96,7 +96,6 @@ trait BenchmarkDirectoryTrait {
         $content .= sprintf("Level: %d\n", $level);
         $content .= "Some common text that appears in all files.\n";
 
-        // Pad to reach target size.
         if (strlen($content) < $file_size) {
           $padding = str_repeat("Line of text to fill the file.\n", (int) ceil(($file_size - strlen($content)) / 30));
           $content .= $padding;
@@ -157,10 +156,9 @@ trait BenchmarkDirectoryTrait {
    */
   protected function directoryCreateWithStructuralDiffs(int $percent_removed = 10, int $percent_added = 10): void {
     $files = File::scandir($this->actualDir);
-    $files_count = count($files);
+    $file_count = count($files);
 
-    // Remove some files.
-    $files_to_remove = (int) ceil($files_count * ($percent_removed / 100));
+    $files_to_remove = (int) ceil($file_count * ($percent_removed / 100));
     shuffle($files);
     $files_to_remove_list = array_slice($files, 0, $files_to_remove);
 
@@ -168,8 +166,7 @@ trait BenchmarkDirectoryTrait {
       unlink($file);
     }
 
-    // Add extra files.
-    $files_to_add = (int) ceil($files_count * ($percent_added / 100));
+    $files_to_add = (int) ceil($file_count * ($percent_added / 100));
     $dirs = glob($this->actualDir . '/level_*', GLOB_ONLYDIR);
 
     for ($i = 1; $i <= $files_to_add; $i++) {

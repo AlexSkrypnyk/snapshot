@@ -14,13 +14,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 final class PatchExceptionTest extends UnitTestCase {
 
   #[DataProvider('dataProviderMessageFormatting')]
-  public function testMessageFormatting(
-    string $message,
-    ?string $file_path,
-    int|string|null $line_number,
-    ?string $line_content,
-    string $expected_message,
-  ): void {
+  public function testMessageFormatting(string $message, ?string $file_path, int|string|null $line_number, ?string $line_content, string $expected_message): void {
     $exception = new PatchException($message, $file_path, $line_number, $line_content);
     $this->assertSame($expected_message, $exception->getMessage());
   }
@@ -117,12 +111,7 @@ final class PatchExceptionTest extends UnitTestCase {
     $line_number = 42;
     $line_content = 'Line content';
 
-    $exception = new PatchException(
-      'Test message',
-      $file_path,
-      $line_number,
-      $line_content
-    );
+    $exception = new PatchException('Test message', $file_path, $line_number, $line_content);
 
     $this->assertSame($file_path, $exception->getFilePath());
     $this->assertSame($line_number, $exception->getLineNumber());

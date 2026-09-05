@@ -9,7 +9,7 @@ use AlexSkrypnyk\Snapshot\Rules\Rules;
 use AlexSkrypnyk\Snapshot\Snapshot;
 
 /**
- * Collect and index of the files in the directory respecting the rules.
+ * Collects and indexes the files in the directory, respecting the rules.
  *
  * @see Rules::parse()
  */
@@ -45,7 +45,7 @@ class Index implements IndexInterface {
    * {@inheritdoc}
    */
   public function getFiles(?callable $cb = NULL): array {
-    if (is_null($this->files)) {
+    if ($this->files === NULL) {
       $this->scan();
     }
 
@@ -84,10 +84,9 @@ class Index implements IndexInterface {
   protected function scan(): static {
     $this->files = [];
 
-    // Pre-cache pattern arrays for faster matching. The same Rules object can
-    // be shared across indexes (and re-seeded with the default skip rules by
-    // each Index constructor), so dedupe to avoid matching a pattern twice per
-    // file.
+    // Pre-cache pattern arrays for faster matching. A shared Rules object
+    // is re-seeded with the default skip rules by each constructor, so
+    // dedupe to avoid matching a pattern twice per file.
     $global_patterns = array_unique($this->rules->getGlobal());
     $include_patterns = array_unique($this->rules->getInclude());
     $skip_patterns = array_unique($this->rules->getSkip());
@@ -120,18 +119,15 @@ class Index implements IndexInterface {
 
       $relative_path = $file->getPathnameFromBasepath();
 
-      // Check include patterns (if any exist).
       $is_included = FALSE;
       if (!empty($include_patterns)) {
         $is_included = $this->matchesAnyPattern($relative_path, $include_patterns);
       }
 
-      // Only check skip if not explicitly included.
       if (!$is_included && $this->matchesAnyPattern($relative_path, $skip_patterns)) {
         continue;
       }
 
-      // Check ignore content patterns.
       $is_ignore_content = FALSE;
       if (!$is_included && $this->matchesAnyPattern($relative_path, $ignore_content_patterns)) {
         $is_ignore_content = TRUE;
@@ -146,8 +142,6 @@ class Index implements IndexInterface {
         // @codeCoverageIgnoreEnd
       }
       elseif (is_callable($this->beforeMatchContent)) {
-        // Allow to skip files that do not match the content by returning FALSE
-        // from the callback.
         $ret = call_user_func($this->beforeMatchContent, $file);
         if ($ret === FALSE) {
           continue;
@@ -165,9 +159,6 @@ class Index implements IndexInterface {
   /**
    * Checks if a path matches any of the given patterns.
    *
-   * This is a helper method to reduce code duplication and improve
-   * readability in the scan() method.
-   *
    * @param string $path
    *   The path to check.
    * @param array<int, string> $patterns
@@ -178,7 +169,7 @@ class Index implements IndexInterface {
    */
   protected function matchesAnyPattern(string $path, array $patterns): bool {
     foreach ($patterns as $pattern) {
-      if (static::isPathMatchesPattern($path, $pattern)) {
+      if (static::pathMatchesPattern($path, $pattern)) {
         return TRUE;
       }
     }
@@ -201,7 +192,7 @@ class Index implements IndexInterface {
    * @return bool
    *   TRUE if the path matches the pattern, FALSE otherwise.
    */
-  protected static function isPathMatchesPattern(string $path, string $pattern): bool {
+  protected static function pathMatchesPattern(string $path, string $pattern): bool {
     // Match directory pattern (e.g., "dir/").
     if (str_ends_with($pattern, DIRECTORY_SEPARATOR)) {
       return str_starts_with($path, $pattern);
