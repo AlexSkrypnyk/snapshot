@@ -13,11 +13,11 @@ use PHPUnit\Framework\Exception;
  * Functional tests for the update-snapshots CLI script.
  *
  * Tests the following scenarios:
- * 1. no_change - Baseline passes, scenario passes → 0 commits
- * 2. baseline_change - Baseline fails, scenario passes → 1 commit
- * 3. scenario_change - Single dataset mode (no commit, but files updated)
- * 4. both_change - Baseline fails, scenario fails → 1 commit (amended)
- * 5. genuine_failure - Non-snapshot failure → non-zero exit, no commit
+ * 1. no_change - Baseline passes, scenario passes → 0 commits.
+ * 2. baseline_change - Baseline fails, scenario passes → 1 commit.
+ * 3. scenario_change - Single dataset mode (no commit, but files updated).
+ * 4. both_change - Baseline fails, scenario fails → 1 commit (amended).
+ * 5. genuine_failure - Non-snapshot failure → non-zero exit, no commit.
  * 6. scenario_only_change - Stale scenario diff updates in parallel run.
  */
 #[CoversNothing]
