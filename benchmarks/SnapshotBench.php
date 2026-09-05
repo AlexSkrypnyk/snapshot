@@ -24,6 +24,9 @@ class SnapshotBench {
 
   /**
    * Setup for identical directory comparison benchmark.
+   *
+   * Every setup below starts from this directory pair, so the sizes it builds
+   * are the sizes the other benchmarks measure against.
    */
   public function setUpIdentical(): void {
     $this->directoryInitialize();
@@ -34,8 +37,7 @@ class SnapshotBench {
    * Setup for content differences benchmark.
    */
   public function setUpContentDiffs(): void {
-    $this->directoryInitialize();
-    $this->directoryCreateIdentical(100, 3, 1024);
+    $this->setUpIdentical();
     $this->directoryCreateWithContentDiffs(20);
   }
 
@@ -43,8 +45,7 @@ class SnapshotBench {
    * Setup for structural differences benchmark.
    */
   public function setUpStructuralDiffs(): void {
-    $this->directoryInitialize();
-    $this->directoryCreateIdentical(100, 3, 1024);
+    $this->setUpIdentical();
     $this->directoryCreateWithStructuralDiffs(10, 10);
   }
 
@@ -52,9 +53,7 @@ class SnapshotBench {
    * Setup for patch benchmark.
    */
   public function setUpPatch(): void {
-    $this->directoryInitialize();
-    $this->directoryCreateIdentical(100, 3, 1024);
-    $this->directoryCreateWithContentDiffs(20);
+    $this->setUpContentDiffs();
 
     $this->diffDir = $this->tmpDir . DIRECTORY_SEPARATOR . 'diff';
     mkdir($this->diffDir, 0777, TRUE);
