@@ -9,8 +9,7 @@ use AlexSkrypnyk\File\File;
 /**
  * Trait for common benchmark directory operations.
  *
- * Provides helper methods for creating test directory structures
- * used across multiple benchmark classes.
+ * Provides helper methods for creating test directory structures.
  */
 trait BenchmarkDirectoryTrait {
 
@@ -42,7 +41,9 @@ trait BenchmarkDirectoryTrait {
   /**
    * Initialize directory structure.
    *
-   * Creates temporary baseline, actual, output, and destination directories.
+   * Creates the temporary, baseline, actual, and output directories. The
+   * destination directory path is assigned but left for the operation
+   * under test to create.
    */
   protected function directoryInitialize(): void {
     $this->tmpDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . uniqid('snapshot_bench_', TRUE);
