@@ -58,7 +58,9 @@ interface RuleSetInterface {
    *   Optional existing rules to extend. Creates new rules if NULL.
    *
    * @return \AlexSkrypnyk\Snapshot\Rules\RulesInterface
-   *   Rules instance with this rule set applied.
+   *   The same rules instance the patterns were applied to: the given one, or
+   *   the one created when NULL was passed. Implementations must not return a
+   *   different instance, so callers may keep using the one they passed in.
    */
   public function applyTo(?RulesInterface $rules = NULL): RulesInterface;
 
