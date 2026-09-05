@@ -146,7 +146,7 @@ class Comparer implements ComparerInterface {
    * {@inheritdoc}
    */
   public function render(array $options = [], ?callable $renderer = NULL): ?string {
-    return call_user_func($renderer ?? [static::class, 'doRender'], $this->left, $this->right, $this, $options);
+    return call_user_func($renderer ?? static::doRender(...), $this->left, $this->right, $this, $options);
   }
 
   /**
@@ -203,9 +203,9 @@ class Comparer implements ComparerInterface {
         $render .= sprintf("  %s\n", $file);
 
         if ($options['show_diff'] && $content_diffs_render_count > 0 && $diff instanceof Diff) {
-          $render .= '--- DIFF START ---' . PHP_EOL;
+          $render .= "--- DIFF START ---\n";
           $render .= $diff->render();
-          $render .= '--- DIFF END ---' . PHP_EOL;
+          $render .= "--- DIFF END ---\n";
           $content_diffs_render_count--;
         }
       }

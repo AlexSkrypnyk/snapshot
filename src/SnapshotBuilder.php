@@ -158,7 +158,7 @@ class SnapshotBuilder {
    *   The directory index.
    */
   public function scan(string $directory): Index {
-    return new Index($directory, $this->rules, $this->contentProcessor);
+    return Snapshot::scan($directory, $this->rules, $this->contentProcessor);
   }
 
   /**
