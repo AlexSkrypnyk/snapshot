@@ -111,17 +111,17 @@ class Index implements IndexInterface {
 
       $file = new IndexedFile($resource->getPathname(), $this->directory);
 
-      // Fast path: check basename against global patterns first.
       $basename = $file->getBasename();
-      if ($this->matchesAnyPattern($basename, $global_patterns)) {
-        continue;
-      }
-
       $relative_path = $file->getPathnameFromBasepath();
 
+      // $is_included must be known before the global check, so an include pattern can override it too.
       $is_included = FALSE;
       if (!empty($include_patterns)) {
-        $is_included = $this->matchesAnyPattern($relative_path, $include_patterns);
+        $is_included = $this->matchesAnyPattern($relative_path, $include_patterns) || $this->matchesAnyPattern($basename, $include_patterns);
+      }
+
+      if (!$is_included && $this->matchesAnyPattern($basename, $global_patterns)) {
+        continue;
       }
 
       if (!$is_included && $this->matchesAnyPattern($relative_path, $skip_patterns)) {

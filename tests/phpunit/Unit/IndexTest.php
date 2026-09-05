@@ -103,6 +103,7 @@ final class IndexTest extends UnitTestCase {
         'dir3_subdirs/dir31/d31f2-ignored.txt',
         'dir3_subdirs/dir32-unignored/d32f1.txt',
         'dir3_subdirs/dir32-unignored/d32f1_symlink.txt',
+        'dir3_subdirs/dir32-unignored/d32f2-ignore-ext-only-dst.log',
         'dir3_subdirs/dir32-unignored/d32f2.txt',
         'dir3_subdirs_symlink',
         'dir5_content_ignore/d5f1-ignored-changed-content.txt',
@@ -387,6 +388,43 @@ final class IndexTest extends UnitTestCase {
       $this->assertArrayHasKey('test_file.txt', $files);
 
       $this->assertArrayNotHasKey('sub_directory', $files);
+    }
+    finally {
+      File::rmdir($test_dir);
+    }
+  }
+
+  public function testIncludePatternsOverrideGlobalAndSkipPatterns(): void {
+    $test_dir = $this->locationsTmp() . DIRECTORY_SEPARATOR . 'test_include_overrides';
+    File::mkdir($test_dir);
+    File::mkdir($test_dir . DIRECTORY_SEPARATOR . 'sub');
+    File::mkdir($test_dir . DIRECTORY_SEPARATOR . 'cache');
+    file_put_contents($test_dir . DIRECTORY_SEPARATOR . 'important.txt', 'content');
+    file_put_contents($test_dir . DIRECTORY_SEPARATOR . 'important.log', 'content');
+    file_put_contents($test_dir . DIRECTORY_SEPARATOR . 'other.log', 'content');
+    file_put_contents($test_dir . DIRECTORY_SEPARATOR . 'sub' . DIRECTORY_SEPARATOR . 'important.log', 'content');
+    file_put_contents($test_dir . DIRECTORY_SEPARATOR . 'sub' . DIRECTORY_SEPARATOR . 'other.log', 'content');
+    file_put_contents($test_dir . DIRECTORY_SEPARATOR . 'cache' . DIRECTORY_SEPARATOR . 'keep.txt', 'content');
+    file_put_contents($test_dir . DIRECTORY_SEPARATOR . 'cache' . DIRECTORY_SEPARATOR . 'other.txt', 'content');
+
+    try {
+      $rules = (new Rules())
+        ->addGlobal('important.txt')
+        ->addGlobal('*.log')
+        ->addSkip('cache/')
+        ->addInclude('important.txt')
+        ->addInclude('important.log')
+        ->addInclude('cache/keep.txt');
+
+      $files = (new Index($test_dir, $rules))->getFiles();
+
+      $this->assertArrayHasKey('important.txt', $files);
+      $this->assertArrayHasKey('important.log', $files);
+      $this->assertArrayHasKey('sub/important.log', $files);
+      $this->assertArrayNotHasKey('other.log', $files);
+      $this->assertArrayNotHasKey('sub/other.log', $files);
+      $this->assertArrayHasKey('cache/keep.txt', $files);
+      $this->assertArrayNotHasKey('cache/other.txt', $files);
     }
     finally {
       File::rmdir($test_dir);
