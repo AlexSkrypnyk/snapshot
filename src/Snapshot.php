@@ -8,6 +8,7 @@ use AlexSkrypnyk\File\File;
 use AlexSkrypnyk\Snapshot\Compare\Comparer;
 use AlexSkrypnyk\Snapshot\Compare\Diff;
 use AlexSkrypnyk\Snapshot\Index\Index;
+use AlexSkrypnyk\Snapshot\Index\IndexedFileInterface;
 use AlexSkrypnyk\Snapshot\Patch\Patcher;
 use AlexSkrypnyk\Snapshot\Rules\Rules;
 use AlexSkrypnyk\Snapshot\Sync\Syncer;
@@ -161,6 +162,12 @@ class Snapshot {
 
     $patch_index = self::scan($patches, $rules);
     foreach ($patch_index->getFiles() as $file) {
+      // getFiles() allows a transform callback to return non-file values;
+      // skip anything that is not a file since none is passed here.
+      if (!$file instanceof IndexedFileInterface) {
+        continue;
+      }
+
       $basename = $file->getBasename();
       $relative_path = $file->getPathnameFromBasepath();
 

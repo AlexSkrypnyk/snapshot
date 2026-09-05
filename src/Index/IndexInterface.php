@@ -17,7 +17,7 @@ interface IndexInterface {
    * @param callable|null $cb
    *   Optional callback to transform each file.
    *
-   * @return array<string, \AlexSkrypnyk\Snapshot\Index\IndexedFileInterface>
+   * @return array<string, \AlexSkrypnyk\Snapshot\Index\IndexedFileInterface|mixed>
    *   Array of files indexed by path relative to base directory.
    */
   public function getFiles(?callable $cb = NULL): array;

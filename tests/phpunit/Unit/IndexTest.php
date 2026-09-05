@@ -7,6 +7,7 @@ namespace AlexSkrypnyk\Snapshot\Tests\Unit;
 use AlexSkrypnyk\File\File;
 use AlexSkrypnyk\Snapshot\Index\Index;
 use AlexSkrypnyk\Snapshot\Index\IndexedFile;
+use AlexSkrypnyk\Snapshot\Index\IndexedFileInterface;
 use AlexSkrypnyk\Snapshot\Rules\Rules;
 use AlexSkrypnyk\Snapshot\Snapshot;
 use AlexSkrypnyk\Snapshot\Tests\UnitTestCase;
@@ -290,19 +291,31 @@ final class IndexTest extends UnitTestCase {
       $files = $index->getFiles();
 
       $this->assertArrayHasKey('symlink_file.txt', $files);
+      $symlink_file_entry = $files['symlink_file.txt'];
+      if (!$symlink_file_entry instanceof IndexedFileInterface) {
+        $this->fail('Expected symlink_file.txt to be indexed as a file.');
+      }
 
       $this->assertArrayHasKey('symlink_dir', $files);
+      $symlink_dir_entry = $files['symlink_dir'];
+      if (!$symlink_dir_entry instanceof IndexedFileInterface) {
+        $this->fail('Expected symlink_dir to be indexed as a file.');
+      }
 
       // Whether a broken symlink is included depends on implementation
       // details, so neither its presence nor its absence is asserted here.
       // The original file is indexed through both the direct path and the
       // symlink.
       $this->assertArrayHasKey('dir1/file1.txt', $files);
+      $dir1_file1_entry = $files['dir1/file1.txt'];
+      if (!$dir1_file1_entry instanceof IndexedFileInterface) {
+        $this->fail('Expected dir1/file1.txt to be indexed as a file.');
+      }
 
-      $this->assertSame('Original file content', $files['dir1/file1.txt']->getContent());
+      $this->assertSame('Original file content', $dir1_file1_entry->getContent());
 
-      $this->assertTrue($files['symlink_file.txt']->isLink());
-      $this->assertTrue($files['symlink_dir']->isLink());
+      $this->assertTrue($symlink_file_entry->isLink());
+      $this->assertTrue($symlink_dir_entry->isLink());
     }
     finally {
       if (file_exists($symlink_file)) {
