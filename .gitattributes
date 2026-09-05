@@ -1,11 +1,14 @@
 # Ignore files for distribution archives.
 
+/.claude         export-ignore
 /.editorconfig   export-ignore
 /.gitattributes  export-ignore
 /.github         export-ignore
 /.gitignore      export-ignore
 /.phpbench       export-ignore
+/AGENTS.md       export-ignore
 /CLAUDE.md       export-ignore
+/CONTRIBUTING.md export-ignore
 /benchmarks      export-ignore
 /logo.png        export-ignore
 /phpbench.json   export-ignore
