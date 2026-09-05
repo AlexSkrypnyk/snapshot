@@ -69,30 +69,34 @@ functional_update/
 │       └── scenario1/
 │           └── scenario_file.txt # "new scenario content"
 │
-└── both_change/                  # Scenario: baseline AND scenario need update
-    ├── .gitignore
-    ├── phpunit.xml
-    ├── composer.json
-    ├── tests/
-    │   ├── SnapshotTest.php
-    │   └── snapshots/
-    │       ├── _baseline/
-    │       │   ├── file1.txt     # "original content"
-    │       │   └── file2.txt     # "content 2"
-    │       └── scenario1/
-    │           ├── .gitkeep
-    │           └── .ignorecontent
-    ├── actual/
-    │   ├── file1.txt             # "modified content for baseline" ← DIFFERS
-    │   ├── file2.txt             # "content 2"
-    │   └── scenario_file.txt     # "new scenario content" ← NEW FILE
-    └── expected/
-        ├── _baseline/
-        │   ├── file1.txt         # "modified content for baseline"
-        │   ├── file2.txt         # "content 2"
-        │   └── scenario_file.txt # "new scenario content" (merged into baseline)
-        └── scenario1/
-            └── .gitkeep          # Empty (no diffs after baseline update)
+├── both_change/                  # Scenario: baseline AND scenario need update
+│   ├── .gitignore
+│   ├── phpunit.xml
+│   ├── composer.json
+│   ├── tests/
+│   │   ├── SnapshotTest.php
+│   │   └── snapshots/
+│   │       ├── _baseline/
+│   │       │   ├── file1.txt     # "original content"
+│   │       │   └── file2.txt     # "content 2"
+│   │       └── scenario1/
+│   │           ├── .gitkeep
+│   │           └── .ignorecontent
+│   ├── actual/
+│   │   ├── file1.txt             # "modified content for baseline" ← DIFFERS
+│   │   ├── file2.txt             # "content 2"
+│   │   └── scenario_file.txt     # "new scenario content" ← NEW FILE
+│   └── expected/
+│       ├── _baseline/
+│       │   ├── file1.txt         # "modified content for baseline"
+│       │   ├── file2.txt         # "content 2"
+│       │   └── scenario_file.txt # "new scenario content" (merged into baseline)
+│       └── scenario1/
+│           └── .gitkeep          # Empty (no diffs after baseline update)
+│
+├── scenario_only_change/         # Scenario: only the scenario diff is stale
+├── genuine_failure/              # Scenario: a failure no update can fix
+└── slow/                         # Scenario: a dataset that outlives a signal
 ```
 
 ## Test Scenarios
@@ -179,6 +183,25 @@ functional_update/
 3. Baseline matches actual → baseline dataset passes
 4. The `failing` dataset fails for a non-snapshot reason → no `[SNAPSHOT]` completion marker is emitted
 5. Assert: script exits non-zero, no commit is created
+
+### slow
+
+**Test**: `testSignalStopsSpawnedProcesses`, `testTimeoutRetriesReportAttemptCount`
+
+**Purpose**: Verify a signal stops the script and every PHPUnit process it spawned, and that a dataset retried after a timeout reports the attempt it ended on.
+
+**Flow** (`testSignalStopsSpawnedProcesses`):
+1. Copy `slow/` to `$sut/test_project/`
+2. Run `update-snapshots testSnapshot tests/snapshots` (all datasets)
+3. The only dataset writes `running.marker` and then sleeps, so its PHPUnit process is still alive when the script is signalled
+4. Send `SIGINT` or `SIGTERM` to the script
+5. Assert: script reports the interruption and exits `130` (SIGINT) or `143` (SIGTERM), and no spawned PHPUnit process survives
+
+**Flow** (`testTimeoutRetriesReportAttemptCount`):
+1. Copy `slow/` to `$sut/test_project/`
+2. Run `update-snapshots --timeout=1 --retries=2 testSnapshot tests/snapshots slow` (specified dataset)
+3. The dataset sleeps past the timeout on every attempt, so each run is killed and the dataset is retried until the retry budget is spent
+4. Assert: the result line reports `(attempt 2/2)`, the dataset appears in `Failed datasets: slow`, and the script exits non-zero
 
 ## File Contents
 

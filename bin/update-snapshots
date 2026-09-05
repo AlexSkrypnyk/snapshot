@@ -38,6 +38,34 @@ define('COMMIT_MESSAGE_SNAPSHOTS', 'Updated snapshots.');
 define('SNAPSHOT_MARKER_BASELINE_UPDATED', '[SNAPSHOT] Baseline updated');
 define('SNAPSHOT_MARKER_DIFFS_UPDATED', '[SNAPSHOT] Diffs updated');
 
+// Dataset states. The first two are transient; the last four are outcomes and
+// double as the keys of the run statistics.
+define('STATUS_QUEUED', 'queued');
+define('STATUS_RUNNING', 'running');
+define('STATUS_SUCCESS', 'success');
+define('STATUS_UPDATED', 'updated');
+define('STATUS_FAILED', 'failed');
+define('STATUS_TIMEOUT', 'timeout');
+
+// Exit code reported by 'timeout' when a run exceeds its time limit.
+define('EXIT_CODE_TIMEOUT', 124);
+
+// Exit codes reported for a process stopped by SIGINT and by SIGTERM. Only the
+// script's own SIGTERM handler reports 143; a child that exits with it is
+// classified as failed like any other non-zero exit.
+define('EXIT_CODE_INTERRUPTED', 130);
+define('EXIT_CODE_TERMINATED', 143);
+
+// Signal numbers used to stop spawned processes. They are spelled out because
+// the pcntl extension that defines SIGTERM and SIGKILL is optional.
+define('SIGNAL_TERM', 15);
+define('SIGNAL_KILL', 9);
+
+// Time given to a spawned process to exit after SIGTERM before it is killed,
+// as a number of steps and the length of each step in microseconds.
+define('KILL_GRACE_STEPS', 20);
+define('KILL_GRACE_INTERVAL', 100000);
+
 // ----------------------------------------------------------------------------
 
 /**
@@ -45,10 +73,8 @@ define('SNAPSHOT_MARKER_DIFFS_UPDATED', '[SNAPSHOT] Diffs updated');
  *
  * @param array<string> $argv
  *   Array of arguments.
- * @param int $argc
- *   Number of arguments.
  */
-function main(array $argv, int $argc): void {
+function main(array $argv): void {
   $config = parse_arguments($argv);
 
   if ($config['help']) {
@@ -59,8 +85,9 @@ function main(array $argv, int $argc): void {
 
   validate_config($config);
   setup_signal_handlers();
+  register_shutdown_function(kill_all_tasks(...));
 
-  chdir($config['root']);
+  chdir((string) $config['root']);
 
   if (!empty($config['datasets'])) {
     run_specified_datasets($config);
@@ -86,7 +113,7 @@ function validate_config(array $config): void {
     throw new \Exception('Missing required argument: <snapshots-path>');
   }
 
-  if (!is_dir($config['root'])) {
+  if (!is_dir((string) $config['root'])) {
     throw new \Exception(sprintf('Root directory does not exist: %s', $config['root']));
   }
 
@@ -101,14 +128,26 @@ function validate_config(array $config): void {
  */
 function setup_signal_handlers(): void {
   if (function_exists('pcntl_signal')) {
-    $handler = function (): void {
-      exit_tui();
-      verbose("\nInterrupted by user\n");
-      exit(130);
-    };
-    pcntl_signal(SIGINT, $handler);
-    pcntl_signal(SIGTERM, $handler);
+    pcntl_signal(SIGINT, function (): void {
+      stop_run(EXIT_CODE_INTERRUPTED);
+    });
+    pcntl_signal(SIGTERM, function (): void {
+      stop_run(EXIT_CODE_TERMINATED);
+    });
   }
+}
+
+/**
+ * Stop the run and exit.
+ *
+ * @param int $code
+ *   Exit code to report.
+ */
+function stop_run(int $code): void {
+  exit_tui();
+  verbose("\nInterrupted - stopping running tests\n");
+  kill_all_tasks();
+  exit($code);
 }
 
 /**
@@ -118,41 +157,22 @@ function setup_signal_handlers(): void {
  *   Configuration array.
  */
 function run_specified_datasets(array $config): void {
-  $datasets = $config['datasets'];
+  $datasets = is_array($config['datasets']) ? array_map('strval', $config['datasets']) : [];
   $total = count($datasets);
-  $failed = [];
-  $updated = 0;
 
   verbose("Running %d specified dataset(s)\n", $total);
 
-  $current = 0;
-  foreach ($datasets as $dataset) {
-    $current++;
+  // A scenario is compared against the baseline that another dataset in the
+  // same list can rewrite, so datasets run one at a time.
+  $tasks = with_tui(fn(): array => run_engine($datasets, $config, 1, 0, $total));
 
-    $result = run_with_timeout(
-      $config['test_name'] . '@' . $dataset,
-      $current,
-      $total,
-      $dataset,
-      $config['timeout'],
-      $config['retries'],
-      $config['debug'],
-      $config['root']
-    );
+  print_debug_output($tasks, $config);
+  print_summary(tally_tasks($tasks), $total);
 
-    if ($result === 3) {
-      $updated++;
-      continue;
-    }
-
-    if ($result !== 0) {
-      $failed[] = $dataset;
-    }
-  }
-
-  if ($updated > 0) {
-    verbose("Updated %d dataset(s)\n", $updated);
-  }
+  $failed = array_map(
+    fn(array $task): string => (string) $task['dataset'],
+    array_filter($tasks, fn(array $task): bool => $task['status'] === STATUS_FAILED || $task['status'] === STATUS_TIMEOUT)
+  );
 
   if (!empty($failed)) {
     throw new \Exception(sprintf('Failed datasets: %s', implode(', ', $failed)));
@@ -167,62 +187,79 @@ function run_specified_datasets(array $config): void {
  */
 function run_all_datasets(array $config): void {
   $start_time = time();
-  $baseline_committed = FALSE;
-  $baseline_path = rtrim((string) $config['snapshots_path'], '/') . '/' . BASELINE_DIR;
 
   $datasets = discover_datasets($config);
   $total = count($datasets);
 
   verbose("Found %d unique datasets\n", $total);
 
-  $stats = ['current' => 0, 'succeeded' => 0, 'updated' => 0, 'failed' => 0, 'timedout' => 0];
+  $result = with_tui(fn(): array => run_phases($config, $datasets));
 
-  $scenario_datasets = $datasets;
-  if ($datasets[0] === BASELINE_DATASET_NAME) {
-    $stats['current']++;
+  $tasks = $result['tasks'];
+  $stats = tally_tasks($tasks);
 
-    $result = run_with_timeout(
-      $config['test_name'] . '@' . BASELINE_DATASET_NAME,
-      $stats['current'],
-      $total,
-      BASELINE_DATASET_NAME,
-      $config['timeout'],
-      $config['retries'],
-      $config['debug'],
-      $config['root']
-    );
-
-    $baseline_committed = handle_baseline_result($result, $config['root'], $baseline_path);
-    $stats = update_stats($stats, $result, $total);
-
-    if ($result === 2) {
-      throw new \Exception('Test timed out');
-    }
-
-    $scenario_datasets = array_slice($datasets, 1);
-  }
-
-  if (!empty($scenario_datasets)) {
-    $parallel_stats = run_datasets_parallel($scenario_datasets, $stats['current'], $total, $config);
-    $stats['succeeded'] += $parallel_stats['succeeded'];
-    $stats['updated'] += $parallel_stats['updated'];
-    $stats['failed'] += $parallel_stats['failed'];
-    $stats['timedout'] += $parallel_stats['timedout'];
-  }
-
+  print_debug_output($tasks, $config);
   print_summary($stats, $total);
+
+  if ($result['timed_out']) {
+    throw new \Exception('Test timed out');
+  }
 
   // A no-op when the working tree is clean, so it is safe to call
   // unconditionally.
-  commit_snapshot_changes($config, $baseline_committed);
+  commit_snapshot_changes($config, $result['baseline_committed']);
 
   print_execution_time($start_time);
 
   // Successful updates are the expected outcome of this script and must not
   // produce a non-zero exit code. Only genuine failures or timeouts do.
-  if ($stats['failed'] > 0 || $stats['timedout'] > 0) {
+  if ($stats[STATUS_FAILED] > 0 || $stats[STATUS_TIMEOUT] > 0) {
     throw new \Exception('Some tests failed');
   }
+}
+
+/**
+ * Run the baseline dataset, then the remaining scenarios.
+ *
+ * @param array<string, mixed> $config
+ *   Configuration array.
+ * @param array<string> $datasets
+ *   Discovered dataset names, with the baseline first when it is present.
+ *
+ * @return array{tasks: array<int, array<string, mixed>>, baseline_committed: bool, timed_out: bool}
+ *   Completed tasks, whether the baseline was committed, and whether the
+ *   baseline run exhausted its retries.
+ */
+function run_phases(array $config, array $datasets): array {
+  $total = count($datasets);
+  $tasks = [];
+  $completed = 0;
+  $timed_out = FALSE;
+  $baseline_committed = FALSE;
+  $scenario_datasets = $datasets;
+
+  if ($datasets[0] === BASELINE_DATASET_NAME) {
+    // Scenarios are diffed against the baseline, so the baseline must be
+    // rewritten before any of them runs.
+    $tasks = run_engine([BASELINE_DATASET_NAME], $config, 1, 0, $total);
+    $completed = 1;
+
+    $baseline_committed = handle_baseline_result($config);
+
+    $timed_out = $tasks[0]['status'] === STATUS_TIMEOUT;
+    $scenario_datasets = $timed_out ? [] : array_slice($datasets, 1);
+  }
+
+  if (!empty($scenario_datasets)) {
+    verbose("Running %d scenarios (parallel: %d)\n", count($scenario_datasets), (int) $config['jobs']);
+    $tasks = array_merge($tasks, run_engine($scenario_datasets, $config, (int) $config['jobs'], $completed, $total));
+  }
+
+  return [
+    'tasks' => $tasks,
+    'baseline_committed' => $baseline_committed,
+    'timed_out' => $timed_out,
+  ];
 }
 
 /**
@@ -237,22 +274,18 @@ function run_all_datasets(array $config): void {
 function discover_datasets(array $config): array {
   verbose("Discovering datasets...\n");
 
-  $cmd = sprintf(
-    'XDEBUG_MODE=off %s/vendor/bin/phpunit --list-tests %s 2>/dev/null | grep "%s" || true',
-    $config['root'],
-    escapeshellarg((string) $config['test_dir']),
-    $config['test_name']
-  );
-  $test_list = (string) shell_exec($cmd);
-
-  if (empty(trim($test_list))) {
-    throw new \Exception('No datasets found');
-  }
+  $cmd = build_phpunit_command($config, ['--list-tests', escapeshellarg((string) $config['test_dir'])]);
+  $test_list = (string) shell_exec($cmd . ' 2>/dev/null');
 
   // Format: " - ClassName::testMethodName"dataset_name"".
   $pattern = '/' . preg_quote((string) $config['test_name'], '/') . '"([^"]+)"/';
   preg_match_all($pattern, $test_list, $matches);
   $datasets = array_unique($matches[1]);
+
+  if (empty($datasets)) {
+    throw new \Exception('No datasets found');
+  }
+
   sort($datasets);
 
   // Ensure baseline dataset runs first.
@@ -267,21 +300,18 @@ function discover_datasets(array $config): array {
 /**
  * Handle baseline test result and commit if needed.
  *
- * @param int $result
- *   Test result (0 = success, 1 = failed, 2 = timeout, 3 = updated).
- * @param string $root
- *   Git root directory.
- * @param string $baseline_path
- *   Path to baseline snapshots.
+ * @param array<string, mixed> $config
+ *   Configuration array.
  *
  * @return bool
  *   TRUE if baseline was committed.
  */
-function handle_baseline_result(int $result, string $root, string $baseline_path): bool {
+function handle_baseline_result(array $config): bool {
   $original_dir = (string) getcwd();
-  chdir($root);
+  chdir((string) $config['root']);
 
   $committed = FALSE;
+  $baseline_path = rtrim((string) $config['snapshots_path'], '/') . '/' . BASELINE_DIR;
 
   if (has_git_changes($baseline_path)) {
     verbose("Baseline snapshots updated - committing and continuing...\n");
@@ -346,16 +376,16 @@ function commit_changes(string $path, string $message, bool $amend = FALSE): boo
  */
 function commit_snapshot_changes(array $config, bool $baseline_committed): void {
   $original_dir = (string) getcwd();
-  chdir($config['root']);
+  chdir((string) $config['root']);
 
-  if (has_git_changes($config['snapshots_path'])) {
+  if (has_git_changes((string) $config['snapshots_path'])) {
     if ($baseline_committed) {
-      if (commit_changes($config['snapshots_path'], COMMIT_MESSAGE_SNAPSHOTS, TRUE)) {
+      if (commit_changes((string) $config['snapshots_path'], COMMIT_MESSAGE_SNAPSHOTS, TRUE)) {
         verbose("Note: Amended baseline commit to include all snapshot updates.\n");
       }
     }
     else {
-      if (commit_changes($config['snapshots_path'], COMMIT_MESSAGE_SNAPSHOTS)) {
+      if (commit_changes((string) $config['snapshots_path'], COMMIT_MESSAGE_SNAPSHOTS)) {
         verbose("Note: Created new commit for snapshot updates.\n");
       }
     }
@@ -365,31 +395,32 @@ function commit_snapshot_changes(array $config, bool $baseline_committed): void 
 }
 
 /**
- * Update statistics based on test result.
+ * Count tasks per outcome.
  *
- * @param array<string, int> $stats
- *   Current statistics.
- * @param int $result
- *   Test result (0 = success, 1 = failed, 2 = timeout, 3 = updated).
- * @param int $total
- *   Total number of datasets.
+ * @param array<int, array<string, mixed>> $tasks
+ *   Tasks in any state. Queued and running tasks hold no outcome yet and are
+ *   not counted.
  *
- * @return array<string, int>
- *   Updated statistics.
+ * @return array{success: int, updated: int, failed: int, timeout: int}
+ *   Number of datasets per outcome. The 'updated' count covers datasets whose
+ *   snapshot was rewritten: PHPUnit exits non-zero for those because the
+ *   assertion fails before tearDown() rewrites the files, and the completion
+ *   marker on stderr reclassifies the run.
  */
-function update_stats(array $stats, int $result, int $total): array {
-  if ($result === 0) {
-    $stats['succeeded']++;
-  }
-  elseif ($result === 3) {
-    $stats['updated']++;
-  }
-  elseif ($result === 2) {
-    $stats['timedout']++;
-    print_summary($stats, $total);
-  }
-  else {
-    $stats['failed']++;
+function tally_tasks(array $tasks): array {
+  $stats = [
+    STATUS_SUCCESS => 0,
+    STATUS_UPDATED => 0,
+    STATUS_FAILED => 0,
+    STATUS_TIMEOUT => 0,
+  ];
+
+  foreach ($tasks as $task) {
+    $status = (string) $task['status'];
+
+    if (isset($stats[$status])) {
+      $stats[$status]++;
+    }
   }
 
   return $stats;
@@ -407,10 +438,10 @@ function print_summary(array $stats, int $total): void {
   verbose(
     "Total: %d | Succeeded: %d | Updated: %d | Failed: %d | Timed out: %d\n",
     $total,
-    $stats['succeeded'],
-    $stats['updated'],
-    $stats['failed'],
-    $stats['timedout']
+    $stats[STATUS_SUCCESS],
+    $stats[STATUS_UPDATED],
+    $stats[STATUS_FAILED],
+    $stats[STATUS_TIMEOUT]
   );
 }
 
@@ -576,163 +607,98 @@ EOF;
 }
 
 /**
- * Run PHPUnit with timeout and retries.
+ * Run datasets, keeping up to a given number of PHPUnit processes alive.
  *
- * @param string $filter
- *   The PHPUnit filter.
- * @param int $current
- *   Current dataset number.
- * @param int $total
- *   Total number of datasets.
- * @param string $dataset
- *   Dataset name.
- * @param int $timeout
- *   Timeout in seconds.
- * @param int $retries
- *   Maximum number of retries.
- * @param bool $debug
- *   Whether to print debug output on failure.
- * @param string $root
- *   Project root directory.
- *
- * @return int
- *   0 = success, 1 = failed, 2 = timeout, 3 = updated.
- */
-function run_with_timeout(string $filter, int $current, int $total, string $dataset, int $timeout, int $retries, bool $debug, string $root): int {
-  $attempt = 1;
-
-  verbose('[%d/%d] %s ', $current, $total, $dataset);
-
-  while ($attempt <= $retries) {
-    dispatch_signals();
-
-    $result = run_phpunit($filter, $timeout, $root);
-
-    if ($result['exit_code'] === 130) {
-      verbose("\n");
-      exit(130);
-    }
-
-    if ($result['exit_code'] === 0) {
-      verbose(" ✓\n");
-
-      return 0;
-    }
-
-    // Timeout - retry if attempts remain.
-    if ($result['exit_code'] === 124) {
-      if ($attempt < $retries) {
-        verbose(" TIMEOUT, retry %d/%d ", $attempt + 1, $retries);
-        $attempt++;
-        continue;
-      }
-
-      verbose(" ✗ TIMEOUT\n");
-      print_debug_output($debug, $result['output']);
-
-      return 2;
-    }
-
-    // A successfully updated snapshot still exits non-zero in PHPUnit (the
-    // assertion failed before the update ran in tearDown), but the trait
-    // reports completion. Treat it as updated, not failed.
-    if (has_update_marker($result['output'])) {
-      verbose(" ✓ updated\n");
-      print_debug_output($debug, $result['output']);
-
-      return 3;
-    }
-
-    // Test failure - do not retry.
-    verbose(" ✗\n");
-    print_debug_output($debug, $result['output']);
-
-    return 1;
-  }
-
-  verbose(" ✗\n");
-
-  return 1;
-}
-
-/**
- * Run datasets in parallel with live progress display.
+ * A sequential run is the same engine with a concurrency of one. Progress is
+ * drawn into the alternate screen when the caller has entered TUI mode, and
+ * printed as one line per dataset otherwise.
  *
  * @param array<string> $datasets
  *   Dataset names to run.
- * @param int $start_number
- *   Starting dataset number (for display).
- * @param int $total
- *   Total number of datasets (for display).
  * @param array<string, mixed> $config
  *   Configuration array.
+ * @param int $jobs
+ *   Number of datasets to run at the same time.
+ * @param int $start_number
+ *   Number of datasets already completed, for display.
+ * @param int $total
+ *   Total number of datasets, for display.
  *
- * @return array<string, int>
- *   Statistics: succeeded, failed, timedout counts.
+ * @return array<int, array<string, mixed>>
+ *   Completed tasks, each carrying its outcome and captured output.
  */
-function run_datasets_parallel(array $datasets, int $start_number, int $total, array $config): array {
-  $jobs = (int) $config['jobs'];
-  $is_tty = function_exists('posix_isatty') && posix_isatty(STDOUT);
-
+function run_engine(array $datasets, array $config, int $jobs, int $start_number, int $total): array {
   $tasks = [];
   $number = $start_number;
+
   foreach ($datasets as $dataset) {
     $number++;
     $tasks[] = [
       'dataset' => $dataset,
       'number' => $number,
-      'status' => 'queued',
+      'status' => STATUS_QUEUED,
       'process' => NULL,
       'pipes' => [],
-      'output' => [],
+      'stdout' => [],
+      'stderr' => [],
       'start_time' => NULL,
-      'elapsed' => NULL,
+      'elapsed' => 0.0,
       'dots' => 0,
       'attempt' => 1,
       'last_dot_time' => 0.0,
+      'reported' => FALSE,
     ];
   }
 
-  $scroll_offset = 0;
-  $start_time = microtime(TRUE);
-
-  verbose("Running %d scenarios (parallel: %d)\n", count($datasets), $jobs);
-
-  if ($is_tty) {
-    enter_tui();
-  }
+  $run = [
+    'jobs' => $jobs,
+    'total' => $total,
+    'retries' => (int) $config['retries'],
+    'tui' => is_tui_active(),
+    'scroll_offset' => 0,
+    'start_time' => microtime(TRUE),
+  ];
 
   while (TRUE) {
     dispatch_signals();
 
-    if ($is_tty) {
-      $scroll_offset = read_keyboard_input($scroll_offset, count($tasks));
+    if ($run['tui']) {
+      $run['scroll_offset'] = read_keyboard_input($run['scroll_offset'], count($tasks));
     }
 
-    $running_count = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'running'));
+    $running = count(array_filter($tasks, fn(array $task): bool => $task['status'] === STATUS_RUNNING));
+
     foreach ($tasks as &$task) {
-      if ($running_count >= $jobs) {
+      if ($running >= $run['jobs']) {
         break;
       }
-      if ($task['status'] !== 'queued') {
+
+      if ($task['status'] !== STATUS_QUEUED) {
         continue;
       }
+
       $task = start_task($task, $config);
-      $running_count++;
+      $running++;
     }
     unset($task);
 
+    // The poll loop can end the script when a child reports an interrupt, so
+    // processes are registered before it runs.
+    live_tasks($tasks);
+
     foreach ($tasks as &$task) {
-      if ($task['status'] !== 'running') {
+      if ($task['status'] !== STATUS_RUNNING) {
         continue;
       }
+
       $task = poll_task($task, $config);
     }
     unset($task);
 
-    render_progress($tasks, $total, $is_tty, $jobs, $scroll_offset, $start_time);
+    $tasks = render_progress($tasks, $run);
 
-    $pending = array_filter($tasks, fn(array $t): bool => $t['status'] === 'queued' || $t['status'] === 'running');
+    $pending = array_filter($tasks, fn(array $task): bool => $task['status'] === STATUS_QUEUED || $task['status'] === STATUS_RUNNING);
+
     if (empty($pending)) {
       break;
     }
@@ -740,31 +706,9 @@ function run_datasets_parallel(array $datasets, int $start_number, int $total, a
     usleep(50000);
   }
 
-  if ($is_tty) {
-    // Hold final frame briefly so user can see results.
-    sleep(2);
-    exit_tui();
-  }
+  live_tasks([]);
 
-  // Print final summary and debug output to normal scrollback.
-  $succeeded = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'success'));
-  $updated = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'updated'));
-  $failed = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'failed'));
-  $timedout = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'timeout'));
-
-  verbose("Parallel run: %d succeeded, %d updated, %d failed, %d timed out\n", $succeeded, $updated, $failed, $timedout);
-
-  if ($config['debug']) {
-    foreach ($tasks as $task) {
-      if ($task['status'] === 'failed' || $task['status'] === 'timeout') {
-        verbose("\n--- DEBUG: %s ---\n", $task['dataset']);
-        verbose("%s\n", implode("\n", $task['output']));
-        verbose("--- END DEBUG ---\n");
-      }
-    }
-  }
-
-  return ['succeeded' => $succeeded, 'updated' => $updated, 'failed' => $failed, 'timedout' => $timedout];
+  return $tasks;
 }
 
 /**
@@ -779,12 +723,14 @@ function run_datasets_parallel(array $datasets, int $start_number, int $total, a
  *   Updated task array with running process.
  */
 function start_task(array $task, array $config): array {
-  $filter = $config['test_name'] . '@' . $task['dataset'];
-  $cmd = sprintf(
-    'XDEBUG_MODE=off UPDATE_SNAPSHOTS=1 timeout --foreground %ds %s/vendor/bin/phpunit --no-coverage --filter=%s 2>&1',
-    $config['timeout'],
-    $config['root'],
-    escapeshellarg($filter)
+  // PHPUnit selects a single named dataset with a 'method@dataset' filter.
+  $filter = (string) $config['test_name'] . '@' . (string) $task['dataset'];
+
+  $cmd = build_phpunit_command(
+    $config,
+    ['--no-coverage', '--filter=' . escapeshellarg($filter)],
+    ['UPDATE_SNAPSHOTS' => '1'],
+    (int) $config['timeout']
   );
 
   $descriptors = [
@@ -796,7 +742,8 @@ function start_task(array $task, array $config): array {
   $process = proc_open($cmd, $descriptors, $pipes);
 
   if (!is_resource($process)) {
-    $task['status'] = 'failed';
+    $task['status'] = STATUS_FAILED;
+
     return $task;
   }
 
@@ -804,7 +751,7 @@ function start_task(array $task, array $config): array {
   stream_set_blocking($pipes[1], FALSE);
   stream_set_blocking($pipes[2], FALSE);
 
-  $task['status'] = 'running';
+  $task['status'] = STATUS_RUNNING;
   $task['process'] = $process;
   $task['pipes'] = $pipes;
   $task['start_time'] = microtime(TRUE);
@@ -826,7 +773,7 @@ function start_task(array $task, array $config): array {
  */
 function poll_task(array $task, array $config): array {
   $status = proc_get_status($task['process']);
-  $task['output'] = collect_output($task['pipes'], $task['output']);
+  $task = collect_task_output($task);
 
   if (microtime(TRUE) - $task['last_dot_time'] >= 0.25) {
     $task['dots']++;
@@ -842,49 +789,346 @@ function poll_task(array $task, array $config): array {
   // PHP < 8.3. proc_close() below only releases the handle.
   $exit_code = $status['exitcode'];
 
-  $task['output'] = collect_output($task['pipes'], $task['output']);
+  $task = collect_task_output($task);
   fclose($task['pipes'][1]);
   fclose($task['pipes'][2]);
   proc_close($task['process']);
+
   $task['elapsed'] = round(microtime(TRUE) - $task['start_time'], 1);
   $task['process'] = NULL;
   $task['pipes'] = [];
 
   if ($exit_code === 0) {
-    $task['status'] = 'success';
+    $task['status'] = STATUS_SUCCESS;
+
     return $task;
   }
 
-  // Timeout - retry if attempts remain.
-  if ($exit_code === 124) {
+  // An interrupted child means the whole run is being interrupted.
+  if ($exit_code === EXIT_CODE_INTERRUPTED) {
+    stop_run(EXIT_CODE_INTERRUPTED);
+  }
+
+  if ($exit_code === EXIT_CODE_TIMEOUT) {
     if ($task['attempt'] < $config['retries']) {
       $task['attempt']++;
-      $task['status'] = 'queued';
+      $task['status'] = STATUS_QUEUED;
       $task['dots'] = 0;
       $task['start_time'] = NULL;
-      $task['elapsed'] = NULL;
+      $task['elapsed'] = 0.0;
+      $task['stdout'] = [];
+      $task['stderr'] = [];
+
       return $task;
     }
-    $task['status'] = 'timeout';
-    return $task;
-  }
 
-  // Interrupt.
-  if ($exit_code === 130) {
-    exit(130);
+    $task['status'] = STATUS_TIMEOUT;
+
+    return $task;
   }
 
   // A non-zero exit accompanied by the trait's completion marker means the
   // snapshot was updated rather than the test genuinely failing.
-  if (has_update_marker($task['output'])) {
-    $task['status'] = 'updated';
+  if (has_update_marker($task['stderr'])) {
+    $task['status'] = STATUS_UPDATED;
 
     return $task;
   }
 
-  $task['status'] = 'failed';
+  $task['status'] = STATUS_FAILED;
 
   return $task;
+}
+
+/**
+ * Build a PHPUnit command line.
+ *
+ * The command never merges stderr into stdout: at the shell level that turns
+ * SnapshotTrait's stderr writes into PHPUnit output, which PHPUnit then
+ * reports as an error.
+ *
+ * @param array<string, mixed> $config
+ *   Configuration array.
+ * @param array<string> $arguments
+ *   PHPUnit arguments, escaped by the caller where needed.
+ * @param array<string, string> $env
+ *   Environment variables to prefix the command with.
+ * @param int|null $timeout
+ *   Seconds to allow the run, or NULL to run without a time limit.
+ *
+ * @return string
+ *   Command line to pass to the shell.
+ */
+function build_phpunit_command(array $config, array $arguments, array $env = [], ?int $timeout = NULL): string {
+  // proc_open() runs the command through a shell and hands back a handle to
+  // that shell. 'exec' makes the shell replace itself so the handle points at
+  // the command, and 'env' carries the variables without turning the command
+  // into an assignment that some shells decline to exec. Without both, a
+  // shell can survive as an intermediary that dies on a signal without
+  // passing it on, orphaning everything below it.
+  $prefix = ['exec', 'env', 'XDEBUG_MODE=off'];
+
+  foreach ($env as $name => $value) {
+    $prefix[] = $name . '=' . $value;
+  }
+
+  if ($timeout !== NULL) {
+    // '--foreground' keeps the child in the foreground process group, so an
+    // interactive interrupt reaches it.
+    $prefix[] = sprintf('timeout --foreground %ds', $timeout);
+  }
+
+  $phpunit = escapeshellarg(rtrim((string) $config['root'], '/') . '/vendor/bin/phpunit');
+
+  return sprintf('%s %s %s', implode(' ', $prefix), $phpunit, implode(' ', $arguments));
+}
+
+/**
+ * Collect pending output from a task's pipes.
+ *
+ * @param array<string, mixed> $task
+ *   Task array with open pipes.
+ *
+ * @return array<string, mixed>
+ *   Task array with the collected output appended.
+ */
+function collect_task_output(array $task): array {
+  $stdout = stream_get_contents($task['pipes'][1]);
+  $stderr = stream_get_contents($task['pipes'][2]);
+
+  if ($stdout !== '' && $stdout !== FALSE) {
+    $task['stdout'][] = $stdout;
+  }
+
+  if ($stderr !== '' && $stderr !== FALSE) {
+    $task['stderr'][] = $stderr;
+  }
+
+  return $task;
+}
+
+/**
+ * Check whether captured output reports a completed snapshot update.
+ *
+ * SnapshotTrait emits a completion marker after it finishes rewriting baseline
+ * or diff files. When PHPUnit exits non-zero but this marker is present, the
+ * snapshot was updated successfully and the dataset must not be treated as a
+ * failure.
+ *
+ * @param array<string> $output
+ *   Captured PHPUnit error output chunks.
+ *
+ * @return bool
+ *   TRUE if a snapshot update completion marker is present.
+ */
+function has_update_marker(array $output): bool {
+  $text = implode('', $output);
+
+  return str_contains($text, SNAPSHOT_MARKER_BASELINE_UPDATED) || str_contains($text, SNAPSHOT_MARKER_DIFFS_UPDATED);
+}
+
+/**
+ * Print captured output of every dataset that did not pass cleanly.
+ *
+ * @param array<int, array<string, mixed>> $tasks
+ *   Completed tasks.
+ * @param array<string, mixed> $config
+ *   Configuration array.
+ */
+function print_debug_output(array $tasks, array $config): void {
+  if (empty($config['debug'])) {
+    return;
+  }
+
+  foreach ($tasks as $task) {
+    if ($task['status'] === STATUS_SUCCESS) {
+      continue;
+    }
+
+    $output = implode('', $task['stdout']) . implode('', $task['stderr']);
+
+    if ($output === '') {
+      continue;
+    }
+
+    verbose("\n--- DEBUG: %s ---\n%s\n--- END DEBUG ---\n", (string) $task['dataset'], $output);
+  }
+}
+
+/**
+ * Access the registry of tasks that may hold a live child process.
+ *
+ * The signal handler runs outside the engine and needs the current task list
+ * to reach the spawned processes.
+ *
+ * @param array<int, array<string, mixed>>|null $tasks
+ *   Tasks to store, or NULL to read the registry.
+ *
+ * @return array<int, array<string, mixed>>
+ *   Currently registered tasks.
+ */
+function live_tasks(?array $tasks = NULL): array {
+  static $registry = [];
+
+  if ($tasks !== NULL) {
+    $registry = $tasks;
+  }
+
+  return $registry;
+}
+
+/**
+ * Terminate every live child process.
+ *
+ * A spawned PHPUnit process runs with UPDATE_SNAPSHOTS=1 and keeps rewriting
+ * snapshot files, so it must not outlive the script.
+ */
+function kill_all_tasks(): void {
+  $tasks = array_filter(live_tasks(), fn(array $task): bool => is_resource($task['process']));
+
+  if (empty($tasks)) {
+    return;
+  }
+
+  // The handle covers the process the shell became, and the sweep covers
+  // whatever that process spawned below it. Both are signalled, so the
+  // guarantee does not depend on the shape of the tree a platform builds.
+  $pids = [];
+
+  foreach ($tasks as $task) {
+    $status = proc_get_status($task['process']);
+    $pids = array_merge($pids, descendant_pids((int) $status['pid']));
+    proc_terminate($task['process'], SIGNAL_TERM);
+  }
+
+  $pids = array_unique($pids);
+
+  signal_pids($pids, SIGNAL_TERM);
+
+  for ($step = 0; $step < KILL_GRACE_STEPS; $step++) {
+    $alive = array_filter($tasks, fn(array $task): bool => is_resource($task['process']) && proc_get_status($task['process'])['running']);
+
+    if (empty($alive)) {
+      break;
+    }
+
+    usleep(KILL_GRACE_INTERVAL);
+  }
+
+  // Escalate before any handle is closed, so no reaped process number is
+  // signalled after the system is free to hand it to somebody else.
+  signal_pids($pids, SIGNAL_KILL);
+
+  foreach ($tasks as $task) {
+    if (!is_resource($task['process'])) {
+      continue;
+    }
+
+    $status = proc_get_status($task['process']);
+
+    if ($status['running']) {
+      proc_terminate($task['process'], SIGNAL_KILL);
+    }
+
+    foreach ($task['pipes'] as $pipe) {
+      if (is_resource($pipe)) {
+        fclose($pipe);
+      }
+    }
+
+    proc_close($task['process']);
+  }
+
+  live_tasks([]);
+}
+
+/**
+ * Collect a process and every process descended from it.
+ *
+ * @param int $pid
+ *   Process ID to walk from.
+ *
+ * @return array<int>
+ *   The given process ID followed by the IDs below it. Only the given ID is
+ *   returned where 'pgrep' is unavailable.
+ */
+function descendant_pids(int $pid): array {
+  if ($pid < 1) {
+    return [];
+  }
+
+  $pids = [$pid];
+  $output = [];
+  exec(sprintf('pgrep -P %d 2>/dev/null', $pid), $output);
+
+  foreach ($output as $line) {
+    $child = (int) trim($line);
+
+    if ($child > 0) {
+      $pids = array_merge($pids, descendant_pids($child));
+    }
+  }
+
+  return $pids;
+}
+
+/**
+ * Send a signal to a list of processes.
+ *
+ * @param array<int> $pids
+ *   Process IDs to signal.
+ * @param int $signal
+ *   Signal number to send.
+ */
+function signal_pids(array $pids, int $signal): void {
+  foreach ($pids as $pid) {
+    if (function_exists('posix_kill')) {
+      posix_kill($pid, $signal);
+
+      continue;
+    }
+
+    exec(sprintf('kill -%d %d 2>/dev/null', $signal, $pid));
+  }
+}
+
+/**
+ * Check whether standard output is attached to a terminal.
+ *
+ * @return bool
+ *   TRUE if the output can carry a TUI.
+ */
+function is_tty(): bool {
+  return function_exists('posix_isatty') && posix_isatty(STDOUT);
+}
+
+/**
+ * Run a body inside a single TUI session when the output is a terminal.
+ *
+ * Everything printed after the body reaches the restored screen, so summaries
+ * survive in the scrollback.
+ *
+ * @template T
+ *
+ * @param callable(): T $body
+ *   Code to run while the alternate screen is up.
+ *
+ * @return T
+ *   The value returned by the body.
+ */
+function with_tui(callable $body): mixed {
+  if (!is_tty()) {
+    return $body();
+  }
+
+  enter_tui();
+
+  try {
+    return $body();
+  }
+  finally {
+    finish_tui();
+  }
 }
 
 /**
@@ -932,6 +1176,22 @@ function exit_tui(): void {
   print "\033[?1049l";
   system('stty sane');
   is_tui_active(FALSE);
+  // @codeCoverageIgnoreEnd
+}
+
+/**
+ * Leave TUI mode after holding the final frame.
+ */
+function finish_tui(): void {
+  // @codeCoverageIgnoreStart
+  if (!is_tui_active()) {
+    return;
+  }
+
+  // Hold the final frame so the results stay readable before the alternate
+  // screen is restored.
+  sleep(2);
+  exit_tui();
   // @codeCoverageIgnoreEnd
 }
 
@@ -992,110 +1252,114 @@ function get_viewport_height(): int {
 /**
  * Render progress display for all tasks.
  *
- * In TTY mode, uses alternate screen with viewport scrolling.
- * In non-TTY mode, prints final results only.
- *
  * @param array<int, array<string, mixed>> $tasks
  *   All tasks.
- * @param int $total
- *   Total dataset count for numbering.
- * @param bool $is_tty
- *   Whether output is a TTY.
- * @param int $jobs
- *   Number of parallel jobs.
- * @param int $scroll_offset
- *   Current scroll offset for viewport.
- * @param float $start_time
- *   Start time of parallel run.
+ * @param array<string, mixed> $run
+ *   Display state of the current engine run.
+ *
+ * @return array<int, array<string, mixed>>
+ *   Tasks, with the ones whose result has been printed marked as reported.
  */
-function render_progress(array $tasks, int $total, bool $is_tty, int $jobs, int $scroll_offset, float $start_time): void {
-  $task_count = count($tasks);
-  $succeeded = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'success'));
-  $updated = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'updated'));
-  $failed = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'failed'));
-  $running = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'running'));
-  $queued = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'queued'));
-  $timedout = count(array_filter($tasks, fn(array $t): bool => $t['status'] === 'timeout'));
-  $pad = strlen((string) $total);
-
-  if (!$is_tty) {
-    if ($running === 0 && $queued === 0) {
-      foreach ($tasks as $task) {
-        $line = sprintf('  [%' . $pad . 'd/%d] %s ', $task['number'], $total, $task['dataset']);
-        if ($task['status'] === 'success') {
-          verbose("%s✓ %ss\n", $line, $task['elapsed']);
-        }
-        elseif ($task['status'] === 'updated') {
-          verbose("%s✓ updated %ss\n", $line, $task['elapsed']);
-        }
-        elseif ($task['status'] === 'timeout') {
-          verbose("%s⏱ %ss\n", $line, $task['elapsed']);
-        }
-        else {
-          verbose("%s✗ %ss\n", $line, $task['elapsed']);
-        }
-      }
-      verbose("\n");
-      verbose("  Done: %d  Updated: %d  Failed: %d  Timeout: %d\n", $succeeded, $updated, $failed, $timedout);
-    }
-
-    return;
+function render_progress(array $tasks, array $run): array {
+  if (!$run['tui']) {
+    return render_progress_plain($tasks, $run);
   }
 
   // @codeCoverageIgnoreStart
+  render_progress_tui($tasks, $run);
+  // @codeCoverageIgnoreEnd
+
+  return $tasks;
+}
+
+/**
+ * Print the result line of every task that has settled since the last call.
+ *
+ * Without a screen to redraw, a result is printed as soon as its dataset ends
+ * rather than held until the whole batch does.
+ *
+ * @param array<int, array<string, mixed>> $tasks
+ *   All tasks.
+ * @param array<string, mixed> $run
+ *   Display state of the current engine run.
+ *
+ * @return array<int, array<string, mixed>>
+ *   Tasks, with the printed ones marked as reported.
+ */
+function render_progress_plain(array $tasks, array $run): array {
+  $pad = strlen((string) $run['total']);
+
+  foreach ($tasks as &$task) {
+    if ($task['reported'] || $task['status'] === STATUS_QUEUED || $task['status'] === STATUS_RUNNING) {
+      continue;
+    }
+
+    $prefix = sprintf('  [%' . $pad . 'd/%d] %s ', $task['number'], $run['total'], $task['dataset']);
+    verbose("%s%s %ss%s\n", $prefix, status_label((string) $task['status']), $task['elapsed'], attempt_suffix($task, $run));
+    $task['reported'] = TRUE;
+  }
+  unset($task);
+
+  return $tasks;
+}
+
+/**
+ * Redraw the alternate screen with a viewport over the task list.
+ *
+ * @param array<int, array<string, mixed>> $tasks
+ *   All tasks.
+ * @param array<string, mixed> $run
+ *   Display state of the current engine run.
+ */
+function render_progress_tui(array $tasks, array $run): void {
+  // @codeCoverageIgnoreStart
+  $task_count = count($tasks);
+  $stats = tally_tasks($tasks);
+  $running = count(array_filter($tasks, fn(array $task): bool => $task['status'] === STATUS_RUNNING));
+  $queued = count(array_filter($tasks, fn(array $task): bool => $task['status'] === STATUS_QUEUED));
+  $pad = strlen((string) $run['total']);
+
   $viewport_height = get_viewport_height();
   $max_scroll = max(0, $task_count - $viewport_height);
-  $scroll_offset = min($scroll_offset, $max_scroll);
+  $scroll_offset = min($run['scroll_offset'], $max_scroll);
 
   // Cursor to home.
   print "\033[H";
 
-  printf("\033[K  Running %d scenarios (parallel: %d)\n", $task_count, $jobs);
+  printf("\033[K  Running %d dataset(s) (parallel: %d)\n", $task_count, $run['jobs']);
   print "\033[K\n";
 
   $visible_end = min($task_count, $scroll_offset + $viewport_height);
   for ($i = $scroll_offset; $i < $visible_end; $i++) {
     $task = $tasks[$i];
-    $prefix = sprintf('  [%' . $pad . 'd/%d] %-20s ', $task['number'], $total, $task['dataset']);
+    $prefix = sprintf('  [%' . $pad . 'd/%d] %-20s ', $task['number'], $run['total'], $task['dataset']);
 
     switch ($task['status']) {
-      case 'queued':
+      case STATUS_QUEUED:
         printf("\033[K%s\033[90m·\033[0m\n", $prefix);
         break;
 
-      case 'running':
+      case STATUS_RUNNING:
         printf("\033[K%s\033[33m%s\033[0m\n", $prefix, str_repeat('.', $task['dots']));
         break;
 
-      case 'success':
-        printf("\033[K%s\033[32m✓\033[0m %ss\n", $prefix, $task['elapsed']);
-        break;
-
-      case 'updated':
-        printf("\033[K%s\033[32m✓\033[0m updated %ss\n", $prefix, $task['elapsed']);
-        break;
-
-      case 'failed':
-        printf("\033[K%s\033[31m✗\033[0m %ss\n", $prefix, $task['elapsed']);
-        break;
-
-      case 'timeout':
-        printf("\033[K%s\033[33m⏱\033[0m %ss\n", $prefix, $task['elapsed']);
+      default:
+        printf("\033[K%s\033[%dm%s\033[0m %ss%s\n", $prefix, status_color((string) $task['status']), status_label((string) $task['status']), $task['elapsed'], attempt_suffix($task, $run));
         break;
     }
   }
 
   print "\033[K\n";
   printf(
-    "\033[K  \033[32mDone: %d\033[0m  \033[36mUpdated: %d\033[0m  \033[31mFailed: %d\033[0m  \033[33mRunning: %d\033[0m  Queued: %d  Timeout: %d\n",
-    $succeeded,
-    $updated,
-    $failed,
+    "\033[K  \033[32mSucceeded: %d\033[0m  \033[36mUpdated: %d\033[0m  \033[31mFailed: %d\033[0m  \033[33mRunning: %d\033[0m  Queued: %d  Timed out: %d\n",
+    $stats[STATUS_SUCCESS],
+    $stats[STATUS_UPDATED],
+    $stats[STATUS_FAILED],
     $running,
     $queued,
-    $timedout
+    $stats[STATUS_TIMEOUT]
   );
-  printf("\033[K  Elapsed: %s\n", format_time((int) (microtime(TRUE) - $start_time)));
+  printf("\033[K  Elapsed: %s\n", format_time((int) (microtime(TRUE) - $run['start_time'])));
 
   if ($max_scroll > 0) {
     printf("\033[K\033[90m  ↑↓ Scroll (%d-%d of %d)\033[0m\n", $scroll_offset + 1, $visible_end, $task_count);
@@ -1107,128 +1371,60 @@ function render_progress(array $tasks, int $total, bool $is_tty, int $jobs, int 
 }
 
 /**
- * Execute PHPUnit command with progress dots.
+ * Get the display suffix reporting how many attempts a dataset took.
  *
- * @param string $filter
- *   The PHPUnit filter.
- * @param int $timeout
- *   Timeout in seconds.
- * @param string $root
- *   Project root directory.
+ * A dataset that timed out and was retried is otherwise indistinguishable
+ * from one that passed on its first run.
  *
- * @return array{exit_code: int, output: array<string>}
- *   Array with exit code and output lines.
+ * @param array<string, mixed> $task
+ *   Completed task.
+ * @param array<string, mixed> $run
+ *   Display state of the current engine run.
+ *
+ * @return string
+ *   Suffix naming the attempt, or an empty string after a single attempt.
  */
-function run_phpunit(string $filter, int $timeout, string $root): array {
-  $cmd = sprintf(
-    // Do not use 2>&1 here: proc_open already captures stdout and stderr on
-    // separate pipes. Merging them at the shell level forces fwrite(STDERR,...)
-    // in SnapshotTrait::snapshotUpdateOnFailure() to write to stdout, which
-    // can cause false PHPUnit errors.
-    'XDEBUG_MODE=off UPDATE_SNAPSHOTS=1 timeout --foreground %ds %s/vendor/bin/phpunit --no-coverage --filter=%s',
-    $timeout,
-    $root,
-    escapeshellarg($filter)
-  );
-
-  $descriptors = [
-    0 => ['pipe', 'r'],
-    1 => ['pipe', 'w'],
-    2 => ['pipe', 'w'],
-  ];
-
-  $process = proc_open($cmd, $descriptors, $pipes);
-
-  if (!is_resource($process)) {
-    return ['exit_code' => 1, 'output' => []];
+function attempt_suffix(array $task, array $run): string {
+  if ($task['attempt'] < 2) {
+    return '';
   }
 
-  fclose($pipes[0]);
-  stream_set_blocking($pipes[1], FALSE);
-  stream_set_blocking($pipes[2], FALSE);
-
-  $output = [];
-  $last_dot_time = microtime(TRUE);
-  $exit_code = -1;
-
-  while (TRUE) {
-    $status = proc_get_status($process);
-
-    $output = collect_output($pipes, $output);
-
-    if (!$status['running']) {
-      // Capture the exit code here: proc_get_status() reaps the child on the
-      // first call that reports it stopped, so a later proc_close() returns -1
-      // on PHP < 8.3. proc_close() below only releases the handle.
-      $exit_code = $status['exitcode'];
-      break;
-    }
-
-    if (microtime(TRUE) - $last_dot_time >= 0.25) {
-      verbose('.');
-      $last_dot_time = microtime(TRUE);
-    }
-
-    usleep(100000);
-    dispatch_signals();
-  }
-
-  $output = collect_output($pipes, $output);
-
-  fclose($pipes[1]);
-  fclose($pipes[2]);
-
-  proc_close($process);
-
-  return [
-    'exit_code' => $exit_code,
-    'output' => explode("\n", implode('', $output)),
-  ];
+  return sprintf(' (attempt %d/%d)', $task['attempt'], $run['retries']);
 }
 
 /**
- * Collect output from process pipes.
+ * Get the display label of an outcome.
  *
- * @param array<int, resource> $pipes
- *   Process pipes.
- * @param array<string> $output
- *   Existing output.
+ * @param string $status
+ *   Task status.
  *
- * @return array<string>
- *   Updated output.
+ * @return string
+ *   Label shown next to the dataset name.
  */
-function collect_output(array $pipes, array $output): array {
-  $stdout = stream_get_contents($pipes[1]);
-  $stderr = stream_get_contents($pipes[2]);
-
-  if ($stdout !== '' && $stdout !== FALSE) {
-    $output[] = $stdout;
-  }
-  if ($stderr !== '' && $stderr !== FALSE) {
-    $output[] = $stderr;
-  }
-
-  return $output;
+function status_label(string $status): string {
+  return match ($status) {
+    STATUS_SUCCESS => '✓',
+    STATUS_UPDATED => '✓ updated',
+    STATUS_TIMEOUT => '⏱',
+    default => '✗',
+  };
 }
 
 /**
- * Check whether captured output reports a completed snapshot update.
+ * Get the ANSI colour code of an outcome.
  *
- * SnapshotTrait emits a completion marker after it finishes rewriting baseline
- * or diff files. When PHPUnit exits non-zero but this marker is present, the
- * snapshot was updated successfully and the dataset must not be treated as a
- * failure.
+ * @param string $status
+ *   Task status.
  *
- * @param array<string> $output
- *   Captured PHPUnit output lines.
- *
- * @return bool
- *   TRUE if a snapshot update completion marker is present.
+ * @return int
+ *   ANSI colour code.
  */
-function has_update_marker(array $output): bool {
-  $text = implode("\n", $output);
-
-  return str_contains($text, SNAPSHOT_MARKER_BASELINE_UPDATED) || str_contains($text, SNAPSHOT_MARKER_DIFFS_UPDATED);
+function status_color(string $status): int {
+  return match ($status) {
+    STATUS_SUCCESS, STATUS_UPDATED => 32,
+    STATUS_TIMEOUT => 33,
+    default => 31,
+  };
 }
 
 /**
@@ -1237,20 +1433,6 @@ function has_update_marker(array $output): bool {
 function dispatch_signals(): void {
   if (function_exists('pcntl_signal_dispatch')) {
     pcntl_signal_dispatch();
-  }
-}
-
-/**
- * Print debug output if enabled.
- *
- * @param bool $debug
- *   Whether debug is enabled.
- * @param array<string> $output
- *   Output lines.
- */
-function print_debug_output(bool $debug, array $output): void {
-  if ($debug && !empty($output)) {
-    verbose("\n--- DEBUG OUTPUT ---\n%s\n--- END DEBUG ---\n\n", implode("\n", $output));
   }
 }
 
@@ -1346,9 +1528,8 @@ if (getenv('SCRIPT_RUN_SKIP') != 1) {
 
   try {
     $argv = is_array($_SERVER['argv'] ?? NULL) ? array_filter($_SERVER['argv'], is_string(...)) : [];
-    $argc = is_scalar($_SERVER['argc'] ?? NULL) ? (int) $_SERVER['argc'] : 0;
     // The function throws exceptions instead of providing an exit code.
-    main($argv, $argc);
+    main($argv);
   }
   catch (\ErrorException $exception) {
     if ($exception->getSeverity() <= E_USER_WARNING) {
