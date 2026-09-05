@@ -21,6 +21,7 @@ use Symfony\Component\Process\Process;
  * 4. both_change - Baseline fails, scenario fails → 1 commit (amended).
  * 5. genuine_failure - Non-snapshot failure → non-zero exit, no commit.
  * 6. scenario_only_change - Stale scenario diff updates in parallel run.
+ * 7. slow - Long-running dataset ended by a signal or by the run timeout.
  */
 #[CoversNothing]
 final class SnapshotUpdateScriptTest extends FunctionalTestCase {
