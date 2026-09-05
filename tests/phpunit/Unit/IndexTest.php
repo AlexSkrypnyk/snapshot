@@ -463,20 +463,16 @@ final class IndexTest extends UnitTestCase {
       $files = (new Index($test_dir, $rules))->getFiles();
 
       // '^file.txt' + '!^file.txt': content is compared, not ignored.
-      $this->assertArrayHasKey('file.txt', $files);
-      $this->assertFalse($files['file.txt']->isIgnoreContent());
+      $this->assertFalse($this->assertIndexedFile($files, 'file.txt')->isIgnoreContent());
 
       // '^dir/' + '!^dir/keep.txt': the named file's content is compared,
       // the sibling's is not.
-      $this->assertArrayHasKey('dir/keep.txt', $files);
-      $this->assertFalse($files['dir/keep.txt']->isIgnoreContent());
-      $this->assertArrayHasKey('dir/sibling.txt', $files);
-      $this->assertTrue($files['dir/sibling.txt']->isIgnoreContent());
+      $this->assertFalse($this->assertIndexedFile($files, 'dir/keep.txt')->isIgnoreContent());
+      $this->assertTrue($this->assertIndexedFile($files, 'dir/sibling.txt')->isIgnoreContent());
 
       // Skip + plain '!skipped.txt': the file is indexed, but its content
       // is still ignored.
-      $this->assertArrayHasKey('skipped.txt', $files);
-      $this->assertTrue($files['skipped.txt']->isIgnoreContent());
+      $this->assertTrue($this->assertIndexedFile($files, 'skipped.txt')->isIgnoreContent());
     }
     finally {
       File::rmdir($test_dir);
