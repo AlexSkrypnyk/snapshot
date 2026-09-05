@@ -387,8 +387,21 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
     $this->assertFileEquals($expected_file, $scenario_file);
   }
 
-  public function testNoChangeParallelJobs(): void {
-    $this->setupTestProject('no_change');
+  /**
+   * Test that a parallel run updates every dataset it discovers.
+   *
+   * @param string $scenario
+   *   Name of the fixture scenario to run.
+   * @param int $expected_commits
+   *   Number of commits the repository holds after the run.
+   * @param bool $baseline_updated
+   *   Whether the baseline must match the scenario's expected baseline.
+   * @param bool $scenario_diff_free
+   *   Whether the scenario1 directory must hold no diff files.
+   */
+  #[DataProvider('dataProviderParallelJobs')]
+  public function testParallelJobs(string $scenario, int $expected_commits, bool $baseline_updated, bool $scenario_diff_free): void {
+    $this->setupTestProject($scenario);
 
     $this->processRun('php', [
       $this->scriptPath,
@@ -406,63 +419,26 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
     $this->assertProcessOutputContains('parallel: 2');
 
     $commit_count = $this->getCommitCount();
-    $this->assertSame(1, $commit_count, 'Expected only initial commit');
+    $this->assertSame($expected_commits, $commit_count, 'Unexpected number of commits after the parallel run');
+
+    if ($baseline_updated) {
+      $this->assertDirectoriesIdentical(
+        $this->fixturesDir . '/' . $scenario . '/expected/' . Snapshot::BASELINE_DIR,
+        $this->projectDir . '/tests/snapshots/' . Snapshot::BASELINE_DIR
+      );
+    }
+
+    if ($scenario_diff_free) {
+      $scenario_path = $this->projectDir . '/tests/snapshots/scenario1';
+      $scenario_files = array_diff(scandir($scenario_path), ['.', '..', '.gitkeep', '.ignorecontent']);
+      $this->assertCount(0, $scenario_files, 'scenario1 should not contain any diff files');
+    }
   }
 
-  public function testBaselineChangeParallelJobs(): void {
-    $this->setupTestProject('baseline_change');
-
-    $this->processRun('php', [
-      $this->scriptPath,
-      '--root=' . $this->projectDir,
-      '--test-dir=tests',
-      '--timeout=60',
-      '--jobs=2',
-      'testSnapshot',
-      'tests/snapshots',
-    ]);
-
-    $this->assertProcessSuccessful();
-    $this->assertProcessOutputContains('Discovering datasets');
-    $this->assertProcessOutputContains('parallel: 2');
-
-    $commit_count = $this->getCommitCount();
-    $this->assertSame(2, $commit_count, 'Expected initial + update commit');
-
-    $this->assertDirectoriesIdentical(
-      $this->fixturesDir . '/baseline_change/expected/' . Snapshot::BASELINE_DIR,
-      $this->projectDir . '/tests/snapshots/' . Snapshot::BASELINE_DIR
-    );
-  }
-
-  public function testBothChangeParallelJobs(): void {
-    $this->setupTestProject('both_change');
-
-    $this->processRun('php', [
-      $this->scriptPath,
-      '--root=' . $this->projectDir,
-      '--test-dir=tests',
-      '--timeout=60',
-      '--jobs=2',
-      'testSnapshot',
-      'tests/snapshots',
-    ]);
-
-    $this->assertProcessSuccessful();
-    $this->assertProcessOutputContains('Discovering datasets');
-    $this->assertProcessOutputContains('parallel: 2');
-
-    $commit_count = $this->getCommitCount();
-    $this->assertSame(2, $commit_count, 'Expected initial + update commit');
-
-    $this->assertDirectoriesIdentical(
-      $this->fixturesDir . '/both_change/expected/' . Snapshot::BASELINE_DIR,
-      $this->projectDir . '/tests/snapshots/' . Snapshot::BASELINE_DIR
-    );
-
-    $scenario_path = $this->projectDir . '/tests/snapshots/scenario1';
-    $scenario_files = array_diff(scandir($scenario_path), ['.', '..', '.gitkeep', '.ignorecontent']);
-    $this->assertCount(0, $scenario_files, 'scenario1 should not contain any diff files');
+  public static function dataProviderParallelJobs(): \Iterator {
+    yield 'no_change' => ['no_change', 1, FALSE, FALSE];
+    yield 'baseline_change' => ['baseline_change', 2, TRUE, FALSE];
+    yield 'both_change' => ['both_change', 2, TRUE, TRUE];
   }
 
   public function testJobsOneSequential(): void {

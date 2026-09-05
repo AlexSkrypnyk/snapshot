@@ -12,6 +12,12 @@ use PHPUnit\Framework\AssertionFailedError;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
+/**
+ * Covers the trait in the standalone configuration the README documents.
+ *
+ * The class extends PHPUnit's TestCase rather than the package's UnitTestCase,
+ * so the trait runs without the locations and fixtures that base class sets up.
+ */
 #[CoversClass(SnapshotTrait::class)]
 final class SnapshotTraitTest extends TestCase {
 

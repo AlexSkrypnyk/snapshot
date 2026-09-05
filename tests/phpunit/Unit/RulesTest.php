@@ -12,10 +12,10 @@ use AlexSkrypnyk\Snapshot\Tests\UnitTestCase;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 
-#[CoversClass(Rules::class)]
 #[CoversClass(AbstractRuleSet::class)]
-#[CoversClass(PhpProjectRuleSet::class)]
 #[CoversClass(NodeProjectRuleSet::class)]
+#[CoversClass(PhpProjectRuleSet::class)]
+#[CoversClass(Rules::class)]
 final class RulesTest extends UnitTestCase {
 
   #[DataProvider('dataProviderRulesFromFile')]
@@ -202,15 +202,15 @@ final class RulesTest extends UnitTestCase {
   }
 
   public function testCustomRulesImport(): void {
-    $rules_file = sys_get_temp_dir() . DIRECTORY_SEPARATOR . uniqid('rules_test_', TRUE) . '.txt';
-    $content = <<<EOT
+    $rules_file = self::$sut . DIRECTORY_SEPARATOR . 'custom.ignorecontent';
+    $content = <<<RULES
 # This is a comment
 !include-pattern
 !^include-ignore-content-pattern
 ^ignore-content-pattern
 global-pattern
 path/to/file.txt
-EOT;
+RULES;
     file_put_contents($rules_file, $content);
 
     try {
