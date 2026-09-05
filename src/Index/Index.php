@@ -38,10 +38,10 @@ class Index implements IndexInterface {
    *   rules file, then to empty rules.
    * @param mixed $fileFilter
    *   Optional callback receiving the IndexedFile of each file that survives
-   *   the skip, global and ignore-content rules. A symlink to a directory
-   *   reaches it; a broken symlink does not. Returning FALSE excludes the file
-   *   from the index; any other return value is discarded, and any change the
-   *   callback made to the file is kept.
+   *   the skip and global rules, including files marked by an ignore-content
+   *   rule. A symlink to a directory reaches it; a broken symlink does not.
+   *   Returning FALSE excludes the file from the index; any other return value
+   *   is discarded, and any change the callback made to the file is kept.
    */
   public function __construct(
     protected string $directory,
@@ -165,10 +165,11 @@ class Index implements IndexInterface {
         $file->setIgnoreContent();
         // @codeCoverageIgnoreEnd
       }
-      elseif (is_callable($this->fileFilter)) {
-        if (call_user_func($this->fileFilter, $file) === FALSE) {
-          continue;
-        }
+
+      // The filter runs after the content marking so that it can exclude a
+      // file whose content is ignored.
+      if (is_callable($this->fileFilter) && call_user_func($this->fileFilter, $file) === FALSE) {
+        continue;
       }
 
       $this->files[$relative_path] = $file;

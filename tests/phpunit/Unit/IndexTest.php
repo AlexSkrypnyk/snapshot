@@ -189,6 +189,28 @@ final class IndexTest extends UnitTestCase {
     rmdir($test_dir);
   }
 
+  public function testFileFilterExcludesIgnoreContentFile(): void {
+    $test_dir = $this->locationsTmp() . DIRECTORY_SEPARATOR . 'test_filter_ignore_content';
+    File::mkdir($test_dir);
+
+    file_put_contents($test_dir . DIRECTORY_SEPARATOR . 'keep.txt', 'keep');
+    file_put_contents($test_dir . DIRECTORY_SEPARATOR . 'volatile.lock', 'volatile');
+
+    $rules = (new Rules())->addIgnoreContent('volatile.lock');
+
+    // Without a filter the ignore-content file is indexed and marked.
+    $marked = (new Index($test_dir, $rules))->getFiles();
+    $this->assertArrayHasKey('volatile.lock', $marked);
+    $this->assertInstanceOf(IndexedFileInterface::class, $marked['volatile.lock']);
+    $this->assertTrue($marked['volatile.lock']->isIgnoreContent());
+
+    // A filter rejecting it excludes it, so the filter does see it.
+    $filter_rules = (new Rules())->addIgnoreContent('volatile.lock');
+    $filtered = new Index($test_dir, $filter_rules, fn(IndexedFile $file): bool => $file->getBasename() !== 'volatile.lock');
+
+    $this->assertSame(['keep.txt'], array_keys($filtered->getFiles()));
+  }
+
   public function testFileFilterCallback(): void {
     $dir = File::dir($this->locationsFixtureDir('compare') . DIRECTORY_SEPARATOR . 'files_equal_advanced' . DIRECTORY_SEPARATOR . 'directory2');
 
