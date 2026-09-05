@@ -371,8 +371,11 @@ function commit_snapshot_changes(array $config, bool $baseline_committed): void 
  * @param array<int, array<string, mixed>> $tasks
  *   Completed tasks.
  *
- * @return array<string, int>
- *   Statistics: success, failed and timeout counts.
+ * @return array{success: int, updated: int, failed: int, timeout: int}
+ *   Number of datasets per outcome. The 'updated' count covers datasets whose
+ *   snapshot was rewritten: PHPUnit exits non-zero for those because the
+ *   assertion fails before tearDown() rewrites the files, and the completion
+ *   marker on stderr reclassifies the run.
  */
 function tally_tasks(array $tasks): array {
   $stats = [
