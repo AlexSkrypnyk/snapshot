@@ -70,7 +70,7 @@ trait SnapshotTrait {
    * @param string $baseline
    *   Baseline directory path.
    * @param string $diffs
-   *   Directory containing diff/patch files to apply to the baseline.
+   *   Directory containing diff files produced by Snapshot::diff().
    * @param string $actual
    *   Actual directory path to compare.
    * @param string|null $expected

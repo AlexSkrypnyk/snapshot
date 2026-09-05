@@ -75,15 +75,15 @@ class SnapshotBuilder {
   /**
    * Set the content processor callback used by the patch operation.
    *
-   * @param callable $processor
+   * @param callable $content_processor
    *   Callback receiving the content of each patched file as a string and
    *   returning the content to write.
    *
    * @return $this
    *   Return self for chaining.
    */
-  public function withContentProcessor(callable $processor): static {
-    $this->contentProcessor = $processor;
+  public function withContentProcessor(callable $content_processor): static {
+    $this->contentProcessor = $content_processor;
     return $this;
   }
 

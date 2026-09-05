@@ -163,8 +163,8 @@ class Snapshot {
 
     $patcher = new Patcher($baseline, $destination);
 
-    $patch_index = self::scan($diffs, $rules);
-    foreach ($patch_index->getFiles() as $file) {
+    $diffs_index = self::scan($diffs, $rules);
+    foreach ($diffs_index->getFiles() as $file) {
       // getFiles() allows a transform callback to return non-file values;
       // skip anything that is not a file since none is passed here.
       if (!$file instanceof IndexedFileInterface) {

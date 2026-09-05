@@ -192,8 +192,7 @@ final class IndexTest extends UnitTestCase {
   public function testFileFilterCallback(): void {
     $dir = File::dir($this->locationsFixtureDir('compare') . DIRECTORY_SEPARATOR . 'files_equal_advanced' . DIRECTORY_SEPARATOR . 'directory2');
 
-    $file_filter =
-        (fn(IndexedFile $file): bool => str_contains($file->getContent(), 'specific content'));
+    $file_filter = fn(IndexedFile $file): bool => str_contains($file->getContent(), 'specific content');
 
     $test_file = $dir . DIRECTORY_SEPARATOR . 'test_file_filter.txt';
     file_put_contents($test_file, 'This file contains specific content that should be included');
