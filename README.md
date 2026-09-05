@@ -196,7 +196,7 @@ The tool:
 - Handles timeouts with configurable retries
 - Auto-commits baseline and snapshot changes
 - Shows a live TUI progress display with scrolling when running in a terminal
-- Terminates the running dataset processes and exits `130` (`SIGINT`) or `143` (`SIGTERM`) when signalled while datasets are running; signal handling requires the `pcntl` extension
+- Terminates every spawned dataset process and exits `130` (`SIGINT`) or `143` (`SIGTERM`) when signalled; requires the `pcntl` extension
 
 Options:
 - `--root=<path>` - Project root directory (default: current directory)

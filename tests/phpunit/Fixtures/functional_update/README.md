@@ -186,16 +186,22 @@ functional_update/
 
 ### slow
 
-**Test**: `testSignalStopsSpawnedProcesses`
+**Test**: `testSignalStopsSpawnedProcesses`, `testTimeoutRetriesReportAttemptCount`
 
-**Purpose**: Verify a signal stops the script and every PHPUnit process it spawned.
+**Purpose**: Verify a signal stops the script and every PHPUnit process it spawned, and that a dataset retried after a timeout reports the attempt it ended on.
 
-**Flow**:
+**Flow** (`testSignalStopsSpawnedProcesses`):
 1. Copy `slow/` to `$sut/test_project/`
 2. Run `update-snapshots testSnapshot tests/snapshots` (all datasets)
 3. The only dataset writes `running.marker` and then sleeps, so its PHPUnit process is still alive when the script is signalled
 4. Send `SIGINT` or `SIGTERM` to the script
 5. Assert: script reports the interruption and exits `130` (SIGINT) or `143` (SIGTERM), and no spawned PHPUnit process survives
+
+**Flow** (`testTimeoutRetriesReportAttemptCount`):
+1. Copy `slow/` to `$sut/test_project/`
+2. Run `update-snapshots --timeout=1 --retries=2 testSnapshot tests/snapshots slow` (specified dataset)
+3. The dataset sleeps past the timeout on every attempt, so each run is killed and the dataset is retried until the retry budget is spent
+4. Assert: the result line reports `(attempt 2/2)`, the dataset appears in `Failed datasets: slow`, and the script exits non-zero
 
 ## File Contents
 
