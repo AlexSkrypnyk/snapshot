@@ -1,7 +1,7 @@
 {
     "name": "alexskrypnyk/snapshot",
     "description": "Directory snapshot, diff, and patch system useful for test fixtures.",
-    "license": "GPL-2.0-or-later",
+    "license": "GPL-3.0-or-later",
     "type": "library",
     "authors": [
         {
