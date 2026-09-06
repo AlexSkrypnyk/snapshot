@@ -30,7 +30,7 @@
         "ergebnis/composer-normalize": "^2.52.0",
         "phpbench/phpbench": "^1.7.0",
         "phpstan/phpstan": "^2.2.13",
-        "phpunit/phpunit": "^12.5.24",
+        "phpunit/phpunit": "^12.5.34",
         "rector/rector": "^2.6.6",
         "symfony/process": "^7.4.18"
     },
