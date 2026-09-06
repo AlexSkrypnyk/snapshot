@@ -8,8 +8,57 @@ parameters:
 
   paths:
     - bin
+    # PHPStan filters directory scans by file extension, so the extensionless
+    # script has to be named explicitly.
+    - bin/update-snapshots
     - src
     - tests/phpunit
+
+  # Array shapes of the three structures that 'bin/update-snapshots' passes
+  # between its functions. They live here because PHPStan resolves a type alias
+  # only from a class PHPDoc or from this file, and the script holds no classes.
+  typeAliases:
+    UpdateSnapshotsConfig: '''
+      array{
+        help: bool,
+        debug: bool,
+        test_name: string,
+        snapshots_path: string,
+        datasets: array<int, string>,
+        root: string,
+        test_dir: string,
+        timeout: int,
+        retries: int,
+        jobs: int
+      }
+    '''
+    UpdateSnapshotsTask: '''
+      array{
+        dataset: string,
+        number: int,
+        status: string,
+        process: resource|null,
+        pipes: array<int, resource>,
+        stdout: array<int, string>,
+        stderr: array<int, string>,
+        start_time: float,
+        elapsed: float,
+        dots: int,
+        attempt: int,
+        last_dot_time: float,
+        reported: bool
+      }
+    '''
+    UpdateSnapshotsRun: '''
+      array{
+        jobs: int,
+        total: int,
+        retries: int,
+        tui: bool,
+        scroll_offset: int,
+        start_time: float
+      }
+    '''
 
   excludePaths:
     - vendor/*
