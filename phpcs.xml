@@ -15,6 +15,7 @@
     <arg name="colors"/>
 
     <file>bin</file>
+    <file>bin/update-snapshots</file>
     <file>src</file>
     <file>tests/phpunit</file>
 

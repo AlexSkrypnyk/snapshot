@@ -8,6 +8,7 @@ parameters:
 
   paths:
     - bin
+    - bin/update-snapshots
     - src
     - tests/phpunit
 

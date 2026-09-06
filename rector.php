@@ -30,6 +30,7 @@ use Rector\TypeDeclaration\Rector\StmtsAwareInterface\DeclareStrictTypesRector;
 return RectorConfig::configure()
   ->withPaths([
     __DIR__ . '/**',
+    __DIR__ . '/bin/update-snapshots',
   ])
   ->withPhpSets(php83: TRUE)
   ->withPreparedSets(
