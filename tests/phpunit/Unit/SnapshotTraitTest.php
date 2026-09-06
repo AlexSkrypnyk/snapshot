@@ -9,7 +9,7 @@ use AlexSkrypnyk\Snapshot\Rules\Rules;
 use AlexSkrypnyk\Snapshot\Snapshot;
 use AlexSkrypnyk\Snapshot\Testing\SnapshotTrait;
 use PHPUnit\Framework\AssertionFailedError;
-use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\CoversTrait;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -18,7 +18,7 @@ use PHPUnit\Framework\TestCase;
  * The class extends PHPUnit's TestCase rather than the package's UnitTestCase,
  * so the trait runs without the locations and fixtures that base class sets up.
  */
-#[CoversClass(SnapshotTrait::class)]
+#[CoversTrait(SnapshotTrait::class)]
 final class SnapshotTraitTest extends TestCase {
 
   use SnapshotTrait;

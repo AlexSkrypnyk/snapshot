@@ -184,7 +184,7 @@ tests/phpunit/
 
 ### Writing Tests
 
-- Use PHPUnit 11 attributes: `#[CoversClass()]`, `#[DataProvider()]`
+- Use PHPUnit 12 attributes: `#[CoversClass()]`, `#[DataProvider()]`
 - Data provider method names start with `dataProvider`
 - Use `UnitTestCase` as base class (includes `SnapshotTrait` and `LocationsTrait`)
 - Functional tests use `FunctionalTestCase` which adds `ProcessTrait`

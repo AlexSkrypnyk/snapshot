@@ -380,6 +380,8 @@ final class PatcherTest extends UnitTestCase {
     $patcher = new Patcher($source_dir, $dest_dir);
     $dst_file = $dest_dir . DIRECTORY_SEPARATOR . 'test.txt';
 
+    $patch_exception = NULL;
+
     try {
       self::callProtectedMethod($patcher, 'applyHunk', [
         &$diff,
@@ -387,14 +389,16 @@ final class PatcherTest extends UnitTestCase {
         $dst_file,
         $info,
       ]);
-      $this->fail('Expected PatchException was not thrown');
     }
-    catch (PatchException $patch_exception) {
-      $this->assertStringContainsString('Unexpected removal line', $patch_exception->getMessage());
-      $this->assertSame($source_file, $patch_exception->getFilePath());
-      $this->assertNotNull($patch_exception->getLineNumber());
-      $this->assertNotNull($patch_exception->getLineContent());
+    catch (\Throwable $throwable) {
+      $patch_exception = $throwable;
     }
+
+    $this->assertInstanceOf(PatchException::class, $patch_exception);
+    $this->assertStringContainsString('Unexpected removal line', $patch_exception->getMessage());
+    $this->assertSame($source_file, $patch_exception->getFilePath());
+    $this->assertNotNull($patch_exception->getLineNumber());
+    $this->assertNotNull($patch_exception->getLineContent());
   }
 
   public function testUnexpectedAdditionLine(): void {
@@ -425,6 +429,8 @@ final class PatcherTest extends UnitTestCase {
     $patcher = new Patcher($source_dir, $dest_dir);
     $dst_file = $dest_dir . DIRECTORY_SEPARATOR . 'test.txt';
 
+    $patch_exception = NULL;
+
     try {
       self::callProtectedMethod($patcher, 'applyHunk', [
         &$diff,
@@ -432,14 +438,16 @@ final class PatcherTest extends UnitTestCase {
         $dst_file,
         $info,
       ]);
-      $this->fail('Expected PatchException was not thrown');
     }
-    catch (PatchException $patch_exception) {
-      $this->assertStringContainsString('Unexpected addition line', $patch_exception->getMessage());
-      $this->assertSame($source_file, $patch_exception->getFilePath());
-      $this->assertNotNull($patch_exception->getLineNumber());
-      $this->assertNotNull($patch_exception->getLineContent());
+    catch (\Throwable $throwable) {
+      $patch_exception = $throwable;
     }
+
+    $this->assertInstanceOf(PatchException::class, $patch_exception);
+    $this->assertStringContainsString('Unexpected addition line', $patch_exception->getMessage());
+    $this->assertSame($source_file, $patch_exception->getFilePath());
+    $this->assertNotNull($patch_exception->getLineNumber());
+    $this->assertNotNull($patch_exception->getLineContent());
   }
 
   public function testPatchExceptionProperties(): void {
