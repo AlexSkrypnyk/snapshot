@@ -345,7 +345,6 @@ final class RulesTest extends UnitTestCase {
   public function testRuleSetApplyTo(): void {
     $rule_set = new PhpProjectRuleSet();
 
-    // Apply to existing rules.
     $existing_rules = Rules::create()->skip('custom/');
     $result = $rule_set->applyTo($existing_rules);
 

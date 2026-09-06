@@ -185,7 +185,6 @@ class Snapshot {
       $relative_path = $file->getPathnameFromBasepath();
 
       if (str_starts_with($basename, self::DELETION_MARKER)) {
-        // Deletion marker - remove file from destination.
         $target = $destination . DIRECTORY_SEPARATOR . $file->getPathFromBasepath() . DIRECTORY_SEPARATOR . substr($basename, strlen(self::DELETION_MARKER));
         File::remove($target);
       }
