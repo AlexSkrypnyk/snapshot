@@ -7,9 +7,9 @@ namespace AlexSkrypnyk\Snapshot\Tests\Functional;
 use AlexSkrypnyk\File\File;
 use AlexSkrypnyk\Snapshot\Snapshot;
 use AlexSkrypnyk\Snapshot\Testing\SnapshotTrait;
-use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\CoversTrait;
 
-#[CoversClass(SnapshotTrait::class)]
+#[CoversTrait(SnapshotTrait::class)]
 final class SnapshotTraitUpdateTest extends FunctionalTestCase {
 
   public function testUpdateBaselineOnFailure(): void {
