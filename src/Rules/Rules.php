@@ -16,6 +16,14 @@ use AlexSkrypnyk\Snapshot\Exception\SnapshotException;
 class Rules implements RulesInterface {
 
   /**
+   * Path separator used within rule patterns.
+   *
+   * The rules file is portable text, so its patterns are always written with
+   * a forward slash regardless of the host's DIRECTORY_SEPARATOR.
+   */
+  public const PATTERN_SEPARATOR = '/';
+
+  /**
    * Patterns for files where only content should be ignored.
    *
    * @var array<int, string>
@@ -161,40 +169,40 @@ class Rules implements RulesInterface {
   /**
    * {@inheritdoc}
    */
-  public function addIgnoreContent(string $pattern): static {
-    $this->ignoreContentPatterns[] = $pattern;
+  public function addIgnoreContent(string ...$patterns): static {
+    array_push($this->ignoreContentPatterns, ...$patterns);
     return $this;
   }
 
   /**
    * {@inheritdoc}
    */
-  public function addSkip(string $pattern): static {
-    $this->skipPatterns[] = $pattern;
+  public function addSkip(string ...$patterns): static {
+    array_push($this->skipPatterns, ...$patterns);
     return $this;
   }
 
   /**
    * {@inheritdoc}
    */
-  public function addGlobal(string $pattern): static {
-    $this->globalPatterns[] = $pattern;
+  public function addGlobal(string ...$patterns): static {
+    array_push($this->globalPatterns, ...$patterns);
     return $this;
   }
 
   /**
    * {@inheritdoc}
    */
-  public function addInclude(string $pattern): static {
-    $this->includePatterns[] = $pattern;
+  public function addInclude(string ...$patterns): static {
+    array_push($this->includePatterns, ...$patterns);
     return $this;
   }
 
   /**
    * {@inheritdoc}
    */
-  public function addIncludeContent(string $pattern): static {
-    $this->includeContentPatterns[] = $pattern;
+  public function addIncludeContent(string ...$patterns): static {
+    array_push($this->includeContentPatterns, ...$patterns);
     return $this;
   }
 
@@ -202,50 +210,35 @@ class Rules implements RulesInterface {
    * {@inheritdoc}
    */
   public function skip(string ...$patterns): static {
-    foreach ($patterns as $pattern) {
-      $this->addSkip($pattern);
-    }
-    return $this;
+    return $this->addSkip(...$patterns);
   }
 
   /**
    * {@inheritdoc}
    */
   public function ignoreContent(string ...$patterns): static {
-    foreach ($patterns as $pattern) {
-      $this->addIgnoreContent($pattern);
-    }
-    return $this;
+    return $this->addIgnoreContent(...$patterns);
   }
 
   /**
    * {@inheritdoc}
    */
   public function global(string ...$patterns): static {
-    foreach ($patterns as $pattern) {
-      $this->addGlobal($pattern);
-    }
-    return $this;
+    return $this->addGlobal(...$patterns);
   }
 
   /**
    * {@inheritdoc}
    */
   public function include(string ...$patterns): static {
-    foreach ($patterns as $pattern) {
-      $this->addInclude($pattern);
-    }
-    return $this;
+    return $this->addInclude(...$patterns);
   }
 
   /**
    * {@inheritdoc}
    */
   public function includeContent(string ...$patterns): static {
-    foreach ($patterns as $pattern) {
-      $this->addIncludeContent($pattern);
-    }
-    return $this;
+    return $this->addIncludeContent(...$patterns);
   }
 
   /**
@@ -297,7 +290,7 @@ class Rules implements RulesInterface {
       elseif ($line[0] === '^') {
         $this->ignoreContentPatterns[] = substr($line, 1);
       }
-      elseif (!str_contains($line, DIRECTORY_SEPARATOR)) {
+      elseif (!str_contains($line, self::PATTERN_SEPARATOR)) {
         $this->globalPatterns[] = $line;
       }
       else {

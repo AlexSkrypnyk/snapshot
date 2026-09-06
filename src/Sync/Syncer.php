@@ -27,7 +27,7 @@ class Syncer implements SyncerInterface {
   /**
    * {@inheritdoc}
    */
-  public function sync(string $dst, int $permissions = 0755, bool $copy_empty_dirs = FALSE): static {
+  public function sync(string $dst, int $permissions = 0755, bool $copy_empty_dirs = FALSE, bool $placeholder_ignored_content = FALSE): static {
     File::mkdir($dst, $permissions);
 
     foreach ($this->srcIndex->getFiles() as $file) {
@@ -41,12 +41,13 @@ class Syncer implements SyncerInterface {
 
       $absolute_src_path = $file->getPathname();
       $absolute_dst_path = $dst . DIRECTORY_SEPARATOR . $file->getPathnameFromBasepath();
-      if ($file->isIgnoreContent()) {
+
+      if ($placeholder_ignored_content && $file->isIgnoreContent()) {
         File::dump($absolute_dst_path, $file->getContent());
+        continue;
       }
-      else {
-        File::copy($absolute_src_path, $absolute_dst_path, $permissions, $copy_empty_dirs);
-      }
+
+      File::copy($absolute_src_path, $absolute_dst_path, $permissions, $copy_empty_dirs);
     }
 
     return $this;

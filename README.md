@@ -236,6 +236,8 @@ A `!^` rule overrides content ignoring instead: `!^composer.lock` keeps comparin
 
 The `.ignorecontent` file itself and the `.git/` directory are always skipped and cannot be re-included by any `!` rule.
 
+Patterns are always written with a forward slash, on every platform. The file is portable text, so a Windows host reads `build/cache/` as the same path pattern a Linux host does.
+
 #### Why Ignore Content?
 
 Some files should exist but have unpredictable or environment-specific content:
@@ -245,7 +247,7 @@ Some files should exist but have unpredictable or environment-specific content:
 - **Generated timestamps** - Files containing build dates or version hashes
 - **Environment configs** - Files that vary between CI and local environments
 
-Using `^filename` ensures the file exists without failing on content differences.
+Using `^filename` ensures the file exists without failing on content differences. Comparison is the only operation the rule changes: `sync()` and `patch()` still copy the file verbatim, so an ignored file reaches its destination intact.
 
 #### Pattern Reference
 
@@ -457,6 +459,7 @@ This release settles the public API and contains breaking changes.
 
 - **Read this first - one break is silent.** `assertSnapshotMatchesBaseline()` reordered its three leading string parameters from `($actual, $baseline, $diffs)` to `($baseline, $diffs, $actual)`. Every parameter is a string path, so an un-updated call still type-checks and runs against the wrong directories instead of failing at the call site. Update every call site before upgrading.
 - **The companion break is loud.** `assertDirectoriesIdentical()` moved `$message` to last and promoted `$rules` to third, so an un-updated call that passed a message third now throws a `TypeError` rather than misbehaving quietly.
+- **`sync()` no longer rewrites content-ignored files.** `Snapshot::sync()` and `SnapshotBuilder::sync()` used to write the fixed marker `content_ignored` in place of the content of every file matched by a `^` rule, so syncing a tree that carried a `.ignorecontent` produced a destination with placeholder text instead of the real files. They now copy every file verbatim. Pass `placeholder_ignored_content: TRUE` to get the old behaviour, which is what `SnapshotTrait` uses to keep volatile files stable in a committed baseline.
 
 Every renamed or reshaped public symbol:
 
@@ -481,8 +484,10 @@ Every renamed or reshaped public symbol:
 | `Rules::create/fromRuleSet/phpProject/nodeProject/fromFile(): self` | the same factories returning `static` |
 | `?Rules` parameters and returns across the facade, builder, trait and `Index` | `?RulesInterface` |
 | `PatchException::$file_path/$line_number/$line_content` | `$filePath/$lineNumber/$lineContent`; the getters are unchanged |
+| `RulesInterface::addSkip/addIgnoreContent/addGlobal/addInclude/addIncludeContent(string $pattern)` | the same methods taking `string ...$patterns` |
+| `SyncerInterface::sync($dst, $permissions, $copy_empty_dirs)` | `sync($dst, $permissions, $copy_empty_dirs, $placeholder_ignored_content)` |
 
-Additive for callers, breaking for direct implementers: `Rules::global()` (also on `RulesInterface`) and `RuleSetInterface::getGlobal()`/`getInclude()`/`getIncludeContent()` with their `GLOBAL_PATTERNS`, `INCLUDE_PATTERNS` and `INCLUDE_CONTENT_PATTERNS` constants. Classes extending `Rules` or `AbstractRuleSet` inherit them and need no change; classes implementing `RulesInterface` or `RuleSetInterface` directly must add the new methods. Purely additive: `SnapshotBuilder::addGlobal()` and `SnapshotBuilder::withFileFilter()`/`getFileFilter()`.
+Additive for callers, breaking for direct implementers: `Rules::global()` (also on `RulesInterface`) and `RuleSetInterface::getGlobal()`/`getInclude()`/`getIncludeContent()` with their `GLOBAL_PATTERNS`, `INCLUDE_PATTERNS` and `INCLUDE_CONTENT_PATTERNS` constants, the variadic `RulesInterface::add*()` signatures, and the fourth `SyncerInterface::sync()` parameter. Classes extending `Rules`, `AbstractRuleSet` or `Syncer` inherit them and need no change; classes implementing `RulesInterface`, `RuleSetInterface` or `SyncerInterface` directly must match the new signatures. Purely additive: `SnapshotBuilder::addGlobal()`, `SnapshotBuilder::withFileFilter()`/`getFileFilter()` and the `Rules::PATTERN_SEPARATOR` constant.
 
 ## 🤝 Contributing
 

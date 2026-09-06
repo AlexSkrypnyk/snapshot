@@ -50,59 +50,59 @@ interface RulesInterface {
   public function getIncludeContent(): array;
 
   /**
-   * Adds a pattern for files where only content should be ignored.
+   * Adds patterns for files where only content should be ignored.
    *
-   * @param string $pattern
-   *   The pattern to add.
+   * @param string ...$patterns
+   *   The patterns to add.
    *
    * @return $this
    *   Return self for chaining.
    */
-  public function addIgnoreContent(string $pattern): static;
+  public function addIgnoreContent(string ...$patterns): static;
 
   /**
-   * Adds a pattern for files to skip.
+   * Adds patterns for files to skip.
    *
-   * @param string $pattern
-   *   The pattern to add.
+   * @param string ...$patterns
+   *   The patterns to add.
    *
    * @return $this
    *   Return self for chaining.
    */
-  public function addSkip(string $pattern): static;
+  public function addSkip(string ...$patterns): static;
 
   /**
-   * Adds a global pattern that applies everywhere.
+   * Adds global patterns that apply everywhere.
    *
-   * @param string $pattern
-   *   The pattern to add.
+   * @param string ...$patterns
+   *   The patterns to add.
    *
    * @return $this
    *   Return self for chaining.
    */
-  public function addGlobal(string $pattern): static;
+  public function addGlobal(string ...$patterns): static;
 
   /**
-   * Adds a pattern for files to explicitly include.
+   * Adds patterns for files to explicitly include.
    *
-   * @param string $pattern
-   *   The pattern to add.
+   * @param string ...$patterns
+   *   The patterns to add.
    *
    * @return $this
    *   Return self for chaining.
    */
-  public function addInclude(string $pattern): static;
+  public function addInclude(string ...$patterns): static;
 
   /**
-   * Adds a pattern for files where content should be explicitly compared.
+   * Adds patterns for files where content should be explicitly compared.
    *
-   * @param string $pattern
-   *   The pattern to add.
+   * @param string ...$patterns
+   *   The patterns to add.
    *
    * @return $this
    *   Return self for chaining.
    */
-  public function addIncludeContent(string $pattern): static;
+  public function addIncludeContent(string ...$patterns): static;
 
   /**
    * Fluent method to skip multiple patterns.

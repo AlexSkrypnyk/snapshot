@@ -97,7 +97,8 @@ trait SnapshotTrait {
       $this->fail($message ?: sprintf('Failed to apply patch: %s', $patch_exception->getMessage()));
     }
 
-    // Do not override .ignorecontent file from the baseline directory.
+    // The patch skips the rules file, so restore the baseline's copy for the
+    // comparison below.
     $this->snapshotCopyIgnoreContent($baseline, $expected);
 
     $this->assertDirectoriesIdentical($expected, $actual, message: $message);
@@ -184,7 +185,7 @@ trait SnapshotTrait {
     $this->snapshotCopyIgnoreContent($baseline, $tmp);
 
     File::rmdir($baseline);
-    Snapshot::sync($actual, $baseline);
+    Snapshot::sync($actual, $baseline, placeholder_ignored_content: TRUE);
 
     $this->snapshotCopyIgnoreContent($tmp, $baseline);
 
@@ -249,8 +250,19 @@ trait SnapshotTrait {
    * By default, applies version normalization patterns to replace volatile
    * content (version numbers, hashes, etc.) with placeholders.
    *
-   * Override to customize preprocessing. Call parent::snapshotUpdateBefore()
-   * to keep default behavior, or replace entirely with custom logic.
+   * A class method of the same name replaces this implementation rather than
+   * wrapping it, so an override that needs the default must alias the trait
+   * method and call the alias:
+   *
+   * @code
+   * use SnapshotTrait {
+   *   snapshotUpdateBefore as snapshotUpdateBeforeDefault;
+   * }
+   *
+   * protected function snapshotUpdateBefore(string $actual): void {
+   *   $this->snapshotUpdateBeforeDefault($actual);
+   * }
+   * @endcode
    *
    * @param string $actual
    *   Path to the actual output directory.

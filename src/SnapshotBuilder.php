@@ -117,7 +117,7 @@ class SnapshotBuilder {
    */
   public function addSkip(string ...$patterns): static {
     $this->rules ??= new Rules();
-    $this->rules->skip(...$patterns);
+    $this->rules->addSkip(...$patterns);
     return $this;
   }
 
@@ -134,7 +134,7 @@ class SnapshotBuilder {
    */
   public function addIgnoreContent(string ...$patterns): static {
     $this->rules ??= new Rules();
-    $this->rules->ignoreContent(...$patterns);
+    $this->rules->addIgnoreContent(...$patterns);
     return $this;
   }
 
@@ -151,7 +151,7 @@ class SnapshotBuilder {
    */
   public function addGlobal(string ...$patterns): static {
     $this->rules ??= new Rules();
-    $this->rules->global(...$patterns);
+    $this->rules->addGlobal(...$patterns);
     return $this;
   }
 
@@ -168,7 +168,7 @@ class SnapshotBuilder {
    */
   public function addInclude(string ...$patterns): static {
     $this->rules ??= new Rules();
-    $this->rules->include(...$patterns);
+    $this->rules->addInclude(...$patterns);
     return $this;
   }
 
@@ -185,7 +185,7 @@ class SnapshotBuilder {
    */
   public function addIncludeContent(string ...$patterns): static {
     $this->rules ??= new Rules();
-    $this->rules->includeContent(...$patterns);
+    $this->rules->addIncludeContent(...$patterns);
     return $this;
   }
 
@@ -294,12 +294,16 @@ class SnapshotBuilder {
    *   Directory permissions.
    * @param bool $copy_empty_dirs
    *   Whether to copy empty directories.
+   * @param bool $placeholder_ignored_content
+   *   Whether to write a fixed placeholder in place of the content of files
+   *   matched by an ignore-content rule. Keeps volatile files stable in a
+   *   committed baseline. When FALSE, every file is copied verbatim.
    *
    * @return $this
    *   Return self for chaining.
    */
-  public function sync(string $source, string $destination, int $permissions = 0755, bool $copy_empty_dirs = FALSE): static {
-    Snapshot::sync($source, $destination, $permissions, $copy_empty_dirs, $this->rules, $this->fileFilter);
+  public function sync(string $source, string $destination, int $permissions = 0755, bool $copy_empty_dirs = FALSE, bool $placeholder_ignored_content = FALSE): static {
+    Snapshot::sync($source, $destination, $permissions, $copy_empty_dirs, $this->rules, $this->fileFilter, $placeholder_ignored_content);
     return $this;
   }
 

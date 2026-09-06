@@ -18,10 +18,14 @@ interface SyncerInterface {
    *   Directory permissions to use when creating directories.
    * @param bool $copy_empty_dirs
    *   Whether to copy empty directories.
+   * @param bool $placeholder_ignored_content
+   *   Whether to write a fixed placeholder in place of the content of files
+   *   matched by an ignore-content rule. Keeps volatile files stable in a
+   *   committed baseline. When FALSE, every file is copied verbatim.
    *
    * @return $this
    *   Return self for chaining.
    */
-  public function sync(string $dst, int $permissions = 0755, bool $copy_empty_dirs = FALSE): static;
+  public function sync(string $dst, int $permissions = 0755, bool $copy_empty_dirs = FALSE, bool $placeholder_ignored_content = FALSE): static;
 
 }

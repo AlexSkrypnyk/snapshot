@@ -154,6 +154,13 @@ final class RulesTest extends UnitTestCase {
     $this->assertSame(['some/path/'], $rules->getSkip());
   }
 
+  public function testParseRoutesPathPatternsByForwardSlash(): void {
+    $rules = Rules::create()->parse("build/cache/\n*.log\n");
+
+    $this->assertSame(['build/cache/'], $rules->getSkip(), 'A pattern holding a forward slash is a path pattern.');
+    $this->assertSame(['*.log'], $rules->getGlobal(), 'A pattern without a forward slash matches the name alone.');
+  }
+
   #[DataProvider('dataProviderAddMethods')]
   public function testAddMethods(string $method, string $getter, string $pattern): void {
     $rules = new Rules();
@@ -167,6 +174,25 @@ final class RulesTest extends UnitTestCase {
     yield 'addGlobal' => ['addGlobal', 'getGlobal', 'global-pattern'];
     yield 'addInclude' => ['addInclude', 'getInclude', 'include-pattern'];
     yield 'addIncludeContent' => ['addIncludeContent', 'getIncludeContent', 'include-content-pattern'];
+  }
+
+  #[DataProvider('dataProviderAddMethodsAcceptVariadicPatterns')]
+  public function testAddMethodsAcceptVariadicPatterns(string $method, string $getter): void {
+    $many = new Rules();
+    $many->$method('first', 'second');
+    $this->assertSame(['first', 'second'], $many->$getter());
+
+    $none = new Rules();
+    $none->$method();
+    $this->assertSame([], $none->$getter());
+  }
+
+  public static function dataProviderAddMethodsAcceptVariadicPatterns(): \Iterator {
+    yield 'addIgnoreContent' => ['addIgnoreContent', 'getIgnoreContent'];
+    yield 'addSkip' => ['addSkip', 'getSkip'];
+    yield 'addGlobal' => ['addGlobal', 'getGlobal'];
+    yield 'addInclude' => ['addInclude', 'getInclude'];
+    yield 'addIncludeContent' => ['addIncludeContent', 'getIncludeContent'];
   }
 
   public function testAddMethodChaining(): void {

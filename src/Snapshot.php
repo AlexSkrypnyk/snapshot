@@ -231,10 +231,14 @@ class Snapshot {
    * @param callable|null $file_filter
    *   Optional callback receiving each candidate file as an IndexedFile;
    *   returning FALSE excludes the file from the sync.
+   * @param bool $placeholder_ignored_content
+   *   Whether to write a fixed placeholder in place of the content of files
+   *   matched by an ignore-content rule. Keeps volatile files stable in a
+   *   committed baseline. When FALSE, every file is copied verbatim.
    */
-  public static function sync(string $source, string $destination, int $permissions = 0755, bool $copy_empty_dirs = FALSE, ?RulesInterface $rules = NULL, ?callable $file_filter = NULL): void {
+  public static function sync(string $source, string $destination, int $permissions = 0755, bool $copy_empty_dirs = FALSE, ?RulesInterface $rules = NULL, ?callable $file_filter = NULL, bool $placeholder_ignored_content = FALSE): void {
     $index = self::scan($source, $rules, $file_filter);
-    (new Syncer($index))->sync($destination, $permissions, $copy_empty_dirs);
+    (new Syncer($index))->sync($destination, $permissions, $copy_empty_dirs, $placeholder_ignored_content);
   }
 
   /**

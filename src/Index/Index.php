@@ -54,7 +54,7 @@ class Index implements IndexInterface {
         ? Rules::fromFile($directory . DIRECTORY_SEPARATOR . Snapshot::IGNORECONTENT)
         : new Rules()
       );
-    $this->rules->addSkip(Snapshot::IGNORECONTENT)->addSkip('.git/');
+    $this->rules->addSkip(Snapshot::IGNORECONTENT, '.git' . Rules::PATTERN_SEPARATOR);
   }
 
   /**
@@ -133,7 +133,8 @@ class Index implements IndexInterface {
 
       // Neither the rules file nor the VCS tree is user-overridable, so both
       // are hard-skipped before include patterns are checked.
-      if ($relative_path === Snapshot::IGNORECONTENT || str_starts_with($relative_path, '.git/')) {
+      $normalised_path = str_replace(DIRECTORY_SEPARATOR, Rules::PATTERN_SEPARATOR, $relative_path);
+      if ($normalised_path === Snapshot::IGNORECONTENT || str_starts_with($normalised_path, '.git' . Rules::PATTERN_SEPARATOR)) {
         continue;
       }
 
@@ -217,16 +218,20 @@ class Index implements IndexInterface {
    *   TRUE if the path matches the pattern, FALSE otherwise.
    */
   protected static function pathMatchesPattern(string $path, string $pattern): bool {
+    // Patterns always use a forward slash, so compare against a path spelled
+    // the same way rather than with the host's separator.
+    $path = str_replace(DIRECTORY_SEPARATOR, Rules::PATTERN_SEPARATOR, $path);
+
     // Match directory pattern (e.g., "dir/").
-    if (str_ends_with($pattern, DIRECTORY_SEPARATOR)) {
+    if (str_ends_with($pattern, Rules::PATTERN_SEPARATOR)) {
       return str_starts_with($path, $pattern);
     }
 
     // Match direct children (e.g., "dir/*").
     if (str_contains($pattern, '/*')) {
-      $parent_dir = rtrim($pattern, '/*') . DIRECTORY_SEPARATOR;
+      $parent_dir = rtrim($pattern, '/*') . Rules::PATTERN_SEPARATOR;
 
-      return str_starts_with($path, $parent_dir) && substr_count($path, DIRECTORY_SEPARATOR) === substr_count($parent_dir, DIRECTORY_SEPARATOR);
+      return str_starts_with($path, $parent_dir) && substr_count($path, Rules::PATTERN_SEPARATOR) === substr_count($parent_dir, Rules::PATTERN_SEPARATOR);
     }
 
     // @phpcs:ignore Drupal.Functions.DiscouragedFunctions.Discouraged
