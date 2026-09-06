@@ -155,6 +155,7 @@ composer install
 - All files must end with a newline character
 - Local variables/method arguments: `snake_case`
 - Method names/class properties: `camelCase`
+- Promoted constructor properties declare properties, so they follow the property convention: `camelCase`
 
 
 ## Testing Patterns
@@ -238,7 +239,7 @@ class MyTest extends TestCase {
 
     // Compare actual against baseline + diffs
     public function testScenario(): void {
-        $this->assertSnapshotMatchesBaseline($actual, $baseline, $diffs);
+        $this->assertSnapshotMatchesBaseline($baseline, $diffs, $actual);
     }
 
     // Enable auto-update on failure (call in tearDown)

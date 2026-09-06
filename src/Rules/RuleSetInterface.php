@@ -12,38 +12,56 @@ namespace AlexSkrypnyk\Snapshot\Rules;
 interface RuleSetInterface {
 
   /**
-   * Get patterns to skip during comparison.
+   * Gets patterns for files where only content should be ignored.
    *
    * @return array<int, string>
-   *   Array of patterns to skip.
+   *   Array of patterns.
    */
-  public function getSkipPatterns(): array;
+  public function getIgnoreContent(): array;
 
   /**
-   * Get patterns where content differences should be ignored.
+   * Gets patterns for files to skip.
    *
    * @return array<int, string>
-   *   Array of patterns to ignore content.
+   *   Array of patterns.
    */
-  public function getIgnoreContentPatterns(): array;
+  public function getSkip(): array;
 
   /**
-   * Apply this rule set to a Rules instance.
+   * Gets global patterns that apply everywhere.
    *
-   * @param \AlexSkrypnyk\Snapshot\Rules\Rules|null $rules
-   *   Optional existing rules to extend. Creates new Rules if NULL.
-   *
-   * @return \AlexSkrypnyk\Snapshot\Rules\Rules
-   *   Rules instance with this rule set applied.
+   * @return array<int, string>
+   *   Array of patterns.
    */
-  public function applyTo(?Rules $rules = NULL): Rules;
+  public function getGlobal(): array;
 
   /**
-   * Create a new Rules instance with this rule set applied.
+   * Gets patterns for files to explicitly include.
    *
-   * @return \AlexSkrypnyk\Snapshot\Rules\Rules
-   *   New Rules instance configured with this rule set.
+   * @return array<int, string>
+   *   Array of patterns.
    */
-  public function toRules(): Rules;
+  public function getInclude(): array;
+
+  /**
+   * Gets patterns for files where content should be explicitly compared.
+   *
+   * @return array<int, string>
+   *   Array of patterns.
+   */
+  public function getIncludeContent(): array;
+
+  /**
+   * Apply this rule set to a rules instance.
+   *
+   * @param \AlexSkrypnyk\Snapshot\Rules\RulesInterface|null $rules
+   *   Optional existing rules to extend. Creates new rules if NULL.
+   *
+   * @return \AlexSkrypnyk\Snapshot\Rules\RulesInterface
+   *   The same rules instance the patterns were applied to: the given one, or
+   *   the one created when NULL was passed. Implementations must not return a
+   *   different instance, so callers may keep using the one they passed in.
+   */
+  public function applyTo(?RulesInterface $rules = NULL): RulesInterface;
 
 }

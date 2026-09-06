@@ -6,7 +6,7 @@ namespace AlexSkrypnyk\Snapshot\Testing;
 
 use AlexSkrypnyk\File\File;
 use AlexSkrypnyk\Snapshot\Exception\PatchException;
-use AlexSkrypnyk\Snapshot\Rules\Rules;
+use AlexSkrypnyk\Snapshot\Rules\RulesInterface;
 use AlexSkrypnyk\Snapshot\Snapshot;
 use PHPUnit\Framework\TestStatus\Error;
 use PHPUnit\Framework\TestStatus\Failure;
@@ -39,21 +39,22 @@ trait SnapshotTrait {
   /**
    * Assert that two directories have identical structure and content.
    *
-   * @param string $dir1
-   *   First directory path to compare.
-   * @param string $dir2
-   *   Second directory path to compare.
-   * @param string|null $message
-   *   Optional custom failure message.
-   * @param callable|null $match_content
-   *   Optional callback to process file content before comparison.
+   * @param string $expected
+   *   Expected directory path.
+   * @param string $actual
+   *   Actual directory path.
+   * @param \AlexSkrypnyk\Snapshot\Rules\RulesInterface|null $rules
+   *   Optional comparison rules.
+   * @param callable|null $file_filter
+   *   Optional callback receiving each candidate file as an IndexedFile;
+   *   returning FALSE excludes the file from both indexes.
    * @param bool $show_diff
    *   Whether to include diff output in failure messages.
-   * @param \AlexSkrypnyk\Snapshot\Rules\Rules|null $rules
-   *   Optional comparison rules.
+   * @param string|null $message
+   *   Optional custom failure message.
    */
-  public function assertDirectoriesIdentical(string $dir1, string $dir2, ?string $message = NULL, ?callable $match_content = NULL, bool $show_diff = TRUE, ?Rules $rules = NULL): void {
-    $text = Snapshot::compare($dir1, $dir2, $rules, $match_content)->render(['show_diff' => $show_diff]);
+  public function assertDirectoriesIdentical(string $expected, string $actual, ?RulesInterface $rules = NULL, ?callable $file_filter = NULL, bool $show_diff = TRUE, ?string $message = NULL): void {
+    $text = Snapshot::compare($expected, $actual, $rules, $file_filter)->render(['show_diff' => $show_diff]);
     if (!empty($text)) {
       $this->fail($message ? $message . PHP_EOL . $text : $text);
     }
@@ -66,12 +67,12 @@ trait SnapshotTrait {
    * This method applies patch files to a baseline directory and then compares
    * the resulting directory with an actual directory to verify they match.
    *
-   * @param string $actual
-   *   Actual directory path to compare.
    * @param string $baseline
    *   Baseline directory path.
    * @param string $diffs
-   *   Directory containing diff/patch files to apply to the baseline.
+   *   Directory containing diff files produced by Snapshot::diff().
+   * @param string $actual
+   *   Actual directory path to compare.
    * @param string|null $expected
    *   Optional path where to create the expected directory. If NULL, a
    *   directory unique to this invocation is created under the system temp
@@ -79,7 +80,7 @@ trait SnapshotTrait {
    * @param string|null $message
    *   Optional custom failure message.
    */
-  public function assertSnapshotMatchesBaseline(string $actual, string $baseline, string $diffs, ?string $expected = NULL, ?string $message = NULL): void {
+  public function assertSnapshotMatchesBaseline(string $baseline, string $diffs, string $actual, ?string $expected = NULL, ?string $message = NULL): void {
     if (!is_dir($baseline)) {
       $this->fail($message ?: sprintf('The baseline directory does not exist: %s', $baseline));
     }
@@ -97,11 +98,9 @@ trait SnapshotTrait {
     }
 
     // Do not override .ignorecontent file from the baseline directory.
-    if (file_exists($baseline . DIRECTORY_SEPARATOR . Snapshot::IGNORECONTENT)) {
-      File::copy($baseline . DIRECTORY_SEPARATOR . Snapshot::IGNORECONTENT, $expected . DIRECTORY_SEPARATOR . Snapshot::IGNORECONTENT);
-    }
+    $this->snapshotCopyIgnoreContent($baseline, $expected);
 
-    $this->assertDirectoriesIdentical($expected, $actual, $message);
+    $this->assertDirectoriesIdentical($expected, $actual, message: $message);
   }
 
   /**
@@ -181,14 +180,13 @@ trait SnapshotTrait {
   protected function snapshotUpdateBaseline(string $baseline, string $actual, string $tmp): void {
     fwrite(STDERR, PHP_EOL . '[SNAPSHOT] Updating baseline' . PHP_EOL);
 
-    $ignorecontent = Snapshot::IGNORECONTENT;
-    File::copyIfExists($baseline . '/' . $ignorecontent, $actual . '/' . $ignorecontent);
-    File::copyIfExists($baseline . '/' . $ignorecontent, $tmp . '/' . $ignorecontent);
+    $this->snapshotCopyIgnoreContent($baseline, $actual);
+    $this->snapshotCopyIgnoreContent($baseline, $tmp);
 
     File::rmdir($baseline);
     Snapshot::sync($actual, $baseline);
 
-    File::copyIfExists($tmp . '/' . $ignorecontent, $baseline . '/' . $ignorecontent);
+    $this->snapshotCopyIgnoreContent($tmp, $baseline);
 
     fwrite(STDERR, '[SNAPSHOT] Baseline updated' . PHP_EOL);
   }
@@ -210,15 +208,39 @@ trait SnapshotTrait {
   protected function snapshotUpdateDiffs(string $baseline, string $snapshots, string $actual, string $tmp): void {
     fwrite(STDERR, PHP_EOL . '[SNAPSHOT] Updating diffs' . PHP_EOL);
 
-    $ignorecontent = Snapshot::IGNORECONTENT;
-    File::copyIfExists($snapshots . '/' . $ignorecontent, $tmp . '/' . $ignorecontent);
+    $this->snapshotCopyIgnoreContent($snapshots, $tmp);
 
     File::rmdir($snapshots);
     Snapshot::diff($baseline, $actual, $snapshots);
 
-    File::copyIfExists($tmp . '/' . $ignorecontent, $snapshots . '/' . $ignorecontent);
+    $this->snapshotCopyIgnoreContent($tmp, $snapshots);
 
     fwrite(STDERR, '[SNAPSHOT] Diffs updated' . PHP_EOL);
+  }
+
+  /**
+   * Copies the ignore rules file between directories when the source has one.
+   *
+   * @param string $source
+   *   Directory to copy the file from.
+   * @param string $destination
+   *   Directory to copy the file to.
+   */
+  protected function snapshotCopyIgnoreContent(string $source, string $destination): void {
+    File::copyIfExists($this->snapshotIgnoreContentPath($source), $this->snapshotIgnoreContentPath($destination));
+  }
+
+  /**
+   * Builds the path to the ignore rules file within a directory.
+   *
+   * @param string $directory
+   *   The directory holding the file.
+   *
+   * @return string
+   *   Path to the ignore rules file.
+   */
+  protected function snapshotIgnoreContentPath(string $directory): string {
+    return $directory . DIRECTORY_SEPARATOR . Snapshot::IGNORECONTENT;
   }
 
   /**

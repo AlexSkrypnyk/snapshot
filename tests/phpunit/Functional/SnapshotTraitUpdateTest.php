@@ -276,7 +276,7 @@ final class ScenarioUpdateTest extends TestCase {
   }
 
   public function testScenarioMatch(): void {
-    \$this->assertSnapshotMatchesBaseline(\$this->actual, \$this->baseline, \$this->snapshots);
+    \$this->assertSnapshotMatchesBaseline(\$this->baseline, \$this->snapshots, \$this->actual);
   }
 
 }

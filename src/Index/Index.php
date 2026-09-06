@@ -6,6 +6,7 @@ namespace AlexSkrypnyk\Snapshot\Index;
 
 use AlexSkrypnyk\File\File;
 use AlexSkrypnyk\Snapshot\Rules\Rules;
+use AlexSkrypnyk\Snapshot\Rules\RulesInterface;
 use AlexSkrypnyk\Snapshot\Snapshot;
 
 /**
@@ -25,12 +26,27 @@ class Index implements IndexInterface {
   /**
    * The rules to apply when indexing files.
    */
-  protected Rules $rules;
+  protected RulesInterface $rules;
 
+  /**
+   * Constructs an Index instance.
+   *
+   * @param string $directory
+   *   The directory to index.
+   * @param \AlexSkrypnyk\Snapshot\Rules\RulesInterface|null $rules
+   *   Optional rules to apply when indexing. Falls back to the directory's
+   *   rules file, then to empty rules.
+   * @param mixed $fileFilter
+   *   Optional callback receiving the IndexedFile of each file that survives
+   *   the skip and global rules, including files marked by an ignore-content
+   *   rule. A symlink to a directory reaches it; a broken symlink does not.
+   *   Returning FALSE excludes the file from the index; any other return value
+   *   is discarded, and any change the callback made to the file is kept.
+   */
   public function __construct(
     protected string $directory,
-    ?Rules $rules = NULL,
-    protected mixed $beforeMatchContent = NULL,
+    ?RulesInterface $rules = NULL,
+    protected mixed $fileFilter = NULL,
   ) {
     $this->rules = $rules ??
       (
@@ -44,21 +60,21 @@ class Index implements IndexInterface {
   /**
    * {@inheritdoc}
    */
-  public function getFiles(?callable $cb = NULL): array {
+  public function getFiles(?callable $transformer = NULL): array {
     if ($this->files === NULL) {
       $this->scan();
     }
 
     $this->files ??= [];
 
-    if (!is_callable($cb)) {
+    if (!is_callable($transformer)) {
       return $this->files;
     }
 
     // Transform a copy so the callback never mutates the cached index.
     $files = [];
     foreach ($this->files as $path => $file) {
-      $files[$path] = $cb($file);
+      $files[$path] = $transformer($file);
     }
 
     return $files;
@@ -74,12 +90,12 @@ class Index implements IndexInterface {
   /**
    * {@inheritdoc}
    */
-  public function getRules(): Rules {
+  public function getRules(): RulesInterface {
     return $this->rules;
   }
 
   /**
-   * Scan files in directory respecting rules and optionally using a callback.
+   * Scans files in the directory, applying the rules and the file filter.
    */
   protected function scan(): static {
     $this->files = [];
@@ -149,11 +165,11 @@ class Index implements IndexInterface {
         $file->setIgnoreContent();
         // @codeCoverageIgnoreEnd
       }
-      elseif (is_callable($this->beforeMatchContent)) {
-        $ret = call_user_func($this->beforeMatchContent, $file);
-        if ($ret === FALSE) {
-          continue;
-        }
+
+      // The filter runs after the content marking so that it can exclude a
+      // file whose content is ignored.
+      if (is_callable($this->fileFilter) && call_user_func($this->fileFilter, $file) === FALSE) {
+        continue;
       }
 
       $this->files[$relative_path] = $file;

@@ -10,7 +10,7 @@ namespace AlexSkrypnyk\Snapshot\Rules;
  * Skips common Node.js project directories and ignores content of lock files.
  *
  * @code
- * $rules = (new NodeProjectRuleSet())->toRules();
+ * $rules = Rules::fromRuleSet(new NodeProjectRuleSet());
  * Snapshot::compare($baseline, $actual, $rules);
  * @endcode
  */

@@ -18,11 +18,11 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 
 // @phpcs:disable Squiz.Arrays.ArrayDeclaration.KeySpecified
-#[CoversClass(Snapshot::class)]
-#[CoversClass(Syncer::class)]
-#[CoversClass(Patcher::class)]
 #[CoversClass(Comparer::class)]
 #[CoversClass(Diff::class)]
+#[CoversClass(Patcher::class)]
+#[CoversClass(Snapshot::class)]
+#[CoversClass(Syncer::class)]
 final class SnapshotTest extends UnitTestCase {
 
   #[DataProvider('dataProviderCompare')]
@@ -109,8 +109,18 @@ final class SnapshotTest extends UnitTestCase {
     ];
   }
 
+  /**
+   * Test the rendered comparison of a fixture directory pair.
+   *
+   * @param array $expected
+   *   Strings that must appear in the render. An empty array expects no
+   *   render at all.
+   * @param array $unexpected
+   *   Strings that must not appear in the render, pinning the branch that
+   *   renders nothing for an empty absent-file list.
+   */
   #[DataProvider('dataProviderCompareRender')]
-  public function testCompareRender(array $expected): void {
+  public function testCompareRender(array $expected, array $unexpected = []): void {
     $dir1 = File::dir($this->locationsFixtureDir('compare') . DIRECTORY_SEPARATOR . 'directory1');
     $dir2 = File::dir($this->locationsFixtureDir('compare') . DIRECTORY_SEPARATOR . 'directory2');
 
@@ -128,23 +138,44 @@ final class SnapshotTest extends UnitTestCase {
     foreach ($expected as $expected_line) {
       $this->assertStringContainsString($expected_line, $content);
     }
+
+    foreach ($unexpected as $unexpected_line) {
+      $this->assertStringNotContainsString($unexpected_line, $content);
+    }
   }
 
   public static function dataProviderCompareRender(): \Iterator {
     yield 'files_equal' => [
       [],
     ];
+    yield 'files_content_only' => [
+      [
+        'Differences between directories',
+        'Files that differ in content:',
+        'f2.txt' => <<<DIFF_WRAP
+          --- DIFF START ---
+          @@ -1 +1 @@
+          -f2l1
+          +f2l1-changed
+          --- DIFF END ---
+          DIFF_WRAP,
+      ],
+      [
+        'Files absent in [left]:',
+        'Files absent in [right]:',
+      ],
+    ];
     yield 'files_not_equal' => [
       [
         'Differences between directories',
-          <<<ABSENT
-Files absent in [left]:
-  f4.txt
-ABSENT,
-          <<<ABSENT
-Files absent in [right]:
-  f3.txt
-ABSENT,
+        <<<ABSENT
+          Files absent in [left]:
+            f4.txt
+          ABSENT,
+        <<<ABSENT
+          Files absent in [right]:
+            f3.txt
+          ABSENT,
         'Files that differ in content:',
         'f2.txt' => <<<DIFF_WRAP
           --- DIFF START ---
@@ -161,14 +192,14 @@ ABSENT,
     yield 'files_not_equal_ignorecontent' => [
       [
         'Differences between directories',
-          <<<ABSENT
-Files absent in [left]:
-  f4.txt
-ABSENT,
-          <<<ABSENT
-Files absent in [right]:
-  f3.txt
-ABSENT,
+        <<<ABSENT
+          Files absent in [left]:
+            f4.txt
+          ABSENT,
+        <<<ABSENT
+          Files absent in [right]:
+            f3.txt
+          ABSENT,
         'Files that differ in content:',
         'f2.txt' => <<<DIFF_WRAP
           --- DIFF START ---
@@ -186,24 +217,24 @@ ABSENT,
       [
         'Differences between directories',
         "Files absent in [left]:\n",
-          <<<ABSENT
-  dir2_flat-present-dst/d2f1.txt
-  dir2_flat-present-dst/d2f2.txt
-  dir3_subdirs/dir31/f4-new-file-notignore-everywhere.txt
-  dir3_subdirs/dir32-unignored/d32f2-ignore-ext-only-dst.log
-  dir5_content_ignore/dir51/d51f2-new-file.txt
-  f4-new-file-notignore-everywhere.txt
-ABSENT,
+        <<<ABSENT
+            dir2_flat-present-dst/d2f1.txt
+            dir2_flat-present-dst/d2f2.txt
+            dir3_subdirs/dir31/f4-new-file-notignore-everywhere.txt
+            dir3_subdirs/dir32-unignored/d32f2-ignore-ext-only-dst.log
+            dir5_content_ignore/dir51/d51f2-new-file.txt
+            f4-new-file-notignore-everywhere.txt
+          ABSENT,
         "Files absent in [right]:\n",
-          <<<ABSENT
-  d32f2_symlink_deep.txt
-  dir1_flat/d1f1_symlink.txt
-  dir1_flat/d1f3-only-src.txt
-  dir3_subdirs/dir32-unignored/d32f1_symlink.txt
-  dir3_subdirs/dir32-unignored/d32f2-only-src.log
-  dir3_subdirs_symlink
-  f2_symlink.txt
-ABSENT,
+        <<<ABSENT
+            d32f2_symlink_deep.txt
+            dir1_flat/d1f1_symlink.txt
+            dir1_flat/d1f3-only-src.txt
+            dir3_subdirs/dir32-unignored/d32f1_symlink.txt
+            dir3_subdirs/dir32-unignored/d32f2-only-src.log
+            dir3_subdirs_symlink
+            f2_symlink.txt
+          ABSENT,
         'Files that differ in content:',
         'dir3_subdirs/dir32-unignored/d32f2.txt' => <<<DIFF_WRAP
           --- DIFF START ---
@@ -362,13 +393,13 @@ ABSENT,
     $this->assertEmpty($files);
   }
 
-  public function testScanWithRulesAndProcessor(): void {
+  public function testScanWithRulesAndFileFilter(): void {
     $src = File::dir($this->locationsFixtureDir('compare') . DIRECTORY_SEPARATOR . 'files_equal' . DIRECTORY_SEPARATOR . 'directory1');
 
     $rules = Rules::create();
-    $processor = fn(string $content): string => $content;
+    $file_filter = fn(IndexedFile $file): bool => TRUE;
 
-    $index = Snapshot::scan($src, $rules, $processor);
+    $index = Snapshot::scan($src, $rules, $file_filter);
 
     $this->assertGreaterThan(0, count($index->getFiles()));
   }
@@ -418,6 +449,23 @@ ABSENT,
     $this->assertArrayHasKey('f2.txt', $absent_right);
   }
 
+  public function testComparerAddFileMutatorsReturnSelf(): void {
+    $dir1 = self::$sut . DIRECTORY_SEPARATOR . 'dir1';
+    $dir2 = self::$sut . DIRECTORY_SEPARATOR . 'dir2';
+    mkdir($dir1, 0777, TRUE);
+    mkdir($dir2, 0777, TRUE);
+
+    file_put_contents($dir1 . DIRECTORY_SEPARATOR . 'f1.txt', 'content1');
+    file_put_contents($dir2 . DIRECTORY_SEPARATOR . 'f1.txt', 'content1');
+
+    $comparer = Snapshot::compare($dir1, $dir2);
+    $left_file = new IndexedFile($dir1 . DIRECTORY_SEPARATOR . 'f1.txt', $dir1);
+    $right_file = new IndexedFile($dir2 . DIRECTORY_SEPARATOR . 'f1.txt', $dir2);
+
+    $this->assertSame($comparer, $comparer->addLeftFile($left_file));
+    $this->assertSame($comparer, $comparer->addRightFile($right_file));
+  }
+
   public function testSyncRespectsContentIgnored(): void {
     $src = self::$sut . DIRECTORY_SEPARATOR . 'src';
     $dst = self::$sut . DIRECTORY_SEPARATOR . 'dst';
@@ -460,19 +508,19 @@ ABSENT,
 
   public function testPatchWithRules(): void {
     $baseline = self::$sut . DIRECTORY_SEPARATOR . 'baseline';
-    $patches = self::$sut . DIRECTORY_SEPARATOR . 'patches';
+    $diffs = self::$sut . DIRECTORY_SEPARATOR . 'diffs';
     $destination = self::$sut . DIRECTORY_SEPARATOR . 'destination';
     mkdir($baseline, 0777, TRUE);
-    mkdir($patches, 0777, TRUE);
+    mkdir($diffs, 0777, TRUE);
 
     file_put_contents($baseline . DIRECTORY_SEPARATOR . 'keep.txt', 'keep content');
     file_put_contents($baseline . DIRECTORY_SEPARATOR . 'skip.txt', 'secret baseline content');
-    file_put_contents($patches . DIRECTORY_SEPARATOR . 'newfile.txt', 'new content');
-    file_put_contents($patches . DIRECTORY_SEPARATOR . 'skip.txt', 'secret patch content');
+    file_put_contents($diffs . DIRECTORY_SEPARATOR . 'newfile.txt', 'new content');
+    file_put_contents($diffs . DIRECTORY_SEPARATOR . 'skip.txt', 'secret diff content');
 
     $rules = Rules::create()->skip('skip.txt');
 
-    Snapshot::patch($baseline, $patches, $destination, $rules);
+    Snapshot::patch($baseline, $diffs, $destination, $rules);
 
     $this->assertFileExists($destination . DIRECTORY_SEPARATOR . 'keep.txt');
     $this->assertFileExists($destination . DIRECTORY_SEPARATOR . 'newfile.txt');

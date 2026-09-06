@@ -10,7 +10,7 @@ namespace AlexSkrypnyk\Snapshot\Rules;
  * Skips common PHP project directories and ignores content of lock files.
  *
  * @code
- * $rules = (new PhpProjectRuleSet())->toRules();
+ * $rules = Rules::fromRuleSet(new PhpProjectRuleSet());
  * Snapshot::compare($baseline, $actual, $rules);
  * @endcode
  */

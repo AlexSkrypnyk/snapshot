@@ -15,16 +15,15 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 
 #[CoversClass(Index::class)]
-#[CoversClass(IndexedFile::class)]
 final class IndexTest extends UnitTestCase {
 
   #[DataProvider('dataProviderIndexScan')]
-  public function testIndexScan(?callable $rules, ?callable $before_match_content, array $expected): void {
-    $dir = File::dir($this->locationsFixtureDir('compare') . DIRECTORY_SEPARATOR . 'files_equal_advanced' . DIRECTORY_SEPARATOR . 'directory2');
+  public function testIndexScan(?callable $rules, ?callable $file_filter, array $expected): void {
+    $dir = $this->scanFixtureDir();
 
     $rules = is_callable($rules) ? $rules() : $rules;
 
-    $index = new Index($dir, $rules, $before_match_content);
+    $index = new Index($dir, $rules, $file_filter);
     $this->callProtectedMethod($index, 'scan');
 
     $this->assertSame($expected, array_keys($index->getFiles()));
@@ -62,12 +61,12 @@ final class IndexTest extends UnitTestCase {
       'f4-ignore-ext.log',
       'f5-new-file-ignore-ext.log',
     ];
-    yield [NULL, NULL, $defaults];
-    yield [NULL, fn(IndexedFile $file): null => NULL, $defaults];
-    yield [NULL, fn(IndexedFile $file): true => TRUE, $defaults];
-    yield [NULL, fn(IndexedFile $file): string => $file->getContent(), $defaults];
-    yield [NULL, fn(IndexedFile $file): false => FALSE, []];
-    yield [
+    yield 'no_rules_no_filter' => [NULL, NULL, $defaults];
+    yield 'filter_returning_null' => [NULL, fn(IndexedFile $file): null => NULL, $defaults];
+    yield 'filter_returning_true' => [NULL, fn(IndexedFile $file): true => TRUE, $defaults];
+    yield 'filter_returning_content' => [NULL, fn(IndexedFile $file): string => $file->getContent(), $defaults];
+    yield 'filter_returning_false' => [NULL, fn(IndexedFile $file): false => FALSE, []];
+    yield 'filter_matching_content' => [
       NULL,
       fn(IndexedFile $file): bool => str_contains($file->getContent(), 'f2l1'),
       [
@@ -83,7 +82,7 @@ final class IndexTest extends UnitTestCase {
         'f2.txt',
       ],
     ];
-    yield [
+    yield 'rules_without_filter' => [
       fn(): Rules => (new Rules())
         ->addGlobal('*.log')
         ->addGlobal('f3-new-file-ignore-everywhere.txt')
@@ -120,7 +119,7 @@ final class IndexTest extends UnitTestCase {
   }
 
   public function testGetDirectoryAndRules(): void {
-    $dir = File::dir($this->locationsFixtureDir('compare') . DIRECTORY_SEPARATOR . 'files_equal_advanced' . DIRECTORY_SEPARATOR . 'directory2');
+    $dir = $this->scanFixtureDir();
     $rules = new Rules();
 
     $index = new Index($dir, $rules);
@@ -130,7 +129,7 @@ final class IndexTest extends UnitTestCase {
   }
 
   public function testGetFilesWithCallback(): void {
-    $dir = File::dir($this->locationsFixtureDir('compare') . DIRECTORY_SEPARATOR . 'files_equal_advanced' . DIRECTORY_SEPARATOR . 'directory2');
+    $dir = $this->scanFixtureDir();
 
     $index = new Index($dir);
 
@@ -148,7 +147,7 @@ final class IndexTest extends UnitTestCase {
   }
 
   public function testGetFilesCalledTwice(): void {
-    $dir = File::dir($this->locationsFixtureDir('compare') . DIRECTORY_SEPARATOR . 'files_equal_advanced' . DIRECTORY_SEPARATOR . 'directory2');
+    $dir = $this->scanFixtureDir();
 
     $index = new Index($dir);
 
@@ -160,7 +159,7 @@ final class IndexTest extends UnitTestCase {
   }
 
   public function testGetFilesWithCallbackDoesNotMutateIndex(): void {
-    $dir = File::dir($this->locationsFixtureDir('compare') . DIRECTORY_SEPARATOR . 'files_equal_advanced' . DIRECTORY_SEPARATOR . 'directory2');
+    $dir = $this->scanFixtureDir();
 
     $index = new Index($dir);
 
@@ -189,21 +188,42 @@ final class IndexTest extends UnitTestCase {
     rmdir($test_dir);
   }
 
-  public function testBeforeMatchContentCallback(): void {
-    $dir = File::dir($this->locationsFixtureDir('compare') . DIRECTORY_SEPARATOR . 'files_equal_advanced' . DIRECTORY_SEPARATOR . 'directory2');
+  public function testFileFilterExcludesIgnoreContentFile(): void {
+    $test_dir = $this->locationsTmp() . DIRECTORY_SEPARATOR . 'test_filter_ignore_content';
+    File::mkdir($test_dir);
 
-    $before_match_content =
-        (fn(IndexedFile $file): bool => str_contains($file->getContent(), 'specific content'));
+    file_put_contents($test_dir . DIRECTORY_SEPARATOR . 'keep.txt', 'keep');
+    file_put_contents($test_dir . DIRECTORY_SEPARATOR . 'volatile.lock', 'volatile');
 
-    $test_file = $dir . DIRECTORY_SEPARATOR . 'test_before_match.txt';
+    $rules = (new Rules())->addIgnoreContent('volatile.lock');
+
+    // Without a filter the ignore-content file is indexed and marked.
+    $marked = (new Index($test_dir, $rules))->getFiles();
+    $this->assertArrayHasKey('volatile.lock', $marked);
+    $this->assertInstanceOf(IndexedFileInterface::class, $marked['volatile.lock']);
+    $this->assertTrue($marked['volatile.lock']->isIgnoreContent());
+
+    // A filter rejecting it excludes it, so the filter does see it.
+    $filter_rules = (new Rules())->addIgnoreContent('volatile.lock');
+    $filtered = new Index($test_dir, $filter_rules, fn(IndexedFile $file): bool => $file->getBasename() !== 'volatile.lock');
+
+    $this->assertSame(['keep.txt'], array_keys($filtered->getFiles()));
+  }
+
+  public function testFileFilterCallback(): void {
+    $dir = $this->scanFixtureDir();
+
+    $file_filter = fn(IndexedFile $file): bool => str_contains($file->getContent(), 'specific content');
+
+    $test_file = $dir . DIRECTORY_SEPARATOR . 'test_file_filter.txt';
     file_put_contents($test_file, 'This file contains specific content that should be included');
 
     try {
-      $index = new Index($dir, NULL, $before_match_content);
+      $index = new Index($dir, NULL, $file_filter);
 
       $files = $index->getFiles();
 
-      $this->assertArrayHasKey('test_before_match.txt', $files);
+      $this->assertArrayHasKey('test_file_filter.txt', $files);
 
       $control_index = new Index($dir);
       $control_files = $control_index->getFiles();
@@ -338,29 +358,21 @@ final class IndexTest extends UnitTestCase {
   }
 
   public static function dataProviderIsPathMatchesPattern(): \Iterator {
-    // Exact match.
-    yield ['dir/file.txt', 'dir/file.txt', TRUE];
-    // Directory match.
-    yield ['dir/subdir/file.txt', 'dir/', TRUE];
-    yield ['otherdir/file.txt', 'dir/', FALSE];
-    // Direct child match.
-    yield ['dir/file.txt', 'dir/*', TRUE];
-    yield ['dir/subdir/file.txt', 'dir/*', FALSE];
-    yield ['dir/another.txt', 'dir/*', TRUE];
-    // Wildcard match.
-    yield ['dir/file.txt', '*.txt', TRUE];
-    yield ['dir/file.md', '*.txt', FALSE];
-    // Nested paths do not match.
-    yield ['dir/nested/file.txt', 'dir/*.txt', FALSE];
-    // Pattern with a wildcard in the middle.
-    yield ['dir/abc_file.txt', 'dir/abc_*.txt', TRUE];
-    yield ['dir/xyz_file.txt', 'dir/abc_*.txt', FALSE];
-    // Matching subdirectories.
-    yield ['dir/subdir/file.txt', 'dir/subdir/*', TRUE];
-    yield ['dir/anotherdir/file.txt', 'dir/subdir/*', FALSE];
-    // Complex fnmatch pattern.
-    yield ['dir/file.txt', 'dir/f*.txt', TRUE];
-    yield ['dir/afile.txt', 'dir/f*.txt', FALSE];
+    yield 'exact_match' => ['dir/file.txt', 'dir/file.txt', TRUE];
+    yield 'directory_match' => ['dir/subdir/file.txt', 'dir/', TRUE];
+    yield 'directory_mismatch' => ['otherdir/file.txt', 'dir/', FALSE];
+    yield 'direct_child_match' => ['dir/file.txt', 'dir/*', TRUE];
+    yield 'direct_child_excludes_nested' => ['dir/subdir/file.txt', 'dir/*', FALSE];
+    yield 'direct_child_sibling_match' => ['dir/another.txt', 'dir/*', TRUE];
+    yield 'wildcard_extension_match' => ['dir/file.txt', '*.txt', TRUE];
+    yield 'wildcard_extension_mismatch' => ['dir/file.md', '*.txt', FALSE];
+    yield 'nested_path_does_not_match' => ['dir/nested/file.txt', 'dir/*.txt', FALSE];
+    yield 'wildcard_in_middle_match' => ['dir/abc_file.txt', 'dir/abc_*.txt', TRUE];
+    yield 'wildcard_in_middle_mismatch' => ['dir/xyz_file.txt', 'dir/abc_*.txt', FALSE];
+    yield 'subdirectory_match' => ['dir/subdir/file.txt', 'dir/subdir/*', TRUE];
+    yield 'subdirectory_mismatch' => ['dir/anotherdir/file.txt', 'dir/subdir/*', FALSE];
+    yield 'fnmatch_prefix_match' => ['dir/file.txt', 'dir/f*.txt', TRUE];
+    yield 'fnmatch_prefix_mismatch' => ['dir/afile.txt', 'dir/f*.txt', FALSE];
   }
 
   public function testScanDirectorySkipLogic(): void {
@@ -421,18 +433,19 @@ final class IndexTest extends UnitTestCase {
 
       $files = (new Index($test_dir, $rules))->getFiles();
 
-      // 'important.txt' + '!important.txt': the file is indexed.
+      // addGlobal('important.txt') + addInclude('important.txt'): the file is
+      // indexed.
       $this->assertArrayHasKey('important.txt', $files);
 
-      // '*.log' + '!important.log': the file is indexed at any depth,
-      // 'other.log' stays excluded.
+      // addGlobal('*.log') + addInclude('important.log'): the file is indexed
+      // at any depth, 'other.log' stays excluded.
       $this->assertArrayHasKey('important.log', $files);
       $this->assertArrayHasKey('sub/important.log', $files);
       $this->assertArrayNotHasKey('other.log', $files);
       $this->assertArrayNotHasKey('sub/other.log', $files);
 
-      // 'cache/' + '!cache/keep.txt': the named file is indexed, its
-      // sibling stays excluded.
+      // addSkip('cache/') + addInclude('cache/keep.txt'): the named file is
+      // indexed, its sibling stays excluded.
       $this->assertArrayHasKey('cache/keep.txt', $files);
       $this->assertArrayNotHasKey('cache/other.txt', $files);
     }
@@ -462,16 +475,18 @@ final class IndexTest extends UnitTestCase {
 
       $files = (new Index($test_dir, $rules))->getFiles();
 
-      // '^file.txt' + '!^file.txt': content is compared, not ignored.
+      // addIgnoreContent('file.txt') + addIncludeContent('file.txt'): content
+      // is compared, not ignored.
       $this->assertFalse($this->assertIndexedFile($files, 'file.txt')->isIgnoreContent());
 
-      // '^dir/' + '!^dir/keep.txt': the named file's content is compared,
-      // the sibling's is not.
+      // addIgnoreContent('dir/') + addIncludeContent('dir/keep.txt'): the
+      // named file's content is compared, the sibling's is not.
       $this->assertFalse($this->assertIndexedFile($files, 'dir/keep.txt')->isIgnoreContent());
       $this->assertTrue($this->assertIndexedFile($files, 'dir/sibling.txt')->isIgnoreContent());
 
-      // Skip + plain '!skipped.txt': the file is indexed, but its content
-      // is still ignored.
+      // addSkip('skipped.txt') + addInclude('skipped.txt'): the file is
+      // indexed. A plain include does not override
+      // addIgnoreContent('skipped.txt'), so the content stays ignored.
       $this->assertTrue($this->assertIndexedFile($files, 'skipped.txt')->isIgnoreContent());
     }
     finally {
@@ -521,8 +536,19 @@ final class IndexTest extends UnitTestCase {
     return $file;
   }
 
-  public static function locationsTmp(): string {
-    return self::$tmp;
+  /**
+   * Resolves the fixture directory that the scanning tests index.
+   *
+   * The path is built from the fixtures root rather than from
+   * locationsFixtureDir(), which appends the name of the current data set.
+   *
+   * @return string
+   *   Path to the fixture directory.
+   */
+  protected function scanFixtureDir(): string {
+    $fixtures = self::locationsRoot() . DIRECTORY_SEPARATOR . self::locationsFixturesDir();
+
+    return File::dir($fixtures . DIRECTORY_SEPARATOR . 'compare' . DIRECTORY_SEPARATOR . 'files_equal_advanced' . DIRECTORY_SEPARATOR . 'directory2');
   }
 
 }

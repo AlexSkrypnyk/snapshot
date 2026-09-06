@@ -74,13 +74,13 @@ trait BenchmarkDirectoryTrait {
    * @param string $target_dir
    *   Target directory to create files in.
    * @param int $file_count
-   *   Number of files to create. Default: 100.
+   *   Number of files to create.
    * @param int $directory_depth
-   *   Depth of nested directory structure. Default: 3.
+   *   Depth of nested directory structure.
    * @param int $file_size
-   *   Approximate size of each file in bytes. Default: 1024.
+   *   Approximate size of each file in bytes.
    */
-  protected function directoryCreateStructure(string $target_dir, int $file_count = 100, int $directory_depth = 3, int $file_size = 1024): void {
+  protected function directoryCreateStructure(string $target_dir, int $file_count, int $directory_depth, int $file_size): void {
     $files_per_level = (int) ceil($file_count / $directory_depth);
     $file_counter = 1;
 
@@ -114,13 +114,13 @@ trait BenchmarkDirectoryTrait {
    * Create identical directories for baseline comparison.
    *
    * @param int $file_count
-   *   Number of files to create. Default: 100.
+   *   Number of files to create.
    * @param int $directory_depth
-   *   Depth of nested directory structure. Default: 3.
+   *   Depth of nested directory structure.
    * @param int $file_size
-   *   Approximate size of each file in bytes. Default: 1024.
+   *   Approximate size of each file in bytes.
    */
-  protected function directoryCreateIdentical(int $file_count = 100, int $directory_depth = 3, int $file_size = 1024): void {
+  protected function directoryCreateIdentical(int $file_count, int $directory_depth, int $file_size): void {
     $this->directoryCreateStructure($this->baselineDir, $file_count, $directory_depth, $file_size);
     $this->directoryCreateStructure($this->actualDir, $file_count, $directory_depth, $file_size);
   }

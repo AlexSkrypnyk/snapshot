@@ -162,13 +162,15 @@ final class IndexedFileTest extends UnitTestCase {
   }
 
   #[DataProvider('dataProviderSymlink')]
-  public function testSymlink(bool $external_target, string $expected_content_pattern): void {
+  public function testSymlink(bool $external_target): void {
     if (!function_exists('symlink')) {
       $this->markTestSkipped('Symlinks are not supported on this system.');
     }
 
     if ($external_target) {
-      $external_dir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . uniqid('external_', TRUE);
+      // The temp directory is a sibling of the SUT, so a target inside it
+      // falls outside the basepath the indexed file is built against.
+      $external_dir = self::locationsTmp() . DIRECTORY_SEPARATOR . 'external';
       mkdir($external_dir, 0777, TRUE);
       $target_path = $external_dir . DIRECTORY_SEPARATOR . 'target.txt';
     }
@@ -205,8 +207,8 @@ final class IndexedFileTest extends UnitTestCase {
   }
 
   public static function dataProviderSymlink(): \Iterator {
-    yield 'internal target' => [FALSE, 'target.txt'];
-    yield 'external target' => [TRUE, ''];
+    yield 'internal target' => [FALSE];
+    yield 'external target' => [TRUE];
   }
 
   #[DataProvider('dataProviderSplFileInfoMethods')]
@@ -277,6 +279,17 @@ final class IndexedFileTest extends UnitTestCase {
     $this->expectExceptionMessage('does not start with basepath');
 
     $indexed_file->getPathnameFromBasepath();
+  }
+
+  public function testMutatorsReturnSelf(): void {
+    $file_path = self::$sut . DIRECTORY_SEPARATOR . 'test.txt';
+    file_put_contents($file_path, 'test content');
+
+    $indexed_file = new IndexedFile($file_path, self::$sut);
+
+    $this->assertSame($indexed_file, $indexed_file->setBasepath(self::$sut));
+    $this->assertSame($indexed_file, $indexed_file->setContent('new content'));
+    $this->assertSame($indexed_file, $indexed_file->setIgnoreContent());
   }
 
   public function testContentIgnoredMarkerConstant(): void {

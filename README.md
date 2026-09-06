@@ -141,9 +141,9 @@ public function testScenarioA(): void {
     $generator->generate($output_dir, ['option' => 'A']);
 
     $this->assertSnapshotMatchesBaseline(
-        $output_dir,            // Actual output
         $baseline_dir,          // Common baseline
-        $scenario_a_diffs_dir   // Diffs specific to scenario A
+        $scenario_a_diffs_dir,  // Diffs specific to scenario A
+        $output_dir             // Actual output
     );
 }
 ```
@@ -294,8 +294,8 @@ echo $comparer->render();
 // Create diff files
 Snapshot::diff($baseline, $actual, $output_dir);
 
-// Apply patches
-Snapshot::patch($baseline, $patches, $destination);
+// Apply diffs to the baseline
+Snapshot::patch($baseline, $diffs, $destination);
 
 // Sync directories
 Snapshot::sync($source, $destination);
@@ -303,11 +303,13 @@ Snapshot::sync($source, $destination);
 
 ### Fluent Builder API
 
-For configured operations with rules and content processors, use `SnapshotBuilder`:
+For configured operations with rules, a file filter or a content processor, use
+`SnapshotBuilder`:
 
 ```php
-use AlexSkrypnyk\Snapshot\SnapshotBuilder;
+use AlexSkrypnyk\Snapshot\Index\IndexedFile;
 use AlexSkrypnyk\Snapshot\Rules\Rules;
+use AlexSkrypnyk\Snapshot\SnapshotBuilder;
 
 // Create a reusable builder with configuration
 $builder = SnapshotBuilder::create()
@@ -316,15 +318,27 @@ $builder = SnapshotBuilder::create()
     ->addIgnoreContent('custom.lock')
     ->addInclude('custom/keep.txt')
     ->addIncludeContent('custom/keep.log')
-    ->withContentProcessor(fn($content) => trim($content));
+    // Drop every generated file from the index
+    ->withFileFilter(fn(IndexedFile $file) => !str_contains($file->getPathnameFromBasepath(), 'generated/'))
+    // Normalise the content of every file written by patch()
+    ->withContentProcessor(fn(string $content) => trim($content));
 
 // Use the builder for multiple operations
 $index = $builder->scan($directory);
 $comparer = $builder->compare($dir1, $dir2);
 $builder->sync($source, $destination);
 $builder->diff($baseline, $actual, $output);
-$builder->patch($baseline, $patches, $destination);
+$builder->patch($baseline, $diffs, $destination);
 ```
+
+The two callbacks serve different operations and receive different values:
+
+| Callback | Used by | Receives | Effect |
+|----------|---------|----------|--------|
+| `withFileFilter()` | `scan()`, `compare()`, `diff()`, `sync()` | An `IndexedFile` | Returning `FALSE` excludes the file from the index |
+| `withContentProcessor()` | `patch()` | The patched file content as a string | The returned string is written back to the file |
+
+`patch()` takes no file filter: its baseline sync and its scan of the diffs directory are driven by the configured rules alone.
 
 ### Programmatic Rules
 
@@ -341,9 +355,11 @@ $rules = Rules::nodeProject(); // Skips node_modules/, ignores lock files
 // Or create custom rules with fluent API
 $rules = Rules::create()
     ->skip('vendor/', 'node_modules/', '.git/')
-    ->ignoreContent('composer.lock', 'package-lock.json')
+    ->ignoreContent('composer.lock', 'package-lock.json', 'reports/')
+    // Keeps this one file even though vendor/ is skipped
     ->include('vendor/autoload.php')
-    ->includeContent('build-manifest.json');
+    // Compares this one file's content even though reports/ is content-ignored
+    ->includeContent('reports/summary.json');
 
 // Or load them from an existing .ignorecontent file
 $rules = Rules::fromFile($baseline . '/.ignorecontent');
@@ -363,12 +379,21 @@ class MyProjectRuleSet extends AbstractRuleSet {
 
     protected const SKIP_PATTERNS = ['dist/', '.cache/'];
 
-    protected const IGNORE_CONTENT_PATTERNS = ['build-manifest.json'];
+    protected const IGNORE_CONTENT_PATTERNS = ['reports/'];
+
+    protected const GLOBAL_PATTERNS = ['*.log'];
+
+    protected const INCLUDE_PATTERNS = ['dist/keep.txt'];
+
+    protected const INCLUDE_CONTENT_PATTERNS = ['reports/summary.json'];
 
 }
 
 $rules = Rules::fromRuleSet(new MyProjectRuleSet());
 ```
+
+Each constant maps to the matching `Rules` pattern list, and a set can define
+only the constants it needs - the rest default to empty.
 
 ### Version Normalization
 
@@ -446,6 +471,39 @@ $replacer->replace($content);  // $content is now 'Version: __VERSION__'
 // Apply to directory
 $replacer->replaceInDir($directory);
 ```
+
+## ⬆️ Upgrading
+
+This release settles the public API and contains breaking changes.
+
+- **Read this first - one break is silent.** `assertSnapshotMatchesBaseline()` reordered its three leading string parameters from `($actual, $baseline, $diffs)` to `($baseline, $diffs, $actual)`. Every parameter is a string path, so an un-updated call still type-checks and runs against the wrong directories instead of failing at the call site. Update every call site before upgrading.
+- **The companion break is loud.** `assertDirectoriesIdentical()` moved `$message` to last and promoted `$rules` to third, so an un-updated call that passed a message third now throws a `TypeError` rather than misbehaving quietly.
+
+Every renamed or reshaped public symbol:
+
+| Old | New |
+|-----|-----|
+| `assertSnapshotMatchesBaseline($actual, $baseline, $diffs, $expected, $message)` | `assertSnapshotMatchesBaseline($baseline, $diffs, $actual, $expected, $message)` |
+| `assertDirectoriesIdentical($dir1, $dir2, $message, $match_content, $show_diff, $rules)` | `assertDirectoriesIdentical($expected, $actual, $rules, $file_filter, $show_diff, $message)` |
+| `Snapshot::scan/compare/diff/sync(..., $content_processor)` | `Snapshot::scan/compare/diff/sync(..., $file_filter)` |
+| `Snapshot::patch($baseline, $patches, ...)` | `Snapshot::patch($baseline, $diffs, ...)` |
+| `SnapshotBuilder::patch($baseline, $patches, ...)` | `SnapshotBuilder::patch($baseline, $diffs, ...)` |
+| `SnapshotBuilder::withContentProcessor()` fed every operation | `withContentProcessor()` feeds `patch()` only; new `withFileFilter()` feeds `scan()`, `compare()`, `diff()`, `sync()` |
+| `SnapshotBuilder::withContentProcessor(callable $processor)` | `SnapshotBuilder::withContentProcessor(callable $content_processor)` |
+| `Index::__construct(..., $beforeMatchContent)` | `Index::__construct(..., $fileFilter)` |
+| `Index::getFiles($cb)` | `Index::getFiles($transformer)` |
+| `Comparer::getAbsentLeftDiffs/getAbsentRightDiffs/getContentDiffs($cb)` | the same methods taking `$transformer` |
+| `Comparer::addLeftFile/addRightFile(): void` | the same methods returning `static`, on `ComparerInterface` too |
+| `IndexedFile::setBasepath/setContent/setIgnoreContent(): void` | the same methods returning `static`, on `IndexedFileInterface` too |
+| `RuleSetInterface::getSkipPatterns()` | `RuleSetInterface::getSkip()` |
+| `RuleSetInterface::getIgnoreContentPatterns()` | `RuleSetInterface::getIgnoreContent()` |
+| `RuleSetInterface::toRules()` | removed; use `Rules::fromRuleSet($set)` or `$set->applyTo()` |
+| `RuleSetInterface::applyTo(?Rules $rules): Rules` | `applyTo(?RulesInterface $rules): RulesInterface` |
+| `Rules::create/fromRuleSet/phpProject/nodeProject/fromFile(): self` | the same factories returning `static` |
+| `?Rules` parameters and returns across the facade, builder, trait and `Index` | `?RulesInterface` |
+| `PatchException::$file_path/$line_number/$line_content` | `$filePath/$lineNumber/$lineContent`; the getters are unchanged |
+
+Additive for callers, breaking for direct implementers: `Rules::global()` (also on `RulesInterface`) and `RuleSetInterface::getGlobal()`/`getInclude()`/`getIncludeContent()` with their `GLOBAL_PATTERNS`, `INCLUDE_PATTERNS` and `INCLUDE_CONTENT_PATTERNS` constants. Classes extending `Rules` or `AbstractRuleSet` inherit them and need no change; classes implementing `RulesInterface` or `RuleSetInterface` directly must add the new methods. Purely additive: `SnapshotBuilder::addGlobal()` and `SnapshotBuilder::withFileFilter()`/`getFileFilter()`.
 
 ## 🤝 Contributing
 

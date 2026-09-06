@@ -13,6 +13,22 @@ use AlexSkrypnyk\Snapshot\Index\IndexInterface;
 class Comparer implements ComparerInterface {
 
   /**
+   * Identifies the left (source) side of a comparison.
+   *
+   * The value appears in the rendered report and in filter cache keys, so
+   * changing it changes observable output.
+   */
+  protected const SIDE_LEFT = 'left';
+
+  /**
+   * Identifies the right (destination) side of a comparison.
+   *
+   * The value appears in the rendered report and in filter cache keys, so
+   * changing it changes observable output.
+   */
+  protected const SIDE_RIGHT = 'right';
+
+  /**
    * Collection of file differences.
    *
    * @var \AlexSkrypnyk\Snapshot\Compare\Diff[]
@@ -62,10 +78,10 @@ class Comparer implements ComparerInterface {
         // @codeCoverageIgnoreEnd
       }
 
-      ($this->diffs[$path] ??= new Diff())->setLeft($left_file);
+      $this->upsertDiff($path, self::SIDE_LEFT, $left_file);
 
       if (isset($right_files[$path]) && $right_files[$path] instanceof IndexedFileInterface) {
-        $this->diffs[$path]->setRight($right_files[$path]);
+        $this->upsertDiff($path, self::SIDE_RIGHT, $right_files[$path]);
         unset($right_files[$path]);
       }
     }
@@ -77,7 +93,7 @@ class Comparer implements ComparerInterface {
         // @codeCoverageIgnoreEnd
       }
 
-      ($this->diffs[$path] ??= new Diff())->setRight($right_file);
+      $this->upsertDiff($path, self::SIDE_RIGHT, $right_file);
     }
 
     // Filter results derive from $this->diffs; reset the cache once after the
@@ -90,42 +106,99 @@ class Comparer implements ComparerInterface {
   /**
    * {@inheritdoc}
    */
-  public function addLeftFile(IndexedFileInterface $file): void {
-    $path = $file->getPathnameFromBasepath();
-    $this->diffs[$path] ??= new Diff();
-    $this->diffs[$path]->setLeft($file);
+  public function addLeftFile(IndexedFileInterface $file): static {
+    return $this->addFile($file, self::SIDE_LEFT);
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function addRightFile(IndexedFileInterface $file): static {
+    return $this->addFile($file, self::SIDE_RIGHT);
+  }
+
+  /**
+   * Adds a file to one side of the diff collection.
+   *
+   * @param \AlexSkrypnyk\Snapshot\Index\IndexedFileInterface $file
+   *   The file to add.
+   * @param string $side
+   *   The side to add the file to: self::SIDE_LEFT or self::SIDE_RIGHT.
+   *
+   * @return $this
+   *   Return self for chaining.
+   *
+   * @phpstan-param self::SIDE_* $side
+   */
+  protected function addFile(IndexedFileInterface $file, string $side): static {
+    $this->upsertDiff($file->getPathnameFromBasepath(), $side, $file);
     $this->cache = [];
+
+    return $this;
+  }
+
+  /**
+   * Sets one side of the diff at the given key, creating the diff if absent.
+   *
+   * @param string $path
+   *   The diff key: the pathname relative to the base directory.
+   * @param string $side
+   *   The side to set: self::SIDE_LEFT or self::SIDE_RIGHT.
+   * @param \AlexSkrypnyk\Snapshot\Index\IndexedFileInterface $file
+   *   The file to set on that side.
+   *
+   * @phpstan-param self::SIDE_* $side
+   */
+  protected function upsertDiff(string $path, string $side, IndexedFileInterface $file): void {
+    $diff = $this->diffs[$path] ??= new Diff();
+
+    match ($side) {
+      self::SIDE_LEFT => $diff->setLeft($file),
+      self::SIDE_RIGHT => $diff->setRight($file),
+    };
   }
 
   /**
    * {@inheritdoc}
    */
-  public function addRightFile(IndexedFileInterface $file): void {
-    $path = $file->getPathnameFromBasepath();
-    $this->diffs[$path] ??= new Diff();
-    $this->diffs[$path]->setRight($file);
-    $this->cache = [];
+  public function getAbsentLeftDiffs(?callable $transformer = NULL): array {
+    return $this->getAbsentDiffs(self::SIDE_LEFT, $transformer);
   }
 
   /**
    * {@inheritdoc}
    */
-  public function getAbsentLeftDiffs(?callable $cb = NULL): array {
-    return $this->filterCached('absent_left', fn(Diff $diff): bool => !$diff->existsLeft(), $cb);
+  public function getAbsentRightDiffs(?callable $transformer = NULL): array {
+    return $this->getAbsentDiffs(self::SIDE_RIGHT, $transformer);
+  }
+
+  /**
+   * Gets the diffs whose file is absent from the given side.
+   *
+   * @param string $side
+   *   The side to test: self::SIDE_LEFT or self::SIDE_RIGHT.
+   * @param callable|null $transformer
+   *   Optional transformation callback applied to each filtered diff.
+   *
+   * @return array<string, Diff|mixed>
+   *   Filtered (and optionally transformed) array of diffs.
+   *
+   * @phpstan-param self::SIDE_* $side
+   */
+  protected function getAbsentDiffs(string $side, ?callable $transformer = NULL): array {
+    $filter = match ($side) {
+      self::SIDE_LEFT => static fn(Diff $diff): bool => !$diff->existsLeft(),
+      self::SIDE_RIGHT => static fn(Diff $diff): bool => !$diff->existsRight(),
+    };
+
+    return $this->filterCached('absent_' . $side, $filter, $transformer);
   }
 
   /**
    * {@inheritdoc}
    */
-  public function getAbsentRightDiffs(?callable $cb = NULL): array {
-    return $this->filterCached('absent_right', fn(Diff $diff): bool => !$diff->existsRight(), $cb);
-  }
-
-  /**
-   * {@inheritdoc}
-   */
-  public function getContentDiffs(?callable $cb = NULL): array {
-    return $this->filterCached('content', fn(Diff $diff): bool => $diff->existsLeft() && $diff->existsRight() && !$diff->isSameContent(), $cb);
+  public function getContentDiffs(?callable $transformer = NULL): array {
+    return $this->filterCached('content', static fn(Diff $diff): bool => $diff->existsLeft() && $diff->existsRight() && !$diff->isSameContent(), $transformer);
   }
 
   /**
@@ -135,20 +208,20 @@ class Comparer implements ComparerInterface {
    *   Cache key for this filter type.
    * @param callable $filter
    *   The filter callback. Should return TRUE to include an item.
-   * @param callable|null $cb
+   * @param callable|null $transformer
    *   Optional transformation callback applied to each filtered diff.
    *
    * @return array<string, Diff|mixed>
    *   Filtered (and optionally transformed) array of diffs.
    */
-  protected function filterCached(string $cache_key, callable $filter, ?callable $cb = NULL): array {
+  protected function filterCached(string $cache_key, callable $filter, ?callable $transformer = NULL): array {
     $this->cache[$cache_key] ??= array_filter($this->diffs, $filter);
 
     $diffs = $this->cache[$cache_key];
 
-    if (is_callable($cb)) {
+    if (is_callable($transformer)) {
       foreach ($diffs as $path => $diff) {
-        $diffs[$path] = $cb($diff);
+        $diffs[$path] = $transformer($diff);
       }
     }
 
@@ -195,19 +268,8 @@ class Comparer implements ComparerInterface {
 
     $render = sprintf("Differences between directories \n[left] %s\nand\n[right] %s\n", $left->getDirectory(), $right->getDirectory());
 
-    if (!empty($absent_left)) {
-      $render .= "Files absent in [left]:\n";
-      foreach (array_keys($absent_left) as $file) {
-        $render .= sprintf("  %s\n", $file);
-      }
-    }
-
-    if (!empty($absent_right)) {
-      $render .= "Files absent in [right]:\n";
-      foreach (array_keys($absent_right) as $file) {
-        $render .= sprintf("  %s\n", $file);
-      }
-    }
+    $render .= static::renderAbsent(self::SIDE_LEFT, $absent_left);
+    $render .= static::renderAbsent(self::SIDE_RIGHT, $absent_right);
 
     if (!empty($content_diffs)) {
       $render .= "Files that differ in content:\n";
@@ -223,6 +285,32 @@ class Comparer implements ComparerInterface {
           $content_diffs_render_count--;
         }
       }
+    }
+
+    return $render;
+  }
+
+  /**
+   * Renders the list of paths absent from one side.
+   *
+   * @param string $side
+   *   The side the files are absent from: self::SIDE_LEFT or
+   *   self::SIDE_RIGHT.
+   * @param array<string, Diff|mixed> $diffs
+   *   Diffs absent from that side, keyed by path.
+   *
+   * @return string
+   *   The rendered list, or an empty string when there are no such diffs.
+   */
+  protected static function renderAbsent(string $side, array $diffs): string {
+    if (empty($diffs)) {
+      return '';
+    }
+
+    $render = sprintf("Files absent in [%s]:\n", $side);
+
+    foreach (array_keys($diffs) as $file) {
+      $render .= sprintf("  %s\n", $file);
     }
 
     return $render;

@@ -69,9 +69,11 @@ class IndexedFile extends \SplFileInfo implements IndexedFileInterface {
   /**
    * {@inheritdoc}
    */
-  public function setBasepath(string $basepath): void {
+  public function setBasepath(string $basepath): static {
     $this->basepath = rtrim($basepath, DIRECTORY_SEPARATOR);
     $this->relativePathname = NULL;
+
+    return $this;
   }
 
   /**
@@ -102,7 +104,7 @@ class IndexedFile extends \SplFileInfo implements IndexedFileInterface {
     // Large files: content was not loaded during loadContent() to save memory.
     // Load it now that it is explicitly requested.
     if ($this->content === NULL && !$this->isLink()) {
-      $this->content = (string) file_get_contents($this->getRealPath());
+      $this->content = $this->readContent();
     }
 
     return $this->content ?? '';
@@ -133,14 +135,14 @@ class IndexedFile extends \SplFileInfo implements IndexedFileInterface {
   /**
    * {@inheritdoc}
    */
-  public function setIgnoreContent(bool $ignore = TRUE): void {
-    $this->setContent($ignore ? static::CONTENT_IGNORED_MARKER : NULL);
+  public function setIgnoreContent(bool $ignore = TRUE): static {
+    return $this->setContent($ignore ? static::CONTENT_IGNORED_MARKER : NULL);
   }
 
   /**
    * {@inheritdoc}
    */
-  public function setContent(?string $content): void {
+  public function setContent(?string $content): static {
     if ($content !== NULL) {
       $this->content = $content;
       $this->hash = $this->hash($this->content);
@@ -152,6 +154,8 @@ class IndexedFile extends \SplFileInfo implements IndexedFileInterface {
       $this->content = NULL;
       $this->hash = NULL;
     }
+
+    return $this;
   }
 
   /**
@@ -173,7 +177,7 @@ class IndexedFile extends \SplFileInfo implements IndexedFileInterface {
       $this->hash = $this->hash($this->content);
     }
     elseif ($this->getSize() <= static::LARGE_FILE_THRESHOLD) {
-      $this->content = (string) file_get_contents($this->getRealPath());
+      $this->content = $this->readContent();
       $this->hash = $this->hash($this->content);
     }
     else {
@@ -183,6 +187,16 @@ class IndexedFile extends \SplFileInfo implements IndexedFileInterface {
     }
 
     $this->contentLoaded = TRUE;
+  }
+
+  /**
+   * Reads the whole file content from disk.
+   *
+   * @return string
+   *   The file content, or an empty string if the file cannot be read.
+   */
+  protected function readContent(): string {
+    return (string) file_get_contents($this->getRealPath());
   }
 
   /**
