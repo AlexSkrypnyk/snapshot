@@ -15,8 +15,6 @@
     <arg name="colors"/>
 
     <file>bin</file>
-    <!-- PHPCS filters directory scans by file extension, so the extensionless
-         script has to be named explicitly. -->
     <file>bin/update-snapshots</file>
     <file>src</file>
     <file>tests/phpunit</file>

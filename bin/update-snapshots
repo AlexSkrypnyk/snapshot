@@ -101,7 +101,7 @@ function main(array $argv): void {
 /**
  * Validate configuration has required arguments.
  *
- * @param UpdateSnapshotsConfig $config
+ * @param array{help: bool, debug: bool, test_name: string, snapshots_path: string, datasets: array<int, string>, root: string, test_dir: string, timeout: int, retries: int, jobs: int} $config
  *   Configuration array.
  */
 function validate_config(array $config): void {
@@ -153,7 +153,7 @@ function stop_run(int $code): void {
 /**
  * Run specified datasets.
  *
- * @param UpdateSnapshotsConfig $config
+ * @param array{help: bool, debug: bool, test_name: string, snapshots_path: string, datasets: array<int, string>, root: string, test_dir: string, timeout: int, retries: int, jobs: int} $config
  *   Configuration array.
  */
 function run_specified_datasets(array $config): void {
@@ -182,7 +182,7 @@ function run_specified_datasets(array $config): void {
 /**
  * Run all datasets.
  *
- * @param UpdateSnapshotsConfig $config
+ * @param array{help: bool, debug: bool, test_name: string, snapshots_path: string, datasets: array<int, string>, root: string, test_dir: string, timeout: int, retries: int, jobs: int} $config
  *   Configuration array.
  */
 function run_all_datasets(array $config): void {
@@ -221,12 +221,12 @@ function run_all_datasets(array $config): void {
 /**
  * Run the baseline dataset, then the remaining scenarios.
  *
- * @param UpdateSnapshotsConfig $config
+ * @param array{help: bool, debug: bool, test_name: string, snapshots_path: string, datasets: array<int, string>, root: string, test_dir: string, timeout: int, retries: int, jobs: int} $config
  *   Configuration array.
  * @param array<string> $datasets
  *   Discovered dataset names, with the baseline first when it is present.
  *
- * @return array{tasks: array<int, UpdateSnapshotsTask>, baseline_committed: bool, timed_out: bool}
+ * @return array{tasks: array<int, array{dataset: string, number: int, status: string, process: resource|null, pipes: array<int, resource>, stdout: array<int, string>, stderr: array<int, string>, start_time: float, elapsed: float, dots: int, attempt: int, last_dot_time: float, reported: bool}>, baseline_committed: bool, timed_out: bool}
  *   Completed tasks, whether the baseline was committed, and whether the
  *   baseline run exhausted its retries.
  */
@@ -265,7 +265,7 @@ function run_phases(array $config, array $datasets): array {
 /**
  * Discover all datasets from PHPUnit.
  *
- * @param UpdateSnapshotsConfig $config
+ * @param array{help: bool, debug: bool, test_name: string, snapshots_path: string, datasets: array<int, string>, root: string, test_dir: string, timeout: int, retries: int, jobs: int} $config
  *   Configuration array.
  *
  * @return array<string>
@@ -300,7 +300,7 @@ function discover_datasets(array $config): array {
 /**
  * Handle baseline test result and commit if needed.
  *
- * @param UpdateSnapshotsConfig $config
+ * @param array{help: bool, debug: bool, test_name: string, snapshots_path: string, datasets: array<int, string>, root: string, test_dir: string, timeout: int, retries: int, jobs: int} $config
  *   Configuration array.
  *
  * @return bool
@@ -369,7 +369,7 @@ function commit_changes(string $path, string $message, bool $amend = FALSE): boo
 /**
  * Commit snapshot changes after test failures.
  *
- * @param UpdateSnapshotsConfig $config
+ * @param array{help: bool, debug: bool, test_name: string, snapshots_path: string, datasets: array<int, string>, root: string, test_dir: string, timeout: int, retries: int, jobs: int} $config
  *   Configuration array.
  * @param bool $baseline_committed
  *   Whether baseline was already committed.
@@ -397,7 +397,7 @@ function commit_snapshot_changes(array $config, bool $baseline_committed): void 
 /**
  * Count tasks per outcome.
  *
- * @param array<int, UpdateSnapshotsTask> $tasks
+ * @param array<int, array{dataset: string, number: int, status: string, process: resource|null, pipes: array<int, resource>, stdout: array<int, string>, stderr: array<int, string>, start_time: float, elapsed: float, dots: int, attempt: int, last_dot_time: float, reported: bool}> $tasks
  *   Tasks in any state. Queued and running tasks hold no outcome yet and are
  *   not counted.
  *
@@ -462,7 +462,7 @@ function print_execution_time(int $start_time): void {
  * @param array<string> $argv
  *   Array of arguments.
  *
- * @return UpdateSnapshotsConfig
+ * @return array{help: bool, debug: bool, test_name: string, snapshots_path: string, datasets: array<int, string>, root: string, test_dir: string, timeout: int, retries: int, jobs: int}
  *   Parsed configuration.
  */
 function parse_arguments(array $argv): array {
@@ -515,10 +515,10 @@ function parse_arguments(array $argv): array {
  *
  * @param string $arg
  *   The argument string (e.g., '--root=../..').
- * @param UpdateSnapshotsConfig $config
+ * @param array{help: bool, debug: bool, test_name: string, snapshots_path: string, datasets: array<int, string>, root: string, test_dir: string, timeout: int, retries: int, jobs: int} $config
  *   Current configuration.
  *
- * @return UpdateSnapshotsConfig
+ * @return array{help: bool, debug: bool, test_name: string, snapshots_path: string, datasets: array<int, string>, root: string, test_dir: string, timeout: int, retries: int, jobs: int}
  *   Updated configuration.
  */
 function parse_option(string $arg, array $config): array {
@@ -615,7 +615,7 @@ EOF;
  *
  * @param array<string> $datasets
  *   Dataset names to run.
- * @param UpdateSnapshotsConfig $config
+ * @param array{help: bool, debug: bool, test_name: string, snapshots_path: string, datasets: array<int, string>, root: string, test_dir: string, timeout: int, retries: int, jobs: int} $config
  *   Configuration array.
  * @param int $jobs
  *   Number of datasets to run at the same time.
@@ -624,7 +624,7 @@ EOF;
  * @param int $total
  *   Total number of datasets, for display.
  *
- * @return array<int, UpdateSnapshotsTask>
+ * @return array<int, array{dataset: string, number: int, status: string, process: resource|null, pipes: array<int, resource>, stdout: array<int, string>, stderr: array<int, string>, start_time: float, elapsed: float, dots: int, attempt: int, last_dot_time: float, reported: bool}>
  *   Completed tasks, each carrying its outcome and captured output.
  */
 function run_engine(array $datasets, array $config, int $jobs, int $start_number, int $total): array {
@@ -714,12 +714,12 @@ function run_engine(array $datasets, array $config, int $jobs, int $start_number
 /**
  * Start a queued task by spawning a PHPUnit process.
  *
- * @param UpdateSnapshotsTask $task
+ * @param array{dataset: string, number: int, status: string, process: resource|null, pipes: array<int, resource>, stdout: array<int, string>, stderr: array<int, string>, start_time: float, elapsed: float, dots: int, attempt: int, last_dot_time: float, reported: bool} $task
  *   Task array.
- * @param UpdateSnapshotsConfig $config
+ * @param array{help: bool, debug: bool, test_name: string, snapshots_path: string, datasets: array<int, string>, root: string, test_dir: string, timeout: int, retries: int, jobs: int} $config
  *   Configuration array.
  *
- * @return UpdateSnapshotsTask
+ * @return array{dataset: string, number: int, status: string, process: resource|null, pipes: array<int, resource>, stdout: array<int, string>, stderr: array<int, string>, start_time: float, elapsed: float, dots: int, attempt: int, last_dot_time: float, reported: bool}
  *   Updated task array with running process.
  */
 function start_task(array $task, array $config): array {
@@ -763,12 +763,12 @@ function start_task(array $task, array $config): array {
 /**
  * Poll a running task for completion and progress.
  *
- * @param UpdateSnapshotsTask $task
+ * @param array{dataset: string, number: int, status: string, process: resource|null, pipes: array<int, resource>, stdout: array<int, string>, stderr: array<int, string>, start_time: float, elapsed: float, dots: int, attempt: int, last_dot_time: float, reported: bool} $task
  *   Task array with running process.
- * @param UpdateSnapshotsConfig $config
+ * @param array{help: bool, debug: bool, test_name: string, snapshots_path: string, datasets: array<int, string>, root: string, test_dir: string, timeout: int, retries: int, jobs: int} $config
  *   Configuration array.
  *
- * @return UpdateSnapshotsTask
+ * @return array{dataset: string, number: int, status: string, process: resource|null, pipes: array<int, resource>, stdout: array<int, string>, stderr: array<int, string>, start_time: float, elapsed: float, dots: int, attempt: int, last_dot_time: float, reported: bool}
  *   Updated task array.
  */
 function poll_task(array $task, array $config): array {
@@ -853,7 +853,7 @@ function poll_task(array $task, array $config): array {
  * SnapshotTrait's stderr writes into PHPUnit output, which PHPUnit then
  * reports as an error.
  *
- * @param UpdateSnapshotsConfig $config
+ * @param array{help: bool, debug: bool, test_name: string, snapshots_path: string, datasets: array<int, string>, root: string, test_dir: string, timeout: int, retries: int, jobs: int} $config
  *   Configuration array.
  * @param array<string> $arguments
  *   PHPUnit arguments, escaped by the caller where needed.
@@ -892,10 +892,10 @@ function build_phpunit_command(array $config, array $arguments, array $env = [],
 /**
  * Collect pending output from a task's pipes.
  *
- * @param UpdateSnapshotsTask $task
+ * @param array{dataset: string, number: int, status: string, process: resource|null, pipes: array<int, resource>, stdout: array<int, string>, stderr: array<int, string>, start_time: float, elapsed: float, dots: int, attempt: int, last_dot_time: float, reported: bool} $task
  *   Task array with open pipes.
  *
- * @return UpdateSnapshotsTask
+ * @return array{dataset: string, number: int, status: string, process: resource|null, pipes: array<int, resource>, stdout: array<int, string>, stderr: array<int, string>, start_time: float, elapsed: float, dots: int, attempt: int, last_dot_time: float, reported: bool}
  *   Task array with the collected output appended.
  */
 function collect_task_output(array $task): array {
@@ -936,9 +936,9 @@ function has_update_marker(array $output): bool {
 /**
  * Print captured output of every dataset that did not pass cleanly.
  *
- * @param array<int, UpdateSnapshotsTask> $tasks
+ * @param array<int, array{dataset: string, number: int, status: string, process: resource|null, pipes: array<int, resource>, stdout: array<int, string>, stderr: array<int, string>, start_time: float, elapsed: float, dots: int, attempt: int, last_dot_time: float, reported: bool}> $tasks
  *   Completed tasks.
- * @param UpdateSnapshotsConfig $config
+ * @param array{help: bool, debug: bool, test_name: string, snapshots_path: string, datasets: array<int, string>, root: string, test_dir: string, timeout: int, retries: int, jobs: int} $config
  *   Configuration array.
  */
 function print_debug_output(array $tasks, array $config): void {
@@ -967,10 +967,10 @@ function print_debug_output(array $tasks, array $config): void {
  * The signal handler runs outside the engine and needs the current task list
  * to reach the spawned processes.
  *
- * @param array<int, UpdateSnapshotsTask>|null $tasks
+ * @param array<int, array{dataset: string, number: int, status: string, process: resource|null, pipes: array<int, resource>, stdout: array<int, string>, stderr: array<int, string>, start_time: float, elapsed: float, dots: int, attempt: int, last_dot_time: float, reported: bool}>|null $tasks
  *   Tasks to store, or NULL to read the registry.
  *
- * @return array<int, UpdateSnapshotsTask>
+ * @return array<int, array{dataset: string, number: int, status: string, process: resource|null, pipes: array<int, resource>, stdout: array<int, string>, stderr: array<int, string>, start_time: float, elapsed: float, dots: int, attempt: int, last_dot_time: float, reported: bool}>
  *   Currently registered tasks.
  */
 function live_tasks(?array $tasks = NULL): array {
@@ -1258,12 +1258,12 @@ function get_viewport_height(): int {
 /**
  * Render progress display for all tasks.
  *
- * @param array<int, UpdateSnapshotsTask> $tasks
+ * @param array<int, array{dataset: string, number: int, status: string, process: resource|null, pipes: array<int, resource>, stdout: array<int, string>, stderr: array<int, string>, start_time: float, elapsed: float, dots: int, attempt: int, last_dot_time: float, reported: bool}> $tasks
  *   All tasks.
- * @param UpdateSnapshotsRun $run
+ * @param array{jobs: int, total: int, retries: int, tui: bool, scroll_offset: int, start_time: float} $run
  *   Display state of the current engine run.
  *
- * @return array<int, UpdateSnapshotsTask>
+ * @return array<int, array{dataset: string, number: int, status: string, process: resource|null, pipes: array<int, resource>, stdout: array<int, string>, stderr: array<int, string>, start_time: float, elapsed: float, dots: int, attempt: int, last_dot_time: float, reported: bool}>
  *   Tasks, with the ones whose result has been printed marked as reported.
  */
 function render_progress(array $tasks, array $run): array {
@@ -1284,12 +1284,12 @@ function render_progress(array $tasks, array $run): array {
  * Without a screen to redraw, a result is printed as soon as its dataset ends
  * rather than held until the whole batch does.
  *
- * @param array<int, UpdateSnapshotsTask> $tasks
+ * @param array<int, array{dataset: string, number: int, status: string, process: resource|null, pipes: array<int, resource>, stdout: array<int, string>, stderr: array<int, string>, start_time: float, elapsed: float, dots: int, attempt: int, last_dot_time: float, reported: bool}> $tasks
  *   All tasks.
- * @param UpdateSnapshotsRun $run
+ * @param array{jobs: int, total: int, retries: int, tui: bool, scroll_offset: int, start_time: float} $run
  *   Display state of the current engine run.
  *
- * @return array<int, UpdateSnapshotsTask>
+ * @return array<int, array{dataset: string, number: int, status: string, process: resource|null, pipes: array<int, resource>, stdout: array<int, string>, stderr: array<int, string>, start_time: float, elapsed: float, dots: int, attempt: int, last_dot_time: float, reported: bool}>
  *   Tasks, with the printed ones marked as reported.
  */
 function render_progress_plain(array $tasks, array $run): array {
@@ -1312,9 +1312,9 @@ function render_progress_plain(array $tasks, array $run): array {
 /**
  * Redraw the alternate screen with a viewport over the task list.
  *
- * @param array<int, UpdateSnapshotsTask> $tasks
+ * @param array<int, array{dataset: string, number: int, status: string, process: resource|null, pipes: array<int, resource>, stdout: array<int, string>, stderr: array<int, string>, start_time: float, elapsed: float, dots: int, attempt: int, last_dot_time: float, reported: bool}> $tasks
  *   All tasks.
- * @param UpdateSnapshotsRun $run
+ * @param array{jobs: int, total: int, retries: int, tui: bool, scroll_offset: int, start_time: float} $run
  *   Display state of the current engine run.
  */
 function render_progress_tui(array $tasks, array $run): void {
@@ -1382,9 +1382,9 @@ function render_progress_tui(array $tasks, array $run): void {
  * A dataset that timed out and was retried is otherwise indistinguishable
  * from one that passed on its first run.
  *
- * @param UpdateSnapshotsTask $task
+ * @param array{dataset: string, number: int, status: string, process: resource|null, pipes: array<int, resource>, stdout: array<int, string>, stderr: array<int, string>, start_time: float, elapsed: float, dots: int, attempt: int, last_dot_time: float, reported: bool} $task
  *   Completed task.
- * @param UpdateSnapshotsRun $run
+ * @param array{jobs: int, total: int, retries: int, tui: bool, scroll_offset: int, start_time: float} $run
  *   Display state of the current engine run.
  *
  * @return string

@@ -30,8 +30,6 @@ use Rector\TypeDeclaration\Rector\StmtsAwareInterface\DeclareStrictTypesRector;
 return RectorConfig::configure()
   ->withPaths([
     __DIR__ . '/**',
-    // Rector filters directory scans by file extension, so the extensionless
-    // script has to be named explicitly.
     __DIR__ . '/bin/update-snapshots',
   ])
   ->withPhpSets(php83: TRUE)
