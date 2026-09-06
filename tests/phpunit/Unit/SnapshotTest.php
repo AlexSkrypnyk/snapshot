@@ -466,7 +466,7 @@ final class SnapshotTest extends UnitTestCase {
     $this->assertSame($comparer, $comparer->addRightFile($right_file));
   }
 
-  public function testSyncRespectsContentIgnored(): void {
+  public function testSyncCopiesContentIgnoredFilesVerbatim(): void {
     $src = self::$sut . DIRECTORY_SEPARATOR . 'src';
     $dst = self::$sut . DIRECTORY_SEPARATOR . 'dst';
     mkdir($src, 0777, TRUE);
@@ -480,6 +480,21 @@ final class SnapshotTest extends UnitTestCase {
     $this->assertFileExists($dst . DIRECTORY_SEPARATOR . 'regular.txt');
     $this->assertSame('regular content', file_get_contents($dst . DIRECTORY_SEPARATOR . 'regular.txt'));
     $this->assertFileExists($dst . DIRECTORY_SEPARATOR . 'ignored.txt');
+    $this->assertSame('actual secret content', file_get_contents($dst . DIRECTORY_SEPARATOR . 'ignored.txt'));
+  }
+
+  public function testSyncPlaceholdersContentIgnoredFilesOnRequest(): void {
+    $src = self::$sut . DIRECTORY_SEPARATOR . 'src';
+    $dst = self::$sut . DIRECTORY_SEPARATOR . 'dst';
+    mkdir($src, 0777, TRUE);
+
+    file_put_contents($src . DIRECTORY_SEPARATOR . 'regular.txt', 'regular content');
+    file_put_contents($src . DIRECTORY_SEPARATOR . 'ignored.txt', 'actual secret content');
+    file_put_contents($src . DIRECTORY_SEPARATOR . Snapshot::IGNORECONTENT, "^ignored.txt\n");
+
+    Snapshot::sync($src, $dst, placeholder_ignored_content: TRUE);
+
+    $this->assertSame('regular content', file_get_contents($dst . DIRECTORY_SEPARATOR . 'regular.txt'));
     $this->assertSame(IndexedFile::CONTENT_IGNORED_MARKER, file_get_contents($dst . DIRECTORY_SEPARATOR . 'ignored.txt'));
   }
 

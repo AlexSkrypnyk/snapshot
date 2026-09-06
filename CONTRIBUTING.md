@@ -1,7 +1,6 @@
 # Contributing
 
-Thank you for considering a contribution to this project. This guide covers
-setting up a local environment and running the linting, tests and benchmarks.
+Thank you for considering a contribution to this project. This guide covers setting up a local environment and running the linting, tests and benchmarks.
 
 ## Local setup
 
@@ -11,9 +10,7 @@ composer install
 
 ## Linting
 
-`composer lint` runs PHP_CodeSniffer, PHPStan and Rector in check mode.
-`composer lint-fix` applies the fixes that Rector and PHP Code Beautifier can
-make automatically.
+`composer lint` runs PHP_CodeSniffer, PHPStan and Rector in check mode. `composer lint-fix` applies the fixes that Rector and PHP Code Beautifier can make automatically.
 
 ```bash
 composer lint
@@ -36,8 +33,7 @@ vendor/bin/phpunit --filter testMethodName
 
 ## Performance benchmarks
 
-PHPBench measures the core operations against a stored baseline. CI compares
-each run to that baseline and fails when a benchmark moves by more than 5%.
+PHPBench measures the core operations against a stored baseline. CI compares each run to that baseline and fails when a benchmark moves by more than 5%.
 
 ```bash
 # Run benchmarks against the stored baseline.

@@ -88,25 +88,11 @@ abstract class AbstractRuleSet implements RuleSetInterface {
   public function applyTo(?RulesInterface $rules = NULL): RulesInterface {
     $rules ??= new Rules();
 
-    foreach ($this->getIgnoreContent() as $pattern) {
-      $rules->addIgnoreContent($pattern);
-    }
-
-    foreach ($this->getSkip() as $pattern) {
-      $rules->addSkip($pattern);
-    }
-
-    foreach ($this->getGlobal() as $pattern) {
-      $rules->addGlobal($pattern);
-    }
-
-    foreach ($this->getInclude() as $pattern) {
-      $rules->addInclude($pattern);
-    }
-
-    foreach ($this->getIncludeContent() as $pattern) {
-      $rules->addIncludeContent($pattern);
-    }
+    $rules->addIgnoreContent(...$this->getIgnoreContent());
+    $rules->addSkip(...$this->getSkip());
+    $rules->addGlobal(...$this->getGlobal());
+    $rules->addInclude(...$this->getInclude());
+    $rules->addIncludeContent(...$this->getIncludeContent());
 
     return $rules;
   }
