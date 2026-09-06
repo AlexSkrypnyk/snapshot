@@ -1,15 +1,11 @@
 # AGENTS.md
 
-This file provides guidance to AI agents when working with
-code in this repository.
+This file provides guidance to AI agents when working with code in this repository.
 
 
 ## Project Overview
 
-**Snapshot** is a PHP library for directory snapshot testing. It provides
-functionality for creating, comparing, and applying directory snapshots using
-a baseline + diff architecture. This is particularly useful for testing code
-generators, scaffolding tools, or any system that produces file output.
+**Snapshot** is a PHP library for directory snapshot testing. It provides functionality for creating, comparing, and applying directory snapshots using a baseline + diff architecture. This is particularly useful for testing code generators, scaffolding tools, or any system that produces file output.
 
 ### Core Concepts
 
@@ -252,8 +248,7 @@ class MyTest extends TestCase {
 
 ### Auto-Update Feature
 
-Set `UPDATE_SNAPSHOTS=1` environment variable to automatically update snapshots
-when tests fail due to directory comparison mismatches:
+Set `UPDATE_SNAPSHOTS=1` environment variable to automatically update snapshots when tests fail due to directory comparison mismatches:
 
 ```bash
 UPDATE_SNAPSHOTS=1 ./vendor/bin/phpunit
@@ -261,27 +256,17 @@ UPDATE_SNAPSHOTS=1 ./vendor/bin/phpunit
 
 ### Bulk Snapshot Updates (`bin/update-snapshots`)
 
-CLI that runs PHPUnit per dataset with `UPDATE_SNAPSHOTS=1` (in parallel, with
-timeouts and retries) to regenerate many snapshots at once:
+CLI that runs PHPUnit per dataset with `UPDATE_SNAPSHOTS=1` (in parallel, with timeouts and retries) to regenerate many snapshots at once:
 
 ```bash
 vendor/bin/update-snapshots testMySnapshot tests/snapshots
 ```
 
-**Exit-code contract**: successfully updating snapshots is the expected outcome
-and exits `0`. The script exits non-zero **only** when a dataset genuinely
-cannot be updated - a non-snapshot failure or a timeout.
+**Exit-code contract**: successfully updating snapshots is the expected outcome and exits `0`. The script exits non-zero **only** when a dataset genuinely cannot be updated - a non-snapshot failure or a timeout.
 
-A per-dataset PHPUnit run still exits non-zero when it updates a snapshot (the
-assertion fails before `tearDown()` rewrites it). The script reclassifies such
-runs as "updated" by detecting `SnapshotTrait`'s `[SNAPSHOT] Baseline updated` /
-`[SNAPSHOT] Diffs updated` completion markers in the captured output - so those
-marker strings are a contract shared with `src/Testing/SnapshotTrait.php`; keep
-them in sync.
+A per-dataset PHPUnit run still exits non-zero when it updates a snapshot (the assertion fails before `tearDown()` rewrites it). The script reclassifies such runs as "updated" by detecting `SnapshotTrait`'s `[SNAPSHOT] Baseline updated` / `[SNAPSHOT] Diffs updated` completion markers in the captured output - so those marker strings are a contract shared with `src/Testing/SnapshotTrait.php`; keep them in sync.
 
-Functional tests run the script as a subprocess against fixtures in
-`tests/phpunit/Fixtures/functional_update/`. Coverage measures `src/` only, so
-`bin/` is not coverage-gated.
+Functional tests run the script as a subprocess against fixtures in `tests/phpunit/Fixtures/functional_update/`. Coverage measures `src/` only, so `bin/` is not coverage-gated.
 
 
 ## Performance Benchmarks
@@ -329,8 +314,7 @@ GitHub Actions workflows test across:
 - PHP versions: 8.3, 8.4, 8.5
 - Separate jobs: lint, test, coverage upload (Codecov)
 
-Lint, coverage threshold and Codecov upload run on the PHP 8.4 `normal`
-dependency leg only.
+Lint, coverage threshold and Codecov upload run on the PHP 8.4 `normal` dependency leg only.
 
 Key workflows:
 - `.github/workflows/test-php.yml` - PHP testing
@@ -339,11 +323,7 @@ Key workflows:
 
 ## Updating from the template
 
-This project was generated from a template and can pull the template's latest
-infrastructure (CI workflows, linting and test configuration, and docs)
-at any time. When you are asked to "update scaffold", fetch the updater skill
-from the template repository into the local `.claude/skills/` directory, then
-invoke it:
+This project was generated from a template and can pull the template's latest infrastructure (CI workflows, linting and test configuration, and docs) at any time. When you are asked to "update scaffold", fetch the updater skill from the template repository into the local `.claude/skills/` directory, then invoke it:
 
 1. Create the target directory if it does not exist:
 
@@ -359,5 +339,4 @@ invoke it:
 
 3. Invoke the `update-consumer-scaffold` skill and follow its steps.
 
-The skill directory is fetched on demand and is git-ignored - it is not
-committed to the project.
+The skill directory is fetched on demand and is git-ignored - it is not committed to the project.
