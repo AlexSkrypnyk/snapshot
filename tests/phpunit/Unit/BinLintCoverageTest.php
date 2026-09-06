@@ -24,26 +24,34 @@ final class BinLintCoverageTest extends UnitTestCase {
   protected const array SCANNED_EXTENSIONS = ['php', 'inc'];
 
   /**
-   * Linter configuration files that declare the analysed paths.
+   * Patterns matching a path where each linter reads its analysis targets.
+   *
+   * A plain substring search would also be satisfied by a path that appears in
+   * an exclusion or a comment, so each pattern is anchored to the syntax that
+   * declares a target. The '%s' placeholder receives the quoted path.
    */
-  protected const array LINTER_CONFIGS = ['phpcs.xml', 'phpstan.neon', 'rector.php'];
+  protected const array LINTER_CONFIGS = [
+    'phpcs.xml' => '#<file>%s</file>#',
+    'phpstan.neon' => '#(?<!\w)paths:[ \t]*\n(?:[ \t]*[-\#].*\n)*[ \t]*-[ \t]*%s[ \t]*\n#',
+    'rector.php' => '#withPaths\(\[[^\]]*\'/%s\'#s',
+  ];
 
   #[DataProvider('dataProviderBinScriptsAreAnalysed')]
-  public function testBinScriptsAreAnalysed(string $config_file): void {
+  public function testBinScriptsAreAnalysed(string $config_file, string $pattern): void {
     $config = file_get_contents(self::$root . DIRECTORY_SEPARATOR . $config_file);
     $this->assertIsString($config, sprintf('Linter configuration %s is not readable.', $config_file));
 
     $missing = array_values(array_filter(
       self::unscannableBinScripts(),
-      static fn(string $path): bool => !str_contains($config, $path)
+      static fn(string $path): bool => preg_match(sprintf($pattern, preg_quote($path, '#')), $config) !== 1
     ));
 
-    $this->assertSame([], $missing, sprintf('%s does not name every extensionless script in bin/, so those scripts are skipped while the run still reports success.', $config_file));
+    $this->assertSame([], $missing, sprintf('%s does not declare every extensionless script in bin/ as an analysis target, so those scripts are skipped while the run still reports success.', $config_file));
   }
 
   public static function dataProviderBinScriptsAreAnalysed(): \Iterator {
-    foreach (self::LINTER_CONFIGS as $config_file) {
-      yield $config_file => [$config_file];
+    foreach (self::LINTER_CONFIGS as $config_file => $pattern) {
+      yield $config_file => [$config_file, $pattern];
     }
   }
 
