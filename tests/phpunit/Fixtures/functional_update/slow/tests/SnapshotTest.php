@@ -22,7 +22,7 @@ final class SnapshotTest extends TestCase {
    */
   #[DataProvider('dataProviderSnapshot')]
   public function testSnapshot(string $dataset): void {
-    file_put_contents(dirname(__DIR__) . '/running.marker', $dataset);
+    file_put_contents(__DIR__ . '/../running.marker', $dataset);
 
     sleep(60);
 

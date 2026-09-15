@@ -70,7 +70,7 @@ final class SnapshotTest extends TestCase {
    * Get snapshots directory path.
    */
   protected function getSnapshotsDir(): string {
-    return dirname(__DIR__) . '/tests/snapshots';
+    return __DIR__ . '/../tests/snapshots';
   }
 
   /**
@@ -84,7 +84,7 @@ final class SnapshotTest extends TestCase {
    * Get actual output directory path.
    */
   protected function getActualDir(): string {
-    return dirname(__DIR__) . '/actual';
+    return __DIR__ . '/../actual';
   }
 
 }
