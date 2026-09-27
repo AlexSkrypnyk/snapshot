@@ -78,9 +78,12 @@ final class IndexedFileTest extends UnitTestCase {
 
     $indexed_file = new IndexedFile($file_path, self::$sut, $preset_content);
 
-    $this->assertSame($expected, $indexed_file->getContent());
-    // The second call covers caching.
-    $this->assertSame($expected, $indexed_file->getContent());
+    $content = $indexed_file->getContent();
+    // The second read returns the cached content.
+    $cached_content = $indexed_file->getContent();
+
+    $this->assertSame($expected, $content);
+    $this->assertSame($expected, $cached_content);
   }
 
   public static function dataProviderGetContent(): \Iterator {
