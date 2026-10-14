@@ -35,8 +35,12 @@ class NodeProjectRuleSet extends AbstractRuleSet {
    */
   protected const IGNORE_CONTENT_PATTERNS = [
     'package-lock.json',
+    'npm-shrinkwrap.json',
     'yarn.lock',
     'pnpm-lock.yaml',
+    'bun.lockb',
+    'bun.lock',
+    'deno.lock',
   ];
 
 }
