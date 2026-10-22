@@ -332,8 +332,7 @@ final class RulesTest extends UnitTestCase {
     $this->assertContains('node_modules/', $rules->getSkip());
     $this->assertContains('.npm/', $rules->getSkip());
     $this->assertContains('dist/', $rules->getSkip());
-    $this->assertContains('package-lock.json', $rules->getIgnoreContent());
-    $this->assertContains('yarn.lock', $rules->getIgnoreContent());
+    $this->assertSame(['package-lock.json', 'npm-shrinkwrap.json', 'yarn.lock', 'pnpm-lock.yaml', 'bun.lockb', 'bun.lock', 'deno.lock'], $rules->getIgnoreContent());
   }
 
   public function testFromRuleSet(): void {
@@ -361,8 +360,7 @@ final class RulesTest extends UnitTestCase {
 
     $this->assertContains('node_modules/', $rule_set->getSkip());
     $this->assertContains('.npm/', $rule_set->getSkip());
-    $this->assertContains('package-lock.json', $rule_set->getIgnoreContent());
-    $this->assertContains('yarn.lock', $rule_set->getIgnoreContent());
+    $this->assertSame(['package-lock.json', 'npm-shrinkwrap.json', 'yarn.lock', 'pnpm-lock.yaml', 'bun.lockb', 'bun.lock', 'deno.lock'], $rule_set->getIgnoreContent());
     $this->assertSame([], $rule_set->getGlobal());
     $this->assertSame([], $rule_set->getInclude());
     $this->assertSame([], $rule_set->getIncludeContent());
