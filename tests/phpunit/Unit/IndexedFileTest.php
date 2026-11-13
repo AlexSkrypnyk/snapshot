@@ -224,10 +224,13 @@ final class IndexedFileTest extends UnitTestCase {
       $this->markTestSkipped('PHP on Windows fails to create a link to a relative target.');
     }
 
-    $target_path = self::$sut . '/' . $target;
+    $target_path = $target === '' ? self::$sut : self::$sut . '/' . $target;
     $link_path = self::$sut . '/' . $link;
-    mkdir(dirname($target_path), 0777, TRUE);
-    file_put_contents($target_path, 'target content');
+
+    if ($target !== '') {
+      mkdir(dirname($target_path), 0777, TRUE);
+      file_put_contents($target_path, 'target content');
+    }
 
     if (!is_dir(dirname($link_path))) {
       mkdir(dirname($link_path), 0777, TRUE);
@@ -246,6 +249,7 @@ final class IndexedFileTest extends UnitTestCase {
     yield 'absolute, parent directory' => ['dir/sub/link.txt', 'dir/target.txt', TRUE, '../target.txt'];
     yield 'absolute, child directory' => ['link.txt', 'dir/sub/target.txt', TRUE, 'dir/sub/target.txt'];
     yield 'absolute, sibling directory' => ['dir1/link.txt', 'dir2/target.txt', TRUE, '../dir2/target.txt'];
+    yield 'absolute, base path itself' => ['dir/link', '', TRUE, '..'];
     yield 'relative, parent directory' => ['dir/sub/link.txt', 'dir/target.txt', FALSE, '../target.txt'];
   }
 
@@ -265,6 +269,8 @@ final class IndexedFileTest extends UnitTestCase {
     yield 'dot segments leaving the base path' => ['/base/../outside.txt', ['/base'], NULL];
     yield 'repeated separators' => ['/base//dir/file.txt', ['/base'], 'dir/file.txt'];
     yield 'dot segments above the root' => ['/../base/file.txt', ['/base'], 'file.txt'];
+    yield 'the base path itself' => ['/base', ['/base'], ''];
+    yield 'the base path with a trailing separator' => ['/base/', ['/base'], ''];
   }
 
   #[DataProvider('dataProviderCaseInsensitiveFilesystem')]

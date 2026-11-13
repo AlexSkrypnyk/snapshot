@@ -333,6 +333,11 @@ class IndexedFile extends \SplFileInfo implements IndexedFileInterface {
 
       $prefix = rtrim(static::normalizeSeparators($basepath), '/') . '/';
       $length = strlen($prefix);
+
+      if (static::isSamePathComponent(rtrim($path, '/') . '/', $prefix)) {
+        return '';
+      }
+
       $matches = static::isCaseInsensitiveFilesystem() ? strncasecmp($path, $prefix, $length) === 0 : str_starts_with($path, $prefix);
 
       if ($matches) {
