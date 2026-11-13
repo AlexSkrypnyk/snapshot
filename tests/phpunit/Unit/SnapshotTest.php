@@ -522,6 +522,37 @@ final class SnapshotTest extends UnitTestCase {
     $this->assertTrue(is_link($dst . DIRECTORY_SEPARATOR . 'link.txt'));
   }
 
+  #[DataProvider('dataProviderSyncRelativeSymlink')]
+  public function testSyncRelativeSymlink(string $link, string $target, string $expected_path): void {
+    if (!function_exists('symlink')) {
+      $this->markTestSkipped('Symlinks are not supported on this system.');
+    }
+
+    $src = self::$sut . '/src';
+    $dst = self::$sut . '/dst';
+    File::dump($src . '/library/provision.sh', 'provision');
+    File::dump($src . '/hooks/run.sh', 'run');
+    File::dump($src . '/hooks/update/script.sh', 'script');
+    File::mkdir(dirname($src . '/' . $link));
+    $this->createRelativeSymlink($src . '/' . $link, $target);
+
+    Snapshot::sync($src, $dst);
+
+    $this->assertSame([], Snapshot::compare($src, $dst)->getContentDiffs());
+
+    File::remove($src);
+
+    $this->assertTrue(is_link($dst . '/' . $link), 'Copied symlink is a symlink.');
+    $this->assertSame(realpath($dst . '/' . $expected_path), realpath($dst . '/' . $link), 'Copied symlink resolves inside the destination.');
+  }
+
+  public static function dataProviderSyncRelativeSymlink(): \Iterator {
+    yield 'file symlink to a sibling directory' => ['hooks/1.provision.sh', '../library/provision.sh', 'library/provision.sh'];
+    yield 'file symlink in the same directory' => ['hooks/alias.sh', 'run.sh', 'hooks/run.sh'];
+    yield 'file symlink from a nested directory' => ['hooks/a/b/link.sh', '../../../library/provision.sh', 'library/provision.sh'];
+    yield 'directory symlink to a sibling directory' => ['hooks/deploy', 'update', 'hooks/update'];
+  }
+
   #[DataProvider('dataProviderSyncRestoresWindowsSymlinkMode')]
   public function testSyncRestoresWindowsSymlinkMode(WindowsSymlinkMode $mode): void {
     $src = self::$sut . DIRECTORY_SEPARATOR . 'src';

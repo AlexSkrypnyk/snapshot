@@ -220,10 +220,6 @@ final class IndexedFileTest extends UnitTestCase {
       $this->markTestSkipped('Symlinks are not supported on this system.');
     }
 
-    if (!$absolute && PHP_OS_FAMILY === 'Windows') {
-      $this->markTestSkipped('PHP on Windows fails to create a link to a relative target.');
-    }
-
     $target_path = $target === '' ? self::$sut : self::$sut . '/' . $target;
     $link_path = self::$sut . '/' . $link;
 
@@ -236,7 +232,12 @@ final class IndexedFileTest extends UnitTestCase {
       mkdir(dirname($link_path), 0777, TRUE);
     }
 
-    symlink($absolute ? $target_path : $expected, $link_path);
+    if ($absolute) {
+      symlink($target_path, $link_path);
+    }
+    else {
+      $this->createRelativeSymlink($link_path, $expected);
+    }
 
     $indexed_file = new IndexedFile($link_path, self::$sut);
 
@@ -250,7 +251,9 @@ final class IndexedFileTest extends UnitTestCase {
     yield 'absolute, child directory' => ['link.txt', 'dir/sub/target.txt', TRUE, 'dir/sub/target.txt'];
     yield 'absolute, sibling directory' => ['dir1/link.txt', 'dir2/target.txt', TRUE, '../dir2/target.txt'];
     yield 'absolute, base path itself' => ['dir/link', '', TRUE, '..'];
+    yield 'relative, same directory' => ['dir/link.txt', 'dir/target.txt', FALSE, 'target.txt'];
     yield 'relative, parent directory' => ['dir/sub/link.txt', 'dir/target.txt', FALSE, '../target.txt'];
+    yield 'relative, sibling directory' => ['dir1/link.txt', 'dir2/target.txt', FALSE, '../dir2/target.txt'];
   }
 
   #[DataProvider('dataProviderPathFromBasepathMatching')]

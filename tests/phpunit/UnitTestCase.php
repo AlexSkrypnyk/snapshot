@@ -24,4 +24,26 @@ abstract class UnitTestCase extends BaseUnitTestCase {
     return 'tests/phpunit/Fixtures';
   }
 
+  /**
+   * Creates a symlink with a relative target.
+   *
+   * PHP on Windows resolves a relative target against the current directory
+   * and does not resolve one written with forward slashes, so the link is
+   * created from its own directory with native separators.
+   *
+   * @param string $link
+   *   Symlink path.
+   * @param string $target
+   *   Target relative to the symlink's directory, with forward slashes.
+   */
+  protected function createRelativeSymlink(string $link, string $target): void {
+    $current_dir = (string) getcwd();
+
+    chdir(dirname($link));
+    $created = symlink(str_replace('/', DIRECTORY_SEPARATOR, $target), basename($link));
+    chdir($current_dir);
+
+    $this->assertTrue($created, sprintf('Created symlink %s -> %s', $link, $target));
+  }
+
 }
