@@ -587,6 +587,10 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
    */
   #[DataProvider('dataProviderSignalStopsSpawnedProcesses')]
   public function testSignalStopsSpawnedProcesses(int $signal, int $expected_code): void {
+    if (PHP_OS_FAMILY === 'Windows') {
+      $this->markTestSkipped('POSIX signals and pgrep are not available on Windows.');
+    }
+
     $this->setupTestProject('slow');
 
     // The project directory is unique per test, so a command line containing
