@@ -734,13 +734,10 @@ function start_task(array $task, array $config): array {
   $env = ['UPDATE_SNAPSHOTS' => '1'];
   $cmd = build_phpunit_command($config, ['--no-coverage', '--filter=' . $filter], $env, $config['timeout']);
 
-  // A Windows pipe read blocks until the child writes or exits, so output
-  // arrives through sockets, which read without blocking.
-  $output = IS_WINDOWS ? ['socket'] : ['pipe', 'w'];
   $descriptors = [
     0 => ['pipe', 'r'],
-    1 => $output,
-    2 => $output,
+    1 => ['pipe', 'w'],
+    2 => ['pipe', 'w'],
   ];
 
   $process = proc_open($cmd, $descriptors, $pipes, NULL, phpunit_env($env));
@@ -805,13 +802,6 @@ function poll_task(array $task, array $config): array {
     // reports the process stopped reaps the child, so a later proc_close()
     // returns -1 on PHP < 8.3. proc_close() below only releases the handle.
     $exit_code = $status['exitcode'];
-  }
-
-  if (IS_WINDOWS) {
-    // Socket output can still be in transit after the process exits, so the
-    // final read waits for the end of the stream.
-    stream_set_blocking($task['pipes'][1], TRUE);
-    stream_set_blocking($task['pipes'][2], TRUE);
   }
 
   $task = collect_task_output($task);
