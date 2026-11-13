@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace AlexSkrypnyk\Snapshot\Sync;
 
 use AlexSkrypnyk\File\File;
+use AlexSkrypnyk\File\WindowsSymlinkMode;
 use AlexSkrypnyk\Snapshot\Index\IndexedFileInterface;
 use AlexSkrypnyk\Snapshot\Index\IndexInterface;
 
@@ -30,7 +31,7 @@ class Syncer implements SyncerInterface {
   public function sync(string $dst, int $permissions = 0755, bool $copy_empty_dirs = FALSE, bool $placeholder_ignored_content = FALSE): static {
     File::mkdir($dst, $permissions);
 
-    $symlinks = [];
+    $paths = [];
 
     foreach ($this->srcIndex->getFiles() as $file) {
       // getFiles() allows a transform callback to return non-file values;
@@ -41,20 +42,47 @@ class Syncer implements SyncerInterface {
         // @codeCoverageIgnoreEnd
       }
 
-      $absolute_src_path = $file->getPathname();
-      $absolute_dst_path = $dst . DIRECTORY_SEPARATOR . $file->getPathnameFromBasepath();
-
       if ($placeholder_ignored_content && $file->isIgnoreContent()) {
-        File::dump($absolute_dst_path, $file->getContent());
+        File::dump($dst . DIRECTORY_SEPARATOR . $file->getPathnameFromBasepath(), $file->getContent());
         continue;
       }
 
-      File::copy($absolute_src_path, $absolute_dst_path, $permissions, $copy_empty_dirs, $this->srcIndex->getDirectory(), $symlinks);
+      $paths[] = $file->getPathnameFromBasepath();
     }
 
-    File::createSymlinks($symlinks);
+    static::copyPaths($this->srcIndex->getDirectory(), $dst, $paths, $permissions, $copy_empty_dirs);
 
     return $this;
+  }
+
+  /**
+   * Copies paths of a directory with links kept inside the destination.
+   *
+   * File::copyPaths() keeps a Windows link relative only in
+   * WindowsSymlinkMode::Relative. The mode is global, so it is set for this
+   * copy and the caller's mode is restored.
+   *
+   * @param string $src
+   *   Source directory path.
+   * @param string $dst
+   *   Destination directory path.
+   * @param array<int, string> $paths
+   *   Paths relative to $src.
+   * @param int $permissions
+   *   Permissions to set on created directories.
+   * @param bool $copy_empty_dirs
+   *   Whether to copy empty directories.
+   */
+  public static function copyPaths(string $src, string $dst, array $paths, int $permissions = 0755, bool $copy_empty_dirs = FALSE): void {
+    $mode = File::getWindowsSymlinkMode();
+    File::setWindowsSymlinkMode(WindowsSymlinkMode::Relative);
+
+    try {
+      File::copyPaths($src, $dst, $paths, $permissions, $copy_empty_dirs);
+    }
+    finally {
+      File::setWindowsSymlinkMode($mode);
+    }
   }
 
 }

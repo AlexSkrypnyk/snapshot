@@ -126,14 +126,7 @@ class Snapshot {
     }
 
     // Files in actual but not in baseline - copy to output.
-    $symlinks = [];
-    foreach (array_keys($absent_left) as $file) {
-      $source = $actual . DIRECTORY_SEPARATOR . $file;
-      $destination = $output . DIRECTORY_SEPARATOR . $file;
-      File::mkdir(dirname($destination));
-      File::copy($source, $destination, root: $actual, symlinks: $symlinks);
-    }
-    File::createSymlinks($symlinks);
+    Syncer::copyPaths($actual, $output, array_map(strval(...), array_keys($absent_left)));
 
     // Files in baseline but not in actual - create deletion marker.
     foreach (array_keys($absent_right) as $file) {
@@ -174,7 +167,7 @@ class Snapshot {
     $patcher = new Patcher($baseline, $destination);
 
     $diffs_index = self::scan($diffs, $rules);
-    $symlinks = [];
+    $new_paths = [];
     foreach ($diffs_index->getFiles() as $file) {
       // getFiles() allows a transform callback to return non-file values;
       // skip anything that is not a file since none is passed here.
@@ -193,13 +186,13 @@ class Snapshot {
       }
       elseif (!Patcher::isPatchFile($file->getPathname())) {
         // New file - copy to destination.
-        File::copy($file->getPathname(), $destination . DIRECTORY_SEPARATOR . $relative_path, root: $diffs, symlinks: $symlinks);
+        $new_paths[] = $relative_path;
       }
       else {
         $patcher->addPatchFile($file);
       }
     }
-    File::createSymlinks($symlinks);
+    Syncer::copyPaths($diffs, $destination, $new_paths);
 
     $patcher->patch();
 

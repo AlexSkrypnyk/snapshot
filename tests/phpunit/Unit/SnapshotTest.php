@@ -6,6 +6,7 @@ namespace AlexSkrypnyk\Snapshot\Tests\Unit;
 
 use AlexSkrypnyk\File\Exception\FileException;
 use AlexSkrypnyk\File\File;
+use AlexSkrypnyk\File\WindowsSymlinkMode;
 use AlexSkrypnyk\Snapshot\Compare\Comparer;
 use AlexSkrypnyk\Snapshot\Compare\Diff;
 use AlexSkrypnyk\Snapshot\Index\IndexedFile;
@@ -519,6 +520,31 @@ final class SnapshotTest extends UnitTestCase {
     $this->assertFileExists($dst . DIRECTORY_SEPARATOR . 'subdir' . DIRECTORY_SEPARATOR . 'nested.txt');
     $this->assertSame('nested content', file_get_contents($dst . DIRECTORY_SEPARATOR . 'subdir' . DIRECTORY_SEPARATOR . 'nested.txt'));
     $this->assertTrue(is_link($dst . DIRECTORY_SEPARATOR . 'link.txt'));
+  }
+
+  #[DataProvider('dataProviderSyncRestoresWindowsSymlinkMode')]
+  public function testSyncRestoresWindowsSymlinkMode(WindowsSymlinkMode $mode): void {
+    $src = self::$sut . DIRECTORY_SEPARATOR . 'src';
+    $dst = self::$sut . DIRECTORY_SEPARATOR . 'dst';
+    mkdir($src, 0777, TRUE);
+    file_put_contents($src . DIRECTORY_SEPARATOR . 'file.txt', 'content');
+
+    File::setWindowsSymlinkMode($mode);
+
+    try {
+      Snapshot::sync($src, $dst);
+
+      $this->assertSame($mode, File::getWindowsSymlinkMode());
+      $this->assertFileExists($dst . DIRECTORY_SEPARATOR . 'file.txt');
+    }
+    finally {
+      File::resetWindowsSymlinkMode();
+    }
+  }
+
+  public static function dataProviderSyncRestoresWindowsSymlinkMode(): \Iterator {
+    yield 'absolute' => [WindowsSymlinkMode::Absolute];
+    yield 'relative' => [WindowsSymlinkMode::Relative];
   }
 
   public function testPatchWithRules(): void {
