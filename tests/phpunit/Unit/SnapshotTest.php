@@ -8,6 +8,7 @@ use AlexSkrypnyk\File\Exception\FileException;
 use AlexSkrypnyk\File\File;
 use AlexSkrypnyk\Snapshot\Compare\Comparer;
 use AlexSkrypnyk\Snapshot\Compare\Diff;
+use AlexSkrypnyk\Snapshot\Index\Index;
 use AlexSkrypnyk\Snapshot\Index\IndexedFile;
 use AlexSkrypnyk\Snapshot\Patch\Patcher;
 use AlexSkrypnyk\Snapshot\Rules\Rules;
@@ -562,9 +563,47 @@ final class SnapshotTest extends UnitTestCase {
     $this->assertSame(realpath($dst . '/dir/target.txt'), realpath($dst . '/dir/sub/absolute_link.txt'));
   }
 
+  #[DataProvider('dataProviderCopyAnchorsLinkTargetOnWindows')]
+  public function testCopyAnchorsLinkTargetOnWindows(bool $target_in_destination, string $expected_root): void {
+    if (!function_exists('symlink')) {
+      $this->markTestSkipped('Symlinks are not supported on this system.');
+    }
+
+    $roots = ['src' => self::$sut . '/src', 'dst' => self::$sut . '/dst'];
+    mkdir($roots['src'] . '/dir', 0777, TRUE);
+    file_put_contents($roots['src'] . '/target.txt', 'target content');
+    symlink($roots['src'] . '/target.txt', $roots['src'] . '/dir/link.txt');
+
+    if ($target_in_destination) {
+      mkdir($roots['dst'], 0777, TRUE);
+      file_put_contents($roots['dst'] . '/target.txt', 'target content');
+    }
+
+    $syncer = new class(new Index($roots['src'])) extends Syncer {
+
+      protected static function isWindows(): bool {
+        return TRUE;
+      }
+
+    };
+    $syncer::copy(new IndexedFile($roots['src'] . '/dir/link.txt', $roots['src']), $roots['dst'] . '/dir/link.txt');
+
+    $this->assertTrue(is_link($roots['dst'] . '/dir/link.txt'));
+    $this->assertSame(realpath($roots[$expected_root] . '/target.txt'), realpath($roots['dst'] . '/dir/link.txt'));
+  }
+
+  public static function dataProviderCopyAnchorsLinkTargetOnWindows(): \Iterator {
+    yield 'target in the destination' => [TRUE, 'dst'];
+    yield 'target missing from the destination' => [FALSE, 'src'];
+  }
+
   public function testDiffCopiesNewSymlinkRelativeToOutput(): void {
     if (!function_exists('symlink')) {
       $this->markTestSkipped('Symlinks are not supported on this system.');
+    }
+
+    if (PHP_OS_FAMILY === 'Windows') {
+      $this->markTestSkipped('PHP on Windows fails to create a link to a target missing from the output.');
     }
 
     $baseline = self::$sut . '/baseline';

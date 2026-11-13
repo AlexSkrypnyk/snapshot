@@ -807,6 +807,13 @@ function poll_task(array $task, array $config): array {
     $exit_code = $status['exitcode'];
   }
 
+  if (IS_WINDOWS) {
+    // Socket output can still be in transit after the process exits, so the
+    // final read waits for the end of the stream.
+    stream_set_blocking($task['pipes'][1], TRUE);
+    stream_set_blocking($task['pipes'][2], TRUE);
+  }
+
   $task = collect_task_output($task);
   fclose($task['pipes'][1]);
   fclose($task['pipes'][2]);

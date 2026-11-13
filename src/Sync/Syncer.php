@@ -31,6 +31,10 @@ class Syncer implements SyncerInterface {
   public function sync(string $dst, int $permissions = 0755, bool $copy_empty_dirs = FALSE, bool $placeholder_ignored_content = FALSE): static {
     File::mkdir($dst, $permissions);
 
+    // Links are created after every other file, because Windows needs a
+    // link's target to exist before the link.
+    $links = [];
+
     foreach ($this->srcIndex->getFiles() as $file) {
       // getFiles() allows a transform callback to return non-file values;
       // skip anything that is not a file since none is passed here.
@@ -47,6 +51,15 @@ class Syncer implements SyncerInterface {
         continue;
       }
 
+      if ($file->isLink()) {
+        $links[$absolute_dst_path] = $file;
+        continue;
+      }
+
+      static::copy($file, $absolute_dst_path, $permissions, $copy_empty_dirs);
+    }
+
+    foreach ($links as $absolute_dst_path => $file) {
       static::copy($file, $absolute_dst_path, $permissions, $copy_empty_dirs);
     }
 
@@ -91,13 +104,29 @@ class Syncer implements SyncerInterface {
       return;
     }
 
-    // PHP on Windows fails to create a link to a relative target, so the
-    // target is anchored at the link's directory inside the destination.
-    if (PHP_OS_FAMILY === 'Windows') {
+    // PHP on Windows creates a link only to an existing target, given as an
+    // absolute path. A target outside the destination keeps the source link.
+    if (static::isWindows()) {
       $target = $parent . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $target);
+
+      if (!file_exists($target)) {
+        File::copy($file->getPathname(), $dst, $permissions, $copy_empty_dirs);
+
+        return;
+      }
     }
 
     symlink($target, $dst);
+  }
+
+  /**
+   * Checks whether the host is Windows.
+   *
+   * @return bool
+   *   TRUE on Windows.
+   */
+  protected static function isWindows(): bool {
+    return PHP_OS_FAMILY === 'Windows';
   }
 
 }
