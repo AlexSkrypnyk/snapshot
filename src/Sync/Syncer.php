@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace AlexSkrypnyk\Snapshot\Sync;
 
 use AlexSkrypnyk\File\File;
-use AlexSkrypnyk\Snapshot\Index\IndexedFile;
 use AlexSkrypnyk\Snapshot\Index\IndexedFileInterface;
 use AlexSkrypnyk\Snapshot\Index\IndexInterface;
 
@@ -31,10 +30,6 @@ class Syncer implements SyncerInterface {
   public function sync(string $dst, int $permissions = 0755, bool $copy_empty_dirs = FALSE, bool $placeholder_ignored_content = FALSE): static {
     File::mkdir($dst, $permissions);
 
-    // Links are created after every other file, because Windows needs a
-    // link's target to exist before the link.
-    $links = [];
-
     foreach ($this->srcIndex->getFiles() as $file) {
       // getFiles() allows a transform callback to return non-file values;
       // skip anything that is not a file since none is passed here.
@@ -44,6 +39,7 @@ class Syncer implements SyncerInterface {
         // @codeCoverageIgnoreEnd
       }
 
+      $absolute_src_path = $file->getPathname();
       $absolute_dst_path = $dst . DIRECTORY_SEPARATOR . $file->getPathnameFromBasepath();
 
       if ($placeholder_ignored_content && $file->isIgnoreContent()) {
@@ -51,82 +47,10 @@ class Syncer implements SyncerInterface {
         continue;
       }
 
-      if ($file->isLink()) {
-        $links[$absolute_dst_path] = $file;
-        continue;
-      }
-
-      static::copy($file, $absolute_dst_path, $permissions, $copy_empty_dirs);
-    }
-
-    foreach ($links as $absolute_dst_path => $file) {
-      static::copy($file, $absolute_dst_path, $permissions, $copy_empty_dirs);
+      File::copy($absolute_src_path, $absolute_dst_path, $permissions, $copy_empty_dirs);
     }
 
     return $this;
-  }
-
-  /**
-   * Copies an indexed file to a destination path.
-   *
-   * A symlink with a target inside the source tree is recreated to point at
-   * the same place inside the destination, because readlink() on Windows
-   * returns an absolute path into the source tree.
-   *
-   * @param \AlexSkrypnyk\Snapshot\Index\IndexedFileInterface $file
-   *   The file to copy.
-   * @param string $dst
-   *   The destination path.
-   * @param int $permissions
-   *   Permissions to set on created directories.
-   * @param bool $copy_empty_dirs
-   *   Whether to copy empty directories.
-   */
-  public static function copy(IndexedFileInterface $file, string $dst, int $permissions = 0755, bool $copy_empty_dirs = FALSE): void {
-    $target = NULL;
-
-    if ($file->isLink()) {
-      // The ignore-content marker replaces the link target, so a fresh file
-      // reads the target from disk.
-      $link = $file->isIgnoreContent() ? new IndexedFile($file->getPathname(), $file->getBasepath()) : $file;
-      $target = $link->getContent();
-    }
-
-    if ($target === NULL || IndexedFile::isAbsolutePath($target)) {
-      File::copy($file->getPathname(), $dst, $permissions, $copy_empty_dirs);
-
-      return;
-    }
-
-    $parent = File::mkdir(dirname($dst), $permissions);
-
-    if (is_link($dst) || file_exists($dst)) {
-      return;
-    }
-
-    // PHP on Windows creates a link only to an existing target, given as an
-    // absolute path. A target outside the destination keeps the source link.
-    if (static::isWindows()) {
-      $target = $parent . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $target);
-
-      if (!file_exists($target)) {
-        File::copy($file->getPathname(), $dst, $permissions, $copy_empty_dirs);
-
-        return;
-      }
-    }
-
-    symlink($target, $dst);
-  }
-
-  /**
-   * Checks whether the host is Windows.
-   *
-   * @return bool
-   *   TRUE on Windows.
-   */
-  protected static function isWindows(): bool {
-    return PHP_OS_FAMILY === 'Windows';
   }
 
 }

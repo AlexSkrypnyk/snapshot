@@ -8,7 +8,6 @@ use AlexSkrypnyk\File\Exception\FileException;
 use AlexSkrypnyk\File\File;
 use AlexSkrypnyk\Snapshot\Compare\Comparer;
 use AlexSkrypnyk\Snapshot\Compare\Diff;
-use AlexSkrypnyk\Snapshot\Index\Index;
 use AlexSkrypnyk\Snapshot\Index\IndexedFile;
 use AlexSkrypnyk\Snapshot\Patch\Patcher;
 use AlexSkrypnyk\Snapshot\Rules\Rules;
@@ -520,105 +519,6 @@ final class SnapshotTest extends UnitTestCase {
     $this->assertFileExists($dst . DIRECTORY_SEPARATOR . 'subdir' . DIRECTORY_SEPARATOR . 'nested.txt');
     $this->assertSame('nested content', file_get_contents($dst . DIRECTORY_SEPARATOR . 'subdir' . DIRECTORY_SEPARATOR . 'nested.txt'));
     $this->assertTrue(is_link($dst . DIRECTORY_SEPARATOR . 'link.txt'));
-  }
-
-  public function testSyncKeepsInTreeSymlinksInsideDestination(): void {
-    if (!function_exists('symlink')) {
-      $this->markTestSkipped('Symlinks are not supported on this system.');
-    }
-
-    $src = self::$sut . '/src';
-    $dst = self::$sut . '/dst';
-    mkdir($src . '/dir/sub', 0777, TRUE);
-    file_put_contents($src . '/dir/target.txt', 'target content');
-    file_put_contents($src . '/dir/ignored_target.txt', 'ignored target content');
-    symlink($src . '/dir/target.txt', $src . '/dir/sub/absolute_link.txt');
-    symlink($src . '/dir/ignored_target.txt', $src . '/dir/sub/ignored_link.txt');
-    $links = ['absolute_link.txt'];
-
-    // PHP on Windows fails to create a link to a relative target.
-    if (PHP_OS_FAMILY !== 'Windows') {
-      symlink('../target.txt', $src . '/dir/sub/relative_link.txt');
-      $links[] = 'relative_link.txt';
-    }
-
-    $rules = Rules::create()->ignoreContent('dir/sub/ignored_link.txt');
-    Snapshot::sync($src, $dst, rules: $rules);
-
-    foreach ($links as $link) {
-      $this->assertTrue(is_link($dst . '/dir/sub/' . $link), $link . ' is not a link');
-      $this->assertSame(realpath($dst . '/dir/target.txt'), realpath($dst . '/dir/sub/' . $link), $link . ' does not resolve inside the destination');
-    }
-
-    $this->assertTrue(is_link($dst . '/dir/sub/ignored_link.txt'));
-    $this->assertSame(realpath($dst . '/dir/ignored_target.txt'), realpath($dst . '/dir/sub/ignored_link.txt'), 'A link with ignored content does not resolve inside the destination');
-
-    $comparer = Snapshot::compare($src, $dst);
-    $this->assertSame([], $comparer->getAbsentLeftDiffs());
-    $this->assertSame([], $comparer->getAbsentRightDiffs());
-    $this->assertSame([], $comparer->getContentDiffs());
-
-    // An existing destination is left in place.
-    Syncer::copy(new IndexedFile($src . '/dir/sub/absolute_link.txt', $src), $dst . '/dir/sub/absolute_link.txt');
-    $this->assertSame(realpath($dst . '/dir/target.txt'), realpath($dst . '/dir/sub/absolute_link.txt'));
-  }
-
-  #[DataProvider('dataProviderCopyAnchorsLinkTargetOnWindows')]
-  public function testCopyAnchorsLinkTargetOnWindows(bool $target_in_destination, string $expected_root): void {
-    if (!function_exists('symlink')) {
-      $this->markTestSkipped('Symlinks are not supported on this system.');
-    }
-
-    $roots = ['src' => self::$sut . '/src', 'dst' => self::$sut . '/dst'];
-    mkdir($roots['src'] . '/dir', 0777, TRUE);
-    file_put_contents($roots['src'] . '/target.txt', 'target content');
-    symlink($roots['src'] . '/target.txt', $roots['src'] . '/dir/link.txt');
-
-    if ($target_in_destination) {
-      mkdir($roots['dst'], 0777, TRUE);
-      file_put_contents($roots['dst'] . '/target.txt', 'target content');
-    }
-
-    $syncer = new class(new Index($roots['src'])) extends Syncer {
-
-      protected static function isWindows(): bool {
-        return TRUE;
-      }
-
-    };
-    $syncer::copy(new IndexedFile($roots['src'] . '/dir/link.txt', $roots['src']), $roots['dst'] . '/dir/link.txt');
-
-    $this->assertTrue(is_link($roots['dst'] . '/dir/link.txt'));
-    $this->assertSame(realpath($roots[$expected_root] . '/target.txt'), realpath($roots['dst'] . '/dir/link.txt'));
-  }
-
-  public static function dataProviderCopyAnchorsLinkTargetOnWindows(): \Iterator {
-    yield 'target in the destination' => [TRUE, 'dst'];
-    yield 'target missing from the destination' => [FALSE, 'src'];
-  }
-
-  public function testDiffCopiesNewSymlinkRelativeToOutput(): void {
-    if (!function_exists('symlink')) {
-      $this->markTestSkipped('Symlinks are not supported on this system.');
-    }
-
-    if (PHP_OS_FAMILY === 'Windows') {
-      $this->markTestSkipped('PHP on Windows fails to create a link to a target missing from the output.');
-    }
-
-    $baseline = self::$sut . '/baseline';
-    $actual = self::$sut . '/actual';
-    $output = self::$sut . '/output';
-    mkdir($baseline, 0777, TRUE);
-    mkdir($actual . '/dir', 0777, TRUE);
-    file_put_contents($baseline . '/target.txt', 'target content');
-    file_put_contents($actual . '/target.txt', 'target content');
-    symlink($actual . '/target.txt', $actual . '/dir/link.txt');
-
-    Snapshot::diff($baseline, $actual, $output);
-
-    $this->assertTrue(is_link($output . '/dir/link.txt'));
-    $this->assertSame('../target.txt', (new IndexedFile($output . '/dir/link.txt', $output))->getContent());
   }
 
   public function testPatchWithRules(): void {

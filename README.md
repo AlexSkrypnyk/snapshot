@@ -238,7 +238,7 @@ The `.ignorecontent` file itself and the `.git/` directory are always skipped an
 
 Patterns are always written with a forward slash, on every platform. The file is portable text, so a Windows host reads `build/cache/` as the same path pattern a Linux host does.
 
-An index also reports relative paths with a forward slash on every platform. A symlink whose target is inside the indexed directory is compared by its target relative to the link's directory. Windows reports every link target as an absolute path, so this rewrite lets `dir/link.txt -> target.txt` match on Windows and Linux. `sync()` and `patch()` recreate such a link with its relative target, so the copy points inside the destination.
+An index also reports relative paths with a forward slash on every platform. A symlink whose target is inside the indexed directory is compared by its target relative to the link's directory. Windows reports every link target as an absolute path, so this rewrite lets `dir/link.txt -> target.txt` match on Windows and Linux.
 
 #### Why Ignore Content?
 
