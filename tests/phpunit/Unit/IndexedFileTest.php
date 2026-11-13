@@ -214,6 +214,101 @@ final class IndexedFileTest extends UnitTestCase {
     yield 'external target' => [TRUE];
   }
 
+  #[DataProvider('dataProviderSymlinkTargetFromLinkDirectory')]
+  public function testSymlinkTargetFromLinkDirectory(string $link, string $target, bool $absolute, string $expected): void {
+    if (!function_exists('symlink')) {
+      $this->markTestSkipped('Symlinks are not supported on this system.');
+    }
+
+    $target_path = self::$sut . '/' . $target;
+    $link_path = self::$sut . '/' . $link;
+    mkdir(dirname($target_path), 0777, TRUE);
+    file_put_contents($target_path, 'target content');
+
+    if (!is_dir(dirname($link_path))) {
+      mkdir(dirname($link_path), 0777, TRUE);
+    }
+
+    $current_dir = (string) getcwd();
+    chdir(dirname($link_path));
+    symlink($absolute ? $target_path : $expected, basename($link_path));
+    chdir($current_dir);
+
+    $indexed_file = new IndexedFile($link_path, self::$sut);
+
+    $this->assertSame($link, $indexed_file->getPathnameFromBasepath());
+    $this->assertSame($expected, $indexed_file->getContent());
+  }
+
+  public static function dataProviderSymlinkTargetFromLinkDirectory(): \Iterator {
+    yield 'absolute, same directory' => ['dir/link.txt', 'dir/target.txt', TRUE, 'target.txt'];
+    yield 'absolute, parent directory' => ['dir/sub/link.txt', 'dir/target.txt', TRUE, '../target.txt'];
+    yield 'absolute, child directory' => ['link.txt', 'dir/sub/target.txt', TRUE, 'dir/sub/target.txt'];
+    yield 'absolute, sibling directory' => ['dir1/link.txt', 'dir2/target.txt', TRUE, '../dir2/target.txt'];
+    yield 'relative, parent directory' => ['dir/sub/link.txt', 'dir/target.txt', FALSE, '../target.txt'];
+  }
+
+  #[DataProvider('dataProviderPathFromBasepathMatching')]
+  public function testPathFromBasepathMatching(string $path, array $basepaths, ?string $expected): void {
+    $this->assertSame($expected, self::callProtectedMethod(IndexedFile::class, 'pathFromBasepath', [$path, $basepaths]));
+  }
+
+  public static function dataProviderPathFromBasepathMatching(): \Iterator {
+    yield 'inside the base path' => ['/base/dir/file.txt', ['/base'], 'dir/file.txt'];
+    yield 'base path with trailing separator' => ['/base/file.txt', ['/base/'], 'file.txt'];
+    yield 'second base path matches' => ['/long/file.txt', ['/short', '/long'], 'file.txt'];
+    yield 'empty base path is skipped' => ['/base/file.txt', ['', '/base'], 'file.txt'];
+    yield 'sibling sharing a prefix' => ['/base-other/file.txt', ['/base'], NULL];
+    yield 'outside the base path' => ['/other/file.txt', ['/base'], NULL];
+  }
+
+  #[DataProvider('dataProviderPathFromBasepathCaseInsensitive')]
+  public function testPathFromBasepathCaseInsensitive(string $path, string $basepath, ?string $expected): void {
+    $class = new class('', '') extends IndexedFile {
+
+      protected static function isCaseInsensitiveFilesystem(): bool {
+        return TRUE;
+      }
+
+    };
+
+    $this->assertSame($expected, self::callProtectedMethod($class, 'pathFromBasepath', [$path, [$basepath]]));
+  }
+
+  public static function dataProviderPathFromBasepathCaseInsensitive(): \Iterator {
+    yield 'different case' => ['C:/Users/RunnerAdmin/tmp/file.txt', 'c:/users/runneradmin/tmp', 'file.txt'];
+    yield 'outside the base path' => ['C:/Other/file.txt', 'c:/users', NULL];
+  }
+
+  #[DataProvider('dataProviderRelativePath')]
+  public function testRelativePath(string $from_dir, string $to, string $expected): void {
+    $this->assertSame($expected, self::callProtectedMethod(IndexedFile::class, 'relativePath', [$from_dir, $to]));
+  }
+
+  public static function dataProviderRelativePath(): \Iterator {
+    yield 'from the base path' => ['', 'dir/file.txt', 'dir/file.txt'];
+    yield 'same directory' => ['dir', 'dir/file.txt', 'file.txt'];
+    yield 'parent directory' => ['dir/sub', 'dir/file.txt', '../file.txt'];
+    yield 'sibling directory' => ['dir1/sub', 'dir2/file.txt', '../../dir2/file.txt'];
+    yield 'directory itself' => ['dir', 'dir', '.'];
+    yield 'base path itself' => ['dir', '', '..'];
+  }
+
+  #[DataProvider('dataProviderIsAbsolutePath')]
+  public function testIsAbsolutePath(string $path, bool $expected): void {
+    $this->assertSame($expected, IndexedFile::isAbsolutePath($path));
+  }
+
+  public static function dataProviderIsAbsolutePath(): \Iterator {
+    yield 'unix absolute' => ['/var/file.txt', TRUE];
+    yield 'windows drive with backslash' => ['C:\\Users\\file.txt', TRUE];
+    yield 'windows drive with forward slash' => ['d:/a/file.txt', TRUE];
+    yield 'windows root without drive' => ['\\Users\\file.txt', TRUE];
+    yield 'relative' => ['dir/file.txt', FALSE];
+    yield 'relative parent' => ['../file.txt', FALSE];
+    yield 'drive without separator' => ['C:file.txt', FALSE];
+  }
+
   #[DataProvider('dataProviderSplFileInfoMethods')]
   public function testSplFileInfoMethods(string $method): void {
     $file_path = self::$sut . DIRECTORY_SEPARATOR . 'test.txt';

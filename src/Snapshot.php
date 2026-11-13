@@ -7,6 +7,7 @@ namespace AlexSkrypnyk\Snapshot;
 use AlexSkrypnyk\File\File;
 use AlexSkrypnyk\Snapshot\Compare\Comparer;
 use AlexSkrypnyk\Snapshot\Compare\Diff;
+use AlexSkrypnyk\Snapshot\Compare\DiffInterface;
 use AlexSkrypnyk\Snapshot\Index\Index;
 use AlexSkrypnyk\Snapshot\Index\IndexedFileInterface;
 use AlexSkrypnyk\Snapshot\Patch\Patcher;
@@ -126,11 +127,10 @@ class Snapshot {
     }
 
     // Files in actual but not in baseline - copy to output.
-    foreach (array_keys($absent_left) as $file) {
-      $source = $actual . DIRECTORY_SEPARATOR . $file;
-      $destination = $output . DIRECTORY_SEPARATOR . $file;
-      File::mkdir(dirname($destination));
-      File::copy($source, $destination);
+    foreach ($absent_left as $file => $diff) {
+      if ($diff instanceof DiffInterface) {
+        Syncer::copy($diff->getRight(), $output . DIRECTORY_SEPARATOR . $file);
+      }
     }
 
     // Files in baseline but not in actual - create deletion marker.
@@ -190,7 +190,7 @@ class Snapshot {
       }
       elseif (!Patcher::isPatchFile($file->getPathname())) {
         // New file - copy to destination.
-        File::copy($file->getPathname(), $destination . DIRECTORY_SEPARATOR . $relative_path);
+        Syncer::copy($file, $destination . DIRECTORY_SEPARATOR . $relative_path);
       }
       else {
         $patcher->addPatchFile($file);

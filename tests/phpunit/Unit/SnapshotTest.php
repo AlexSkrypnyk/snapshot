@@ -521,6 +521,65 @@ final class SnapshotTest extends UnitTestCase {
     $this->assertTrue(is_link($dst . DIRECTORY_SEPARATOR . 'link.txt'));
   }
 
+  public function testSyncKeepsInTreeSymlinksInsideDestination(): void {
+    if (!function_exists('symlink')) {
+      $this->markTestSkipped('Symlinks are not supported on this system.');
+    }
+
+    $src = self::$sut . '/src';
+    $dst = self::$sut . '/dst';
+    mkdir($src . '/dir/sub', 0777, TRUE);
+    file_put_contents($src . '/dir/target.txt', 'target content');
+    file_put_contents($src . '/dir/ignored_target.txt', 'ignored target content');
+    symlink($src . '/dir/target.txt', $src . '/dir/sub/absolute_link.txt');
+    symlink($src . '/dir/ignored_target.txt', $src . '/dir/sub/ignored_link.txt');
+
+    $current_dir = (string) getcwd();
+    chdir($src . '/dir/sub');
+    symlink('../target.txt', 'relative_link.txt');
+    chdir($current_dir);
+
+    $rules = Rules::create()->ignoreContent('dir/sub/ignored_link.txt');
+    Snapshot::sync($src, $dst, rules: $rules);
+
+    foreach (['absolute_link.txt', 'relative_link.txt'] as $link) {
+      $this->assertTrue(is_link($dst . '/dir/sub/' . $link), $link . ' is not a link');
+      $this->assertSame(realpath($dst . '/dir/target.txt'), realpath($dst . '/dir/sub/' . $link), $link . ' does not resolve inside the destination');
+    }
+
+    // A link with ignored content is copied as is.
+    $this->assertTrue(is_link($dst . '/dir/sub/ignored_link.txt'));
+
+    $comparer = Snapshot::compare($src, $dst, $rules);
+    $this->assertSame([], $comparer->getAbsentLeftDiffs());
+    $this->assertSame([], $comparer->getAbsentRightDiffs());
+    $this->assertSame([], $comparer->getContentDiffs());
+
+    // An existing destination is left in place.
+    Syncer::copy(new IndexedFile($src . '/dir/sub/relative_link.txt', $src), $dst . '/dir/sub/relative_link.txt');
+    $this->assertSame(realpath($dst . '/dir/target.txt'), realpath($dst . '/dir/sub/relative_link.txt'));
+  }
+
+  public function testDiffCopiesNewSymlinkRelativeToOutput(): void {
+    if (!function_exists('symlink')) {
+      $this->markTestSkipped('Symlinks are not supported on this system.');
+    }
+
+    $baseline = self::$sut . '/baseline';
+    $actual = self::$sut . '/actual';
+    $output = self::$sut . '/output';
+    mkdir($baseline, 0777, TRUE);
+    mkdir($actual . '/dir', 0777, TRUE);
+    file_put_contents($baseline . '/target.txt', 'target content');
+    file_put_contents($actual . '/target.txt', 'target content');
+    symlink($actual . '/target.txt', $actual . '/dir/link.txt');
+
+    Snapshot::diff($baseline, $actual, $output);
+
+    $this->assertTrue(is_link($output . '/dir/link.txt'));
+    $this->assertSame('../target.txt', (new IndexedFile($output . '/dir/link.txt', $output))->getContent());
+  }
+
   public function testPatchWithRules(): void {
     $baseline = self::$sut . DIRECTORY_SEPARATOR . 'baseline';
     $diffs = self::$sut . DIRECTORY_SEPARATOR . 'diffs';

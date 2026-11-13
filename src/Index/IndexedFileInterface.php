@@ -39,6 +39,10 @@ interface IndexedFileInterface {
   /**
    * Gets the file content.
    *
+   * For a symlink, the content is its target. A target inside the base path
+   * is given relative to the link's directory with forward slashes, so the
+   * same link reads the same on every platform.
+   *
    * @return string
    *   The file content.
    */
@@ -48,7 +52,7 @@ interface IndexedFileInterface {
    * Gets the path relative to the base path.
    *
    * @return string
-   *   The path relative to the base path.
+   *   The path relative to the base path, separated by forward slashes.
    */
   public function getPathFromBasepath(): string;
 
@@ -56,7 +60,7 @@ interface IndexedFileInterface {
    * Gets the pathname relative to the base path.
    *
    * @return string
-   *   The pathname relative to the base path.
+   *   The pathname relative to the base path, separated by forward slashes.
    */
   public function getPathnameFromBasepath(): string;
 
