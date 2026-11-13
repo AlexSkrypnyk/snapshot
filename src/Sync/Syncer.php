@@ -56,8 +56,9 @@ class Syncer implements SyncerInterface {
   /**
    * Copies an indexed file to a destination path.
    *
-   * A symlink with a relative target is recreated from that target, because
-   * readlink() on Windows returns an absolute path into the source tree.
+   * A symlink with a target inside the source tree is recreated to point at
+   * the same place inside the destination, because readlink() on Windows
+   * returns an absolute path into the source tree.
    *
    * @param \AlexSkrypnyk\Snapshot\Index\IndexedFileInterface $file
    *   The file to copy.
@@ -69,7 +70,16 @@ class Syncer implements SyncerInterface {
    *   Whether to copy empty directories.
    */
   public static function copy(IndexedFileInterface $file, string $dst, int $permissions = 0755, bool $copy_empty_dirs = FALSE): void {
-    if (!$file->isLink() || $file->isIgnoreContent() || IndexedFile::isAbsolutePath($file->getContent())) {
+    $target = NULL;
+
+    if ($file->isLink()) {
+      // The ignore-content marker replaces the link target, so a fresh file
+      // reads the target from disk.
+      $link = $file->isIgnoreContent() ? new IndexedFile($file->getPathname(), $file->getBasepath()) : $file;
+      $target = $link->getContent();
+    }
+
+    if ($target === NULL || IndexedFile::isAbsolutePath($target)) {
       File::copy($file->getPathname(), $dst, $permissions, $copy_empty_dirs);
 
       return;
@@ -81,11 +91,13 @@ class Syncer implements SyncerInterface {
       return;
     }
 
-    // Windows resolves a relative target against the current directory.
-    $current_dir = File::cwd();
-    chdir($parent);
-    symlink($file->getContent(), basename($dst));
-    chdir($current_dir);
+    // PHP on Windows fails to create a link to a relative target, so the
+    // target is anchored at the link's directory inside the destination.
+    if (PHP_OS_FAMILY === 'Windows') {
+      $target = $parent . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $target);
+    }
+
+    symlink($target, $dst);
   }
 
 }

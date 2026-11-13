@@ -533,31 +533,33 @@ final class SnapshotTest extends UnitTestCase {
     file_put_contents($src . '/dir/ignored_target.txt', 'ignored target content');
     symlink($src . '/dir/target.txt', $src . '/dir/sub/absolute_link.txt');
     symlink($src . '/dir/ignored_target.txt', $src . '/dir/sub/ignored_link.txt');
+    $links = ['absolute_link.txt'];
 
-    $current_dir = (string) getcwd();
-    chdir($src . '/dir/sub');
-    symlink('../target.txt', 'relative_link.txt');
-    chdir($current_dir);
+    // PHP on Windows fails to create a link to a relative target.
+    if (PHP_OS_FAMILY !== 'Windows') {
+      symlink('../target.txt', $src . '/dir/sub/relative_link.txt');
+      $links[] = 'relative_link.txt';
+    }
 
     $rules = Rules::create()->ignoreContent('dir/sub/ignored_link.txt');
     Snapshot::sync($src, $dst, rules: $rules);
 
-    foreach (['absolute_link.txt', 'relative_link.txt'] as $link) {
+    foreach ($links as $link) {
       $this->assertTrue(is_link($dst . '/dir/sub/' . $link), $link . ' is not a link');
       $this->assertSame(realpath($dst . '/dir/target.txt'), realpath($dst . '/dir/sub/' . $link), $link . ' does not resolve inside the destination');
     }
 
-    // A link with ignored content is copied as is.
     $this->assertTrue(is_link($dst . '/dir/sub/ignored_link.txt'));
+    $this->assertSame(realpath($dst . '/dir/ignored_target.txt'), realpath($dst . '/dir/sub/ignored_link.txt'), 'A link with ignored content does not resolve inside the destination');
 
-    $comparer = Snapshot::compare($src, $dst, $rules);
+    $comparer = Snapshot::compare($src, $dst);
     $this->assertSame([], $comparer->getAbsentLeftDiffs());
     $this->assertSame([], $comparer->getAbsentRightDiffs());
     $this->assertSame([], $comparer->getContentDiffs());
 
     // An existing destination is left in place.
-    Syncer::copy(new IndexedFile($src . '/dir/sub/relative_link.txt', $src), $dst . '/dir/sub/relative_link.txt');
-    $this->assertSame(realpath($dst . '/dir/target.txt'), realpath($dst . '/dir/sub/relative_link.txt'));
+    Syncer::copy(new IndexedFile($src . '/dir/sub/absolute_link.txt', $src), $dst . '/dir/sub/absolute_link.txt');
+    $this->assertSame(realpath($dst . '/dir/target.txt'), realpath($dst . '/dir/sub/absolute_link.txt'));
   }
 
   public function testDiffCopiesNewSymlinkRelativeToOutput(): void {

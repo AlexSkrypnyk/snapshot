@@ -111,8 +111,8 @@ final class IndexedFileTest extends UnitTestCase {
 
   public static function dataProviderPathFromBasepath(): \Iterator {
     yield 'root level' => ['', '', 'test.txt'];
-    yield 'one level deep' => ['subdir', 'subdir', 'subdir' . DIRECTORY_SEPARATOR . 'test.txt'];
-    yield 'two levels deep' => ['sub1' . DIRECTORY_SEPARATOR . 'sub2', 'sub1' . DIRECTORY_SEPARATOR . 'sub2', 'sub1' . DIRECTORY_SEPARATOR . 'sub2' . DIRECTORY_SEPARATOR . 'test.txt'];
+    yield 'one level deep' => ['subdir', 'subdir', 'subdir/test.txt'];
+    yield 'two levels deep' => ['sub1' . DIRECTORY_SEPARATOR . 'sub2', 'sub1/sub2', 'sub1/sub2/test.txt'];
   }
 
   #[DataProvider('dataProviderIgnoreContent')]
@@ -220,6 +220,10 @@ final class IndexedFileTest extends UnitTestCase {
       $this->markTestSkipped('Symlinks are not supported on this system.');
     }
 
+    if (!$absolute && PHP_OS_FAMILY === 'Windows') {
+      $this->markTestSkipped('PHP on Windows fails to create a link to a relative target.');
+    }
+
     $target_path = self::$sut . '/' . $target;
     $link_path = self::$sut . '/' . $link;
     mkdir(dirname($target_path), 0777, TRUE);
@@ -229,10 +233,7 @@ final class IndexedFileTest extends UnitTestCase {
       mkdir(dirname($link_path), 0777, TRUE);
     }
 
-    $current_dir = (string) getcwd();
-    chdir(dirname($link_path));
-    symlink($absolute ? $target_path : $expected, basename($link_path));
-    chdir($current_dir);
+    symlink($absolute ? $target_path : $expected, $link_path);
 
     $indexed_file = new IndexedFile($link_path, self::$sut);
 
@@ -260,10 +261,14 @@ final class IndexedFileTest extends UnitTestCase {
     yield 'empty base path is skipped' => ['/base/file.txt', ['', '/base'], 'file.txt'];
     yield 'sibling sharing a prefix' => ['/base-other/file.txt', ['/base'], NULL];
     yield 'outside the base path' => ['/other/file.txt', ['/base'], NULL];
+    yield 'dot segments staying inside' => ['/base/./dir/../file.txt', ['/base'], 'file.txt'];
+    yield 'dot segments leaving the base path' => ['/base/../outside.txt', ['/base'], NULL];
+    yield 'repeated separators' => ['/base//dir/file.txt', ['/base'], 'dir/file.txt'];
+    yield 'dot segments above the root' => ['/../base/file.txt', ['/base'], 'file.txt'];
   }
 
-  #[DataProvider('dataProviderPathFromBasepathCaseInsensitive')]
-  public function testPathFromBasepathCaseInsensitive(string $path, string $basepath, ?string $expected): void {
+  #[DataProvider('dataProviderCaseInsensitiveFilesystem')]
+  public function testCaseInsensitiveFilesystem(string $method, array $args, ?string $expected): void {
     $class = new class('', '') extends IndexedFile {
 
       protected static function isCaseInsensitiveFilesystem(): bool {
@@ -272,12 +277,14 @@ final class IndexedFileTest extends UnitTestCase {
 
     };
 
-    $this->assertSame($expected, self::callProtectedMethod($class, 'pathFromBasepath', [$path, [$basepath]]));
+    $this->assertSame($expected, self::callProtectedMethod($class, $method, $args));
   }
 
-  public static function dataProviderPathFromBasepathCaseInsensitive(): \Iterator {
-    yield 'different case' => ['C:/Users/RunnerAdmin/tmp/file.txt', 'c:/users/runneradmin/tmp', 'file.txt'];
-    yield 'outside the base path' => ['C:/Other/file.txt', 'c:/users', NULL];
+  public static function dataProviderCaseInsensitiveFilesystem(): \Iterator {
+    yield 'base path in different case' => ['pathFromBasepath', ['C:/Users/RunnerAdmin/tmp/file.txt', ['c:/users/runneradmin/tmp']], 'file.txt'];
+    yield 'outside the base path' => ['pathFromBasepath', ['C:/Other/file.txt', ['c:/users']], NULL];
+    yield 'shared directory in different case' => ['relativePath', ['dir', 'DIR/target.txt'], 'target.txt'];
+    yield 'different directory' => ['relativePath', ['dir1', 'DIR2/target.txt'], '../DIR2/target.txt'];
   }
 
   #[DataProvider('dataProviderRelativePath')]

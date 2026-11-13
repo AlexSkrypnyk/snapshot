@@ -323,7 +323,8 @@ class IndexedFile extends \SplFileInfo implements IndexedFileInterface {
    *   no base path contains the path.
    */
   protected static function pathFromBasepath(string $path, array $basepaths): ?string {
-    $path = static::normalizeSeparators($path);
+    // '/base/../outside' starts with '/base/' but resolves outside it.
+    $path = static::removeDotSegments(static::normalizeSeparators($path));
 
     foreach ($basepaths as $basepath) {
       if ($basepath === '') {
@@ -358,7 +359,7 @@ class IndexedFile extends \SplFileInfo implements IndexedFileInterface {
     $from_parts = $from_dir === '' ? [] : explode('/', $from_dir);
     $to_parts = $to === '' ? [] : explode('/', $to);
 
-    while ($from_parts !== [] && $to_parts !== [] && $from_parts[0] === $to_parts[0]) {
+    while ($from_parts !== [] && $to_parts !== [] && static::isSamePathComponent($from_parts[0], $to_parts[0])) {
       array_shift($from_parts);
       array_shift($to_parts);
     }
@@ -379,6 +380,52 @@ class IndexedFile extends \SplFileInfo implements IndexedFileInterface {
    */
   protected static function normalizeSeparators(string $path): string {
     return str_replace(DIRECTORY_SEPARATOR, '/', $path);
+  }
+
+  /**
+   * Resolves '.' and '..' segments and repeated separators in a path.
+   *
+   * @param string $path
+   *   The absolute path with forward slashes.
+   *
+   * @return string
+   *   The path without dot segments. A '..' never climbs above the root.
+   */
+  protected static function removeDotSegments(string $path): string {
+    $parts = [];
+
+    foreach (explode('/', $path) as $index => $part) {
+      if ($part === '.' || ($part === '' && $index > 0)) {
+        continue;
+      }
+
+      if ($part === '..') {
+        if (count($parts) > 1) {
+          array_pop($parts);
+        }
+
+        continue;
+      }
+
+      $parts[] = $part;
+    }
+
+    return implode('/', $parts);
+  }
+
+  /**
+   * Checks whether 2 path components name the same entry.
+   *
+   * @param string $a
+   *   The first component.
+   * @param string $b
+   *   The second component.
+   *
+   * @return bool
+   *   TRUE when the components match, ignoring case on Windows.
+   */
+  protected static function isSamePathComponent(string $a, string $b): bool {
+    return static::isCaseInsensitiveFilesystem() ? strcasecmp($a, $b) === 0 : $a === $b;
   }
 
   /**
