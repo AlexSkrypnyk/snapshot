@@ -269,6 +269,8 @@ final class IndexedFileTest extends UnitTestCase {
     yield 'dot segments leaving the base path' => ['/base/../outside.txt', ['/base'], NULL];
     yield 'repeated separators' => ['/base//dir/file.txt', ['/base'], 'dir/file.txt'];
     yield 'dot segments above the root' => ['/../base/file.txt', ['/base'], 'file.txt'];
+    yield 'UNC path' => ['//server/share/base/dir/file.txt', ['//server/share/base'], 'dir/file.txt'];
+    yield 'UNC path outside the base path' => ['//server/share/other/file.txt', ['//server/share/base'], NULL];
     yield 'the base path itself' => ['/base', ['/base'], ''];
     yield 'the base path with a trailing separator' => ['/base/', ['/base'], ''];
   }

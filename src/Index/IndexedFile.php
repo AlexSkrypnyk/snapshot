@@ -415,7 +415,10 @@ class IndexedFile extends \SplFileInfo implements IndexedFileInterface {
       $parts[] = $part;
     }
 
-    return implode('/', $parts);
+    // A UNC path starts with 2 separators.
+    $prefix = str_starts_with($path, '//') ? '/' : '';
+
+    return $prefix . implode('/', $parts);
   }
 
   /**
