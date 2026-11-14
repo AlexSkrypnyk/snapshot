@@ -39,14 +39,19 @@ class Index implements IndexInterface {
    * @param mixed $fileFilter
    *   Optional callback receiving the IndexedFile of each file that survives
    *   the skip and global rules, including files marked by an ignore-content
-   *   rule. A symlink to a directory reaches it; a broken symlink does not.
+   *   rule. A symlink to a directory reaches it; a broken symlink reaches it
+   *   only when $includeBrokenLinks is TRUE.
    *   Returning FALSE excludes the file from the index; any other return value
    *   is discarded, and any change the callback made to the file is kept.
+   * @param bool $includeBrokenLinks
+   *   Whether to index symlinks whose target does not exist. A diff directory
+   *   holds new links to files that exist only in the baseline.
    */
   public function __construct(
     protected string $directory,
     ?RulesInterface $rules = NULL,
     protected mixed $fileFilter = NULL,
+    protected bool $includeBrokenLinks = FALSE,
   ) {
     $this->rules = $rules ??
       (
@@ -122,7 +127,7 @@ class Index implements IndexInterface {
       }
 
       // Skip links that point to non-existing files (broken links).
-      if ($resource->isLink() && !$resource->getRealPath()) {
+      if (!$this->includeBrokenLinks && $resource->isLink() && !$resource->getRealPath()) {
         continue;
       }
 

@@ -556,6 +556,10 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
    *   the exhausted dataset is reported as failed.
    */
   public function testTimeoutRetriesReportAttemptCount(): void {
+    if (PHP_OS_FAMILY === 'Windows') {
+      $this->markTestSkipped('A PHP pipe read on Windows waits up to 32 seconds for a silent process, past the test timeout.');
+    }
+
     $this->setupTestProject('slow');
 
     $this->processRun('php', [
@@ -587,6 +591,10 @@ final class SnapshotUpdateScriptTest extends FunctionalTestCase {
    */
   #[DataProvider('dataProviderSignalStopsSpawnedProcesses')]
   public function testSignalStopsSpawnedProcesses(int $signal, int $expected_code): void {
+    if (PHP_OS_FAMILY === 'Windows') {
+      $this->markTestSkipped('POSIX signals and pgrep are not available on Windows.');
+    }
+
     $this->setupTestProject('slow');
 
     // The project directory is unique per test, so a command line containing

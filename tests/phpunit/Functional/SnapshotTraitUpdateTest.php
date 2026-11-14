@@ -34,8 +34,8 @@ final class SnapshotTraitUpdateTest extends FunctionalTestCase {
 
     $this->processCwd = $test_dir;
     $this->processRun(
-      self::$root . '/vendor/bin/phpunit',
-      ['--no-configuration', $test_class_file],
+      'php',
+      [self::$root . '/vendor/bin/phpunit', '--no-configuration', $test_class_file],
     );
 
     $this->assertProcessFailed();
@@ -46,8 +46,8 @@ final class SnapshotTraitUpdateTest extends FunctionalTestCase {
     $this->assertFileDoesNotExist($baseline_dir . DIRECTORY_SEPARATOR . 'file3.txt');
 
     $this->processRun(
-      self::$root . '/vendor/bin/phpunit',
-      ['--no-configuration', $test_class_file],
+      'php',
+      [self::$root . '/vendor/bin/phpunit', '--no-configuration', $test_class_file],
       [],
       ['UPDATE_SNAPSHOTS' => '1'],
     );
@@ -63,8 +63,8 @@ final class SnapshotTraitUpdateTest extends FunctionalTestCase {
     $this->assertStringEqualsFile($baseline_dir . DIRECTORY_SEPARATOR . 'file3.txt', "new file\n");
 
     $this->processRun(
-      self::$root . '/vendor/bin/phpunit',
-      ['--no-configuration', $test_class_file],
+      'php',
+      [self::$root . '/vendor/bin/phpunit', '--no-configuration', $test_class_file],
     );
 
     $this->assertProcessSuccessful();
@@ -95,8 +95,8 @@ final class SnapshotTraitUpdateTest extends FunctionalTestCase {
 
     $this->processCwd = $test_dir;
     $this->processRun(
-      self::$root . '/vendor/bin/phpunit',
-      ['--no-configuration', $test_class_file],
+      'php',
+      [self::$root . '/vendor/bin/phpunit', '--no-configuration', $test_class_file],
     );
 
     $this->assertProcessFailed();
@@ -106,8 +106,8 @@ final class SnapshotTraitUpdateTest extends FunctionalTestCase {
     $this->assertEmpty(glob($scenario_dir . DIRECTORY_SEPARATOR . '*'));
 
     $this->processRun(
-      self::$root . '/vendor/bin/phpunit',
-      ['--no-configuration', $test_class_file],
+      'php',
+      [self::$root . '/vendor/bin/phpunit', '--no-configuration', $test_class_file],
       [],
       ['UPDATE_SNAPSHOTS' => '1'],
     );
@@ -125,8 +125,8 @@ final class SnapshotTraitUpdateTest extends FunctionalTestCase {
     $this->assertStringContainsString('+modified line 1', $diff_content);
 
     $this->processRun(
-      self::$root . '/vendor/bin/phpunit',
-      ['--no-configuration', $test_class_file],
+      'php',
+      [self::$root . '/vendor/bin/phpunit', '--no-configuration', $test_class_file],
     );
 
     $this->assertProcessSuccessful();
@@ -153,8 +153,8 @@ final class SnapshotTraitUpdateTest extends FunctionalTestCase {
 
     for ($i = 0; $i < 3; $i++) {
       $this->processRun(
-        self::$root . '/vendor/bin/phpunit',
-        ['--no-configuration', $test_class_file],
+        'php',
+        [self::$root . '/vendor/bin/phpunit', '--no-configuration', $test_class_file],
       );
 
       $this->assertProcessFailed();
@@ -183,8 +183,8 @@ final class SnapshotTraitUpdateTest extends FunctionalTestCase {
 
     $this->processCwd = $test_dir;
     $this->processRun(
-      self::$root . '/vendor/bin/phpunit',
-      ['--no-configuration', $test_class_file],
+      'php',
+      [self::$root . '/vendor/bin/phpunit', '--no-configuration', $test_class_file],
       [],
       ['UPDATE_SNAPSHOTS' => '1'],
     );

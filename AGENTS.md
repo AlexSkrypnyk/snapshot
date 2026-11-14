@@ -312,9 +312,14 @@ The `SnapshotBench` class measures:
 
 GitHub Actions workflows test across:
 - PHP versions: 8.3, 8.4, 8.5
+- Operating systems: Ubuntu, Windows
 - Separate jobs: lint, test, coverage upload (Codecov)
 
-Lint, coverage threshold and Codecov upload run on the PHP 8.4 `normal` dependency leg only.
+Job names end with the OS, e.g. `PHP 8.4, Deps normal, windows-latest`.
+
+Lint, coverage threshold and Codecov upload run on the PHP 8.4 `normal` dependency `ubuntu-latest` leg only.
+
+Windows legs set `core.autocrlf false` and `core.symlinks true` before checkout, because fixtures are byte-compared and include symlinks.
 
 Key workflows:
 - `.github/workflows/test-php.yml` - PHP testing

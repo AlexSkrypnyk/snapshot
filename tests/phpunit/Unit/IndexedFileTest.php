@@ -111,8 +111,8 @@ final class IndexedFileTest extends UnitTestCase {
 
   public static function dataProviderPathFromBasepath(): \Iterator {
     yield 'root level' => ['', '', 'test.txt'];
-    yield 'one level deep' => ['subdir', 'subdir', 'subdir' . DIRECTORY_SEPARATOR . 'test.txt'];
-    yield 'two levels deep' => ['sub1' . DIRECTORY_SEPARATOR . 'sub2', 'sub1' . DIRECTORY_SEPARATOR . 'sub2', 'sub1' . DIRECTORY_SEPARATOR . 'sub2' . DIRECTORY_SEPARATOR . 'test.txt'];
+    yield 'one level deep' => ['subdir', 'subdir', 'subdir/test.txt'];
+    yield 'two levels deep' => ['sub1' . DIRECTORY_SEPARATOR . 'sub2', 'sub1/sub2', 'sub1/sub2/test.txt'];
   }
 
   #[DataProvider('dataProviderIgnoreContent')]
@@ -212,6 +212,48 @@ final class IndexedFileTest extends UnitTestCase {
   public static function dataProviderSymlink(): \Iterator {
     yield 'internal target' => [FALSE];
     yield 'external target' => [TRUE];
+  }
+
+  #[DataProvider('dataProviderSymlinkTargetFromLinkDirectory')]
+  public function testSymlinkTargetFromLinkDirectory(string $link, string $target, bool $absolute, string $expected): void {
+    if (!function_exists('symlink')) {
+      $this->markTestSkipped('Symlinks are not supported on this system.');
+    }
+
+    $target_path = $target === '' ? self::$sut : self::$sut . '/' . $target;
+    $link_path = self::$sut . '/' . $link;
+
+    if ($target !== '') {
+      mkdir(dirname($target_path), 0777, TRUE);
+      file_put_contents($target_path, 'target content');
+    }
+
+    if (!is_dir(dirname($link_path))) {
+      mkdir(dirname($link_path), 0777, TRUE);
+    }
+
+    if ($absolute) {
+      symlink($target_path, $link_path);
+    }
+    else {
+      $this->createRelativeSymlink($link_path, $expected);
+    }
+
+    $indexed_file = new IndexedFile($link_path, self::$sut);
+
+    $this->assertSame($link, $indexed_file->getPathnameFromBasepath());
+    $this->assertSame($expected, $indexed_file->getContent());
+  }
+
+  public static function dataProviderSymlinkTargetFromLinkDirectory(): \Iterator {
+    yield 'absolute, same directory' => ['dir/link.txt', 'dir/target.txt', TRUE, 'target.txt'];
+    yield 'absolute, parent directory' => ['dir/sub/link.txt', 'dir/target.txt', TRUE, '../target.txt'];
+    yield 'absolute, child directory' => ['link.txt', 'dir/sub/target.txt', TRUE, 'dir/sub/target.txt'];
+    yield 'absolute, sibling directory' => ['dir1/link.txt', 'dir2/target.txt', TRUE, '../dir2/target.txt'];
+    yield 'absolute, base path itself' => ['dir/link', '', TRUE, '..'];
+    yield 'relative, same directory' => ['dir/link.txt', 'dir/target.txt', FALSE, 'target.txt'];
+    yield 'relative, parent directory' => ['dir/sub/link.txt', 'dir/target.txt', FALSE, '../target.txt'];
+    yield 'relative, sibling directory' => ['dir1/link.txt', 'dir2/target.txt', FALSE, '../dir2/target.txt'];
   }
 
   #[DataProvider('dataProviderSplFileInfoMethods')]

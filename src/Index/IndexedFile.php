@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace AlexSkrypnyk\Snapshot\Index;
 
+use AlexSkrypnyk\File\File;
 use AlexSkrypnyk\Snapshot\Exception\SnapshotException;
 
 /**
@@ -70,7 +71,7 @@ class IndexedFile extends \SplFileInfo implements IndexedFileInterface {
    * {@inheritdoc}
    */
   public function setBasepath(string $basepath): static {
-    $this->basepath = rtrim($basepath, DIRECTORY_SEPARATOR);
+    $this->basepath = rtrim($basepath, '/' . DIRECTORY_SEPARATOR);
     $this->relativePathname = NULL;
 
     return $this;
@@ -167,13 +168,15 @@ class IndexedFile extends \SplFileInfo implements IndexedFileInterface {
     }
 
     if ($this->isLink()) {
-      $link_target = $this->getLinkTarget();
-      if (str_starts_with($link_target, $this->basepath)) {
-        $this->content = static::stripBasepath($this->basepath, $link_target);
+      $target = File::readSymlink($this->getPathname(), $this->basepath);
+
+      if ($target === FALSE) {
+        // @codeCoverageIgnoreStart
+        throw new SnapshotException('Cannot read symlink: ' . $this->getPathname());
+        // @codeCoverageIgnoreEnd
       }
-      else {
-        $this->content = $link_target;
-      }
+
+      $this->content = $target;
       $this->hash = $this->hash($this->content);
     }
     elseif ($this->getSize() <= static::LARGE_FILE_THRESHOLD) {
@@ -267,7 +270,7 @@ class IndexedFile extends \SplFileInfo implements IndexedFileInterface {
       throw new SnapshotException(sprintf('Path %s does not start with basepath %s', $path, $basepath));
     }
 
-    return ltrim(substr($path, strlen($basepath)), DIRECTORY_SEPARATOR);
+    return File::toForwardSlashes(ltrim(substr($path, strlen($basepath)), '/' . DIRECTORY_SEPARATOR));
   }
 
 }

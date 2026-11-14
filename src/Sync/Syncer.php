@@ -30,6 +30,8 @@ class Syncer implements SyncerInterface {
   public function sync(string $dst, int $permissions = 0755, bool $copy_empty_dirs = FALSE, bool $placeholder_ignored_content = FALSE): static {
     File::mkdir($dst, $permissions);
 
+    $paths = [];
+
     foreach ($this->srcIndex->getFiles() as $file) {
       // getFiles() allows a transform callback to return non-file values;
       // skip anything that is not a file since none is passed here.
@@ -39,16 +41,17 @@ class Syncer implements SyncerInterface {
         // @codeCoverageIgnoreEnd
       }
 
-      $absolute_src_path = $file->getPathname();
-      $absolute_dst_path = $dst . DIRECTORY_SEPARATOR . $file->getPathnameFromBasepath();
-
       if ($placeholder_ignored_content && $file->isIgnoreContent()) {
-        File::dump($absolute_dst_path, $file->getContent());
+        File::dump($dst . DIRECTORY_SEPARATOR . $file->getPathnameFromBasepath(), $file->getContent());
         continue;
       }
 
-      File::copy($absolute_src_path, $absolute_dst_path, $permissions, $copy_empty_dirs);
+      $paths[] = $file->getPathnameFromBasepath();
     }
+
+    // File::copy() copies a symlink as a link, so a source directory that is
+    // a symlink is resolved to copy its contents.
+    File::copy(File::realpath($this->srcIndex->getDirectory()), $dst, $permissions, $copy_empty_dirs, $paths, File::SYMLINK_MODE_RELATIVE);
 
     return $this;
   }
