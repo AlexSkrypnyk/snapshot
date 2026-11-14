@@ -126,7 +126,7 @@ class Snapshot {
     }
 
     // Files in actual but not in baseline - copy to output.
-    Syncer::copyPaths($actual, $output, array_map(strval(...), array_keys($absent_left)));
+    File::copy(File::realpath($actual), $output, filter: array_map(strval(...), array_keys($absent_left)), symlink_mode: File::SYMLINK_MODE_RELATIVE);
 
     // Files in baseline but not in actual - create deletion marker.
     foreach (array_keys($absent_right) as $file) {
@@ -194,7 +194,7 @@ class Snapshot {
         $patcher->addPatchFile($file);
       }
     }
-    Syncer::copyPaths($diffs, $destination, $new_paths);
+    File::copy(File::realpath($diffs), $destination, filter: $new_paths, symlink_mode: File::SYMLINK_MODE_RELATIVE);
 
     $patcher->patch();
 
