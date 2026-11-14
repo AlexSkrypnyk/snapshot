@@ -57,7 +57,7 @@ class Syncer implements SyncerInterface {
   /**
    * Copies paths of a directory with links kept inside the destination.
    *
-   * File::copyPaths() keeps a link inside the copied tree relative only in
+   * File::copy() keeps a link inside the copied tree relative only in
    * File::SYMLINK_MODE_RELATIVE. The mode is global, so it is set for this
    * copy and the caller's mode is restored.
    *
@@ -66,7 +66,7 @@ class Syncer implements SyncerInterface {
    * @param string $dst
    *   Destination directory path.
    * @param array<int, string> $paths
-   *   Paths relative to $src.
+   *   Paths of files and symlinks relative to $src, with "/" separators.
    * @param int $permissions
    *   Permissions to set on created directories.
    * @param bool $copy_empty_dirs
@@ -76,11 +76,26 @@ class Syncer implements SyncerInterface {
    *   When a symlink cannot be read or created.
    */
   public static function copyPaths(string $src, string $dst, array $paths, int $permissions = 0755, bool $copy_empty_dirs = FALSE): void {
+    if ($paths === []) {
+      return;
+    }
+
+    // The filter is asked about directories before the paths inside them, so
+    // every ancestor of a path is let through.
+    $selected = array_flip($paths);
+    $dirs = [];
+
+    foreach ($paths as $path) {
+      for ($dir = dirname($path); $dir !== '.' && !isset($dirs[$dir]); $dir = dirname($dir)) {
+        $dirs[$dir] = TRUE;
+      }
+    }
+
     $mode = File::getSymlinkMode();
     File::setSymlinkMode(File::SYMLINK_MODE_RELATIVE);
 
     try {
-      File::copyPaths($src, $dst, $paths, $permissions, $copy_empty_dirs);
+      File::copy($src, $dst, $permissions, $copy_empty_dirs, fn(string $path, bool $is_dir): bool => $is_dir ? isset($dirs[$path]) : isset($selected[$path]));
     }
     finally {
       File::setSymlinkMode($mode);

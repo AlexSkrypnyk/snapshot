@@ -18,7 +18,7 @@
     },
     "require": {
         "php": ">=8.3",
-        "alexskrypnyk/file": "dev-feature/165-windows-symlinks#c6c77b1055d76de842c320f6e8ed642313715f94 as 1.3.1",
+        "alexskrypnyk/file": "dev-feature/165-windows-symlinks#35566f9be8bad054225ae8736c2a7f03e4a34820 as 1.3.1",
         "sebastian/diff": "^6.0 || ^7.0"
     },
     "require-dev": {
