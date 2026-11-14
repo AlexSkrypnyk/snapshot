@@ -189,8 +189,15 @@ final class SymlinkPermutationsTest extends UnitTestCase {
    * tree without $links, then patches the baseline with that diff. Each new
    * link reaches the diff without its target, which stays in the baseline.
    *
+   * @param string $operation
+   *   One of 'sync', 'patch', 'diff' or 'roundtrip'.
+   * @param string $tree
+   *   Source tree.
    * @param array<int, string> $links
    *   Links in $tree, relative to it.
+   *
+   * @return string
+   *   Directory holding the copy.
    */
   protected function runOperation(string $operation, string $tree, array $links = []): string {
     $dst = self::$sut . '/dst';
