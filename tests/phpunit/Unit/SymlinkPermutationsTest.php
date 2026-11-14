@@ -174,7 +174,12 @@ final class SymlinkPermutationsTest extends UnitTestCase {
 
     $this->assertFileDoesNotExist($dst . '/skipped.txt');
     $this->assertTrue(is_link($dst . '/link.txt'), 'A link to a skipped target is still copied.');
-    $this->assertSame('skipped.txt', readlink($dst . '/link.txt') === FALSE ? '' : basename((string) readlink($dst . '/link.txt')));
+
+    // readlink() fails for a dangling link on Windows, so the target is
+    // checked by creating it in the destination.
+    File::dump($dst . '/skipped.txt', 'created later');
+    $this->assertSame(realpath($dst . '/skipped.txt'), realpath($dst . '/link.txt'));
+    $this->assertSame('created later', file_get_contents($dst . '/link.txt'));
   }
 
   /**
