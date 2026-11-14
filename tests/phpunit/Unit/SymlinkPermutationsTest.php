@@ -68,7 +68,7 @@ final class SymlinkPermutationsTest extends UnitTestCase {
       $links[] = 'chain';
     }
 
-    $dst = $this->runOperation($operation, $tree);
+    $dst = $this->runOperation($operation, $tree, $links);
 
     File::remove($tree);
 
@@ -82,7 +82,7 @@ final class SymlinkPermutationsTest extends UnitTestCase {
   }
 
   public static function dataProviderPermutations(): \Iterator {
-    foreach (['sync', 'patch', 'diff'] as $operation) {
+    foreach (['sync', 'patch', 'diff', 'roundtrip'] as $operation) {
       foreach (['file', 'directory'] as $kind) {
         foreach ([FALSE, TRUE] as $absolute) {
           foreach (array_keys(self::LOCATIONS) as $location) {
@@ -184,11 +184,29 @@ final class SymlinkPermutationsTest extends UnitTestCase {
 
   /**
    * Runs a snapshot operation that copies $tree and returns the copy.
+   *
+   * The roundtrip operation diffs $tree against a baseline holding the same
+   * tree without $links, then patches the baseline with that diff. Each new
+   * link reaches the diff without its target, which stays in the baseline.
+   *
+   * @param array<int, string> $links
+   *   Links in $tree, relative to it.
    */
-  protected function runOperation(string $operation, string $tree): string {
+  protected function runOperation(string $operation, string $tree, array $links = []): string {
     $dst = self::$sut . '/dst';
     $empty = self::$sut . '/empty';
     File::mkdir($empty);
+
+    if ($operation === 'roundtrip') {
+      $baseline = self::$sut . '/baseline';
+      $diffs = self::$sut . '/diffs';
+      Snapshot::sync($tree, $baseline);
+      File::remove(array_map(fn(string $link): string => $baseline . '/' . $link, $links));
+      Snapshot::diff($baseline, $tree, $diffs);
+      Snapshot::patch($baseline, $diffs, $dst);
+
+      return $dst;
+    }
 
     match ($operation) {
       'sync' => Snapshot::sync($tree, $dst),

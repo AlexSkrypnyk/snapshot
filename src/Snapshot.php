@@ -166,7 +166,9 @@ class Snapshot {
 
     $patcher = new Patcher($baseline, $destination);
 
-    $diffs_index = self::scan($diffs, $rules);
+    // A new link in the diffs can point at a file that exists only in the
+    // baseline, so it is dangling until the baseline is synced.
+    $diffs_index = new Index($diffs, $rules, NULL, TRUE);
     $new_paths = [];
     foreach ($diffs_index->getFiles() as $file) {
       // getFiles() allows a transform callback to return non-file values;
