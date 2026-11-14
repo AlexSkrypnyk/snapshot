@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace AlexSkrypnyk\Snapshot\Sync;
 
 use AlexSkrypnyk\File\File;
-use AlexSkrypnyk\File\SymlinkMode;
 use AlexSkrypnyk\Snapshot\Index\IndexedFileInterface;
 use AlexSkrypnyk\Snapshot\Index\IndexInterface;
 
@@ -59,8 +58,8 @@ class Syncer implements SyncerInterface {
    * Copies paths of a directory with links kept inside the destination.
    *
    * File::copyPaths() keeps a link inside the copied tree relative only in
-   * SymlinkMode::Relative. The mode is global, so it is set for this copy
-   * and the caller's mode is restored.
+   * File::SYMLINK_MODE_RELATIVE. The mode is global, so it is set for this
+   * copy and the caller's mode is restored.
    *
    * @param string $src
    *   Source directory path.
@@ -74,11 +73,11 @@ class Syncer implements SyncerInterface {
    *   Whether to copy empty directories.
    *
    * @throws \AlexSkrypnyk\File\Exception\FileException
-   *   When a symlink cannot be created.
+   *   When a symlink cannot be read or created.
    */
   public static function copyPaths(string $src, string $dst, array $paths, int $permissions = 0755, bool $copy_empty_dirs = FALSE): void {
     $mode = File::getSymlinkMode();
-    File::setSymlinkMode(SymlinkMode::Relative);
+    File::setSymlinkMode(File::SYMLINK_MODE_RELATIVE);
 
     try {
       File::copyPaths($src, $dst, $paths, $permissions, $copy_empty_dirs);

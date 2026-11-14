@@ -6,7 +6,6 @@ namespace AlexSkrypnyk\Snapshot\Tests\Unit;
 
 use AlexSkrypnyk\File\Exception\FileException;
 use AlexSkrypnyk\File\File;
-use AlexSkrypnyk\File\SymlinkMode;
 use AlexSkrypnyk\Snapshot\Compare\Comparer;
 use AlexSkrypnyk\Snapshot\Compare\Diff;
 use AlexSkrypnyk\Snapshot\Index\IndexedFile;
@@ -554,7 +553,7 @@ final class SnapshotTest extends UnitTestCase {
   }
 
   #[DataProvider('dataProviderSyncRestoresSymlinkMode')]
-  public function testSyncRestoresSymlinkMode(SymlinkMode $mode): void {
+  public function testSyncRestoresSymlinkMode(string $mode): void {
     $src = self::$sut . DIRECTORY_SEPARATOR . 'src';
     $dst = self::$sut . DIRECTORY_SEPARATOR . 'dst';
     mkdir($src, 0777, TRUE);
@@ -574,8 +573,8 @@ final class SnapshotTest extends UnitTestCase {
   }
 
   public static function dataProviderSyncRestoresSymlinkMode(): \Iterator {
-    yield 'native' => [SymlinkMode::Native];
-    yield 'relative' => [SymlinkMode::Relative];
+    yield 'native' => [File::SYMLINK_MODE_NATIVE];
+    yield 'relative' => [File::SYMLINK_MODE_RELATIVE];
   }
 
   public function testPatchWithRules(): void {
