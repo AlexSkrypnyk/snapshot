@@ -62,9 +62,6 @@ class Syncer implements SyncerInterface {
    * SymlinkMode::Relative. The mode is global, so it is set for this copy
    * and the caller's mode is restored.
    *
-   * @throws \AlexSkrypnyk\File\Exception\FileException
-   *   When a symlink cannot be created.
-   *
    * @param string $src
    *   Source directory path.
    * @param string $dst
@@ -75,6 +72,9 @@ class Syncer implements SyncerInterface {
    *   Permissions to set on created directories.
    * @param bool $copy_empty_dirs
    *   Whether to copy empty directories.
+   *
+   * @throws \AlexSkrypnyk\File\Exception\FileException
+   *   When a symlink cannot be created.
    */
   public static function copyPaths(string $src, string $dst, array $paths, int $permissions = 0755, bool $copy_empty_dirs = FALSE): void {
     $mode = File::getSymlinkMode();
