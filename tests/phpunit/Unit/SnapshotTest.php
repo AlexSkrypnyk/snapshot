@@ -344,6 +344,34 @@ final class SnapshotTest extends UnitTestCase {
     $this->assertTrue($modified, 'Content processor should have modified file content on disk');
   }
 
+  #[DataProvider('dataProviderPatchWithContentProcessorSymlink')]
+  public function testPatchWithContentProcessorSymlink(string $link, string $target): void {
+    if (!function_exists('symlink')) {
+      $this->markTestSkipped('Symlinks are not supported on this system.');
+    }
+
+    $baseline = self::$sut . '/baseline';
+    $diffs = self::$sut . '/diffs';
+    $dst = self::$sut . '/dst';
+    File::dump($baseline . '/release/file.txt', 'content');
+    File::dump(self::$sut . '/outside/file.txt', 'content');
+    File::mkdir($diffs);
+    $this->createRelativeSymlink($baseline . '/' . $link, $target);
+
+    Snapshot::patch($baseline, $diffs, $dst, NULL, fn(string $content): string => $content . '+');
+
+    $this->assertSame('content+', file_get_contents($dst . '/release/file.txt'), 'A file inside the tree is processed once.');
+    $this->assertSame('content', file_get_contents(self::$sut . '/outside/file.txt'), 'A file outside the tree is not processed.');
+    $this->assertTrue(is_link($dst . '/' . $link));
+  }
+
+  public static function dataProviderPatchWithContentProcessorSymlink(): \Iterator {
+    yield 'file symlink inside the tree' => ['file_link.txt', 'release/file.txt'];
+    yield 'directory symlink inside the tree' => ['current', 'release'];
+    yield 'file symlink outside the tree' => ['file_link.txt', '../outside/file.txt'];
+    yield 'directory symlink outside the tree' => ['external', '../outside'];
+  }
+
   public function testGetBaselinePath(): void {
     $parent = self::$sut;
     $baseline_dir = $parent . DIRECTORY_SEPARATOR . Snapshot::BASELINE_DIR;

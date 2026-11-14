@@ -199,9 +199,11 @@ class Snapshot {
     $patcher->patch();
 
     if ($content_processor !== NULL) {
-      $files = File::scandir($destination);
+      // Writing through a symlink would process its target a second time, or
+      // a file outside the destination.
+      $files = File::scandir($destination, follow_symlinks: FALSE);
       foreach ($files as $file_path) {
-        if (is_file($file_path)) {
+        if (is_file($file_path) && !is_link($file_path)) {
           $content = file_get_contents($file_path);
           if ($content !== FALSE) {
             $processed = $content_processor($content);
