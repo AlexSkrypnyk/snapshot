@@ -18,7 +18,7 @@
     },
     "require": {
         "php": ">=8.3",
-        "alexskrypnyk/file": "^1.4.0",
+        "alexskrypnyk/file": "dev-feature/scandir-symlinks#2320857d2bb60e947021c6a6c9d932f7c10a6c7f as 1.4.0",
         "sebastian/diff": "^6.0 || ^7.0"
     },
     "require-dev": {
@@ -34,6 +34,13 @@
         "rector/rector": "^2.8.4",
         "symfony/process": "^7.4.22"
     },
+    "repositories": [
+        {
+            "name": "alexskrypnyk-file",
+            "type": "vcs",
+            "url": "https://github.com/AlexSkrypnyk/file"
+        }
+    ],
     "minimum-stability": "stable",
     "prefer-stable": true,
     "autoload": {
