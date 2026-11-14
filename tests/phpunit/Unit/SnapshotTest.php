@@ -6,7 +6,7 @@ namespace AlexSkrypnyk\Snapshot\Tests\Unit;
 
 use AlexSkrypnyk\File\Exception\FileException;
 use AlexSkrypnyk\File\File;
-use AlexSkrypnyk\File\WindowsSymlinkMode;
+use AlexSkrypnyk\File\SymlinkMode;
 use AlexSkrypnyk\Snapshot\Compare\Comparer;
 use AlexSkrypnyk\Snapshot\Compare\Diff;
 use AlexSkrypnyk\Snapshot\Index\IndexedFile;
@@ -553,29 +553,29 @@ final class SnapshotTest extends UnitTestCase {
     yield 'directory symlink to a sibling directory' => ['hooks/deploy', 'update', 'hooks/update'];
   }
 
-  #[DataProvider('dataProviderSyncRestoresWindowsSymlinkMode')]
-  public function testSyncRestoresWindowsSymlinkMode(WindowsSymlinkMode $mode): void {
+  #[DataProvider('dataProviderSyncRestoresSymlinkMode')]
+  public function testSyncRestoresSymlinkMode(SymlinkMode $mode): void {
     $src = self::$sut . DIRECTORY_SEPARATOR . 'src';
     $dst = self::$sut . DIRECTORY_SEPARATOR . 'dst';
     mkdir($src, 0777, TRUE);
     file_put_contents($src . DIRECTORY_SEPARATOR . 'file.txt', 'content');
 
-    File::setWindowsSymlinkMode($mode);
+    File::setSymlinkMode($mode);
 
     try {
       Snapshot::sync($src, $dst);
 
-      $this->assertSame($mode, File::getWindowsSymlinkMode());
+      $this->assertSame($mode, File::getSymlinkMode());
       $this->assertFileExists($dst . DIRECTORY_SEPARATOR . 'file.txt');
     }
     finally {
-      File::resetWindowsSymlinkMode();
+      File::resetSymlinkMode();
     }
   }
 
-  public static function dataProviderSyncRestoresWindowsSymlinkMode(): \Iterator {
-    yield 'absolute' => [WindowsSymlinkMode::Absolute];
-    yield 'relative' => [WindowsSymlinkMode::Relative];
+  public static function dataProviderSyncRestoresSymlinkMode(): \Iterator {
+    yield 'native' => [SymlinkMode::Native];
+    yield 'relative' => [SymlinkMode::Relative];
   }
 
   public function testPatchWithRules(): void {
