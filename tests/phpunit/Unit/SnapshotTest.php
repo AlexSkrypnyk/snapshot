@@ -552,6 +552,25 @@ final class SnapshotTest extends UnitTestCase {
     yield 'directory symlink to a sibling directory' => ['hooks/deploy', 'update', 'hooks/update'];
   }
 
+  public function testSyncFromSymlinkedSourceDirectory(): void {
+    if (!function_exists('symlink')) {
+      $this->markTestSkipped('Symlinks are not supported on this system.');
+    }
+
+    $real = self::$sut . '/release';
+    $src = self::$sut . '/current';
+    $dst = self::$sut . '/dst';
+    File::dump($real . '/dir/file.txt', 'content');
+    $this->createRelativeSymlink($real . '/dir/link.txt', 'file.txt');
+    $this->createRelativeSymlink($src, 'release');
+
+    Snapshot::sync($src, $dst);
+
+    $this->assertSame('content', file_get_contents($dst . '/dir/file.txt'));
+    $this->assertTrue(is_link($dst . '/dir/link.txt'));
+    $this->assertSame(realpath($dst . '/dir/file.txt'), realpath($dst . '/dir/link.txt'));
+  }
+
   #[DataProvider('dataProviderSyncRestoresSymlinkMode')]
   public function testSyncRestoresSymlinkMode(string $mode): void {
     $src = self::$sut . DIRECTORY_SEPARATOR . 'src';

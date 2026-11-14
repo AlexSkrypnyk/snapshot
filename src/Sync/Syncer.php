@@ -91,6 +91,10 @@ class Syncer implements SyncerInterface {
       }
     }
 
+    // File::copy() copies a symlink as a link, so a source directory that is
+    // a symlink is resolved to copy its contents.
+    $src = is_link($src) ? (realpath($src) ?: $src) : $src;
+
     $mode = File::getSymlinkMode();
     File::setSymlinkMode(File::SYMLINK_MODE_RELATIVE);
 
