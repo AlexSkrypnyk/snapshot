@@ -29,7 +29,7 @@ final class SymlinkPermutationsTest extends UnitTestCase {
    *
    * @var array<string, array{string, string|null}>
    */
-  protected const LOCATIONS = [
+  protected const array LOCATIONS = [
     'same directory' => ['a/b/link', 'a/b/target'],
     'child directory' => ['a/link', 'a/b/target'],
     'parent directory' => ['a/b/link', 'a/target'],
