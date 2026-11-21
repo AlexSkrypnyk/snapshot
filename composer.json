@@ -27,10 +27,10 @@
         "dealerdirect/phpcodesniffer-composer-installer": "^1.2.1",
         "drevops/phpcs-standard": "^0.7",
         "drupal/coder": "^9.0.1",
-        "ergebnis/composer-normalize": "^2.57.0",
+        "ergebnis/composer-normalize": "^2.58.0",
         "phpbench/phpbench": "^1.7.0",
-        "phpstan/phpstan": "^2.3.6",
-        "phpunit/phpunit": "^12.5.44",
+        "phpstan/phpstan": "^2.3.7",
+        "phpunit/phpunit": "^12.5.45",
         "rector/rector": "^2.8.5",
         "symfony/process": "^7.4.22"
     },
