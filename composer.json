@@ -31,7 +31,7 @@
         "phpbench/phpbench": "^1.7.1",
         "phpstan/phpstan": "^2.3.7",
         "phpunit/phpunit": "^12.5.45",
-        "rector/rector": "^2.8.5",
+        "rector/rector": "^2.9.2",
         "symfony/process": "^7.4.22"
     },
     "minimum-stability": "stable",
